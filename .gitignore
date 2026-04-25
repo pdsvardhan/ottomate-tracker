@@ -1,0 +1,17 @@
+node_modules/
+.next/
+.env
+.env.local
+.env.*.local
+.token
+data/
+*.db
+*.db-journal
+*.tsbuildinfo
+.DS_Store
+.vscode/
+.idea/
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/

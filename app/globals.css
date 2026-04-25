@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Outfit", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-bg-deep: #050507;
+  --color-bg: #0a0a0f;
+  --color-card: #11111c;
+  --color-border: #222233;
+  --color-cyan: #00d4aa;
+  --color-violet: #a855f7;
+}
+
+html, body {
+  background: var(--color-bg);
+  color: #e4e4e7;
+  font-family: var(--font-display);
+}
+
+code, pre, kbd {
+  font-family: var(--font-mono);
+}

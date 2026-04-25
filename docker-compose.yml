@@ -1,0 +1,41 @@
+# Ottomate tracker — runs at port 8110, localhost-bound (Codex P1 #8)
+# Domain ottomate.vault7a.xyz via Cloudflare Tunnel + NPM proxy
+
+services:
+  ottomate:
+    container_name: ottomate
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8110:3000"   # Codex Round 2 — localhost-bound mutations
+    volumes:
+      - ./data:/app/data:rw
+      - /mnt/storage/websites:/repos:ro    # Read-only access to project repos for sync
+      - /mnt/storage/ottomate/assets:/asset-library:ro    # Read-only central asset library
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/ottomate.db
+      - PORT=3000
+      - TRACKER_API_BASE=http://127.0.0.1:8110
+      # Bearer token for mutating API calls — read from /opt/homeserver/ottomate/.token
+      - TRACKER_API_TOKEN_FILE=/run/secrets/tracker_token
+    secrets:
+      - tracker_token
+    networks:
+      - projects-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+secrets:
+  tracker_token:
+    file: ./.token
+
+networks:
+  projects-net:
+    external: true
