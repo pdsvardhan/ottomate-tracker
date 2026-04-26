@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sql } from 'drizzle-orm';
 import { getDb } from '@/lib/db/client';
 
 export const runtime = 'nodejs';
@@ -6,8 +7,7 @@ export const runtime = 'nodejs';
 export async function GET() {
   try {
     const db = await getDb();
-    // Sanity: query schema_version
-    const result = await db.run('SELECT 1 as ok');
+    db.run(sql`SELECT 1`);
     return NextResponse.json({
       status: 'ok',
       version: process.env.npm_package_version || '0.1.0',

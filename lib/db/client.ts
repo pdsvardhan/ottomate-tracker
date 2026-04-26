@@ -8,8 +8,10 @@ import * as schema from './schema';
 
 const DB_PATH = process.env.DATABASE_URL?.replace('file:', '') || './data/ottomate.db';
 
-let _db: ReturnType<typeof drizzle> | null = null;
-let _bootstrap_promise: Promise<typeof _db> | null = null;
+type DrizzleDb = ReturnType<typeof drizzle<typeof schema>>;
+
+let _db: DrizzleDb | null = null;
+let _bootstrap_promise: Promise<DrizzleDb> | null = null;
 
 /**
  * Get DB client. Awaits migration completion before returning.
