@@ -1,10 +1,10 @@
 # Ottomate v2 — Live Status
 
-**Last updated:** 2026-04-26 (Phases 1-9 complete; 10-13 parked for user)
+**Last updated:** 2026-04-26 (Phases 1-9 + Pilot 1 done; deferred polish shipped; Pilot 2 + 3 + 11-13 await user)
 
 ## TL;DR
 
-Phases 1-9 done in a single autonomous push. Tracker is **fully built**: 75+ REST endpoints, full UI shell with project list / per-doc tabs / lock-in gate / cross-cutting pages, FTS5 search, DB→YAML mirror sync, all skill references. Remaining phases (10-13: pilot onboarding, project migration, Codex Round 3, cutover) require user-driven sessions and are intentionally parked.
+Phases 1-9 + all deferred polish (UI Master Plan, Mermaid embed, react-flow graph, cmdk palette, chokidar watcher) shipped. **Pilot 1 (ottomate-tracker-v3 itself, meta) is fully onboarded** — 20 features, 20 flows, 18 pages, 5 open risks, 7 ADRs, 1 integrated iteration recording the Phase 1-9 build, 7 YAML mirrors generated via pack-up. Pilots 2 (BOTB) + 3 (tasks) await user-driven onboarding sessions. Phase 11+ migrations and Phase 13 cutover similarly await user.
 
 ## Where everything lives
 
@@ -27,23 +27,39 @@ Phases 1-9 done in a single autonomous push. Tracker is **fully built**: 75+ RES
 | 2 | REST API endpoints | ✅ DONE | ~75 routes (Docs 1-8 + Stage 4 + cross-cut + webhooks + M:N + FTS5) |
 | 3 | Skill Stage 2/3 references | ✅ DONE | 7 new MD docs (16 total) |
 | 4 | Tracker UI — Doc 1-7 tabs | ✅ DONE | Project list + 8-tab detail + per-doc list views |
-| 5 | Tracker UI — Stage 2/3 views | 🟡 PARTIAL | Empty-state placeholders. UI Master Plan, Mermaid viewer, build-plan UI deferred. |
+| 5 | Tracker UI — Stage 2/3 views | ✅ DONE | UI Master Plan view + Mermaid embed + react-flow graph |
 | 6 | Stage 4 lock-in gate UI | ✅ DONE | LockInPanel + TraceReport + BuildProgress |
 | 7 | Skill Stage 4 implementation | ✅ DONE | stage-4-mini-pipeline.md updated with concrete API calls |
-| 8 | Cross-cutting features | 🟡 PARTIAL | Inbox, Coverage, Risks, Components, Search done. cmdk palette + graph viz deferred. |
-| 9 | File watcher + sync | ✅ DONE | DB→YAML mirrors via /api/pack-up + /yaml-mirror |
-| 10 | Pilot onboarding (3 projects) | 🟣 PARKED | Needs user-driven Stage 1 walkthroughs |
+| 8 | Cross-cutting features | ✅ DONE | Inbox + Coverage + Risks + Components + Search + cmdk Cmd+K palette |
+| 9 | File watcher + sync | ✅ DONE | chokidar watcher (boots via instrumentation.ts) + drift detection + DriftBanner; DB→YAML mirrors |
+| 10 | Pilot 1 ottomate-tracker-v3 | ✅ DONE | Full backfill + integrated iteration + pack-up. Pilots 2 (BOTB) + 3 (tasks) await user. |
 | 11 | Migration of remaining 6 | 🟣 PARKED | Per-project Stage 1 work |
 | 12 | Codex Round 3 | 🟣 PARKED | Needs external Codex run |
 | 13 | Cutover (DNS + plugin swap) | 🟣 PARKED | Touches public infra |
 | 14 | Stage 5 design | 🔵 LATER | Trigger only when single-user constraint ends |
 
-## Working URLs (SSH-tunnel `8110:127.0.0.1:8110` then visit `localhost:8110`)
+## Access — SSH tunnel
 
-- `/` — project list
-- `/projects/<slug>` — project detail with 8 tabs
-- `/iterations/<id>` — anti-gaslighting lock-in gate
+The tracker is bound to `127.0.0.1:8110` on VAULT7A and Gitea is `127.0.0.1:3300`. The public `git.vault7a.xyz` route was removed; both services need a tunnel:
+
+```
+ssh -L 8110:127.0.0.1:8110 -L 3300:127.0.0.1:3300 pdsv@192.168.1.10
+```
+
+Then in your browser:
+- **Tracker UI:** http://localhost:8110
+- **Gitea repo:** http://localhost:3300/pdsv/ottomate-tracker-v3
+
+## Working URLs (after tunnel)
+
+- `/` — project list (start with `ottomate` for a populated example)
+- `/projects/ottomate` — fully populated meta project (Pilot 1 dogfood)
+- `/projects/ottomate/master-plan` — UI palette + fonts swatches
+- `/projects/ottomate/architecture` — Mermaid diagrams (empty until skill writes .mmd to /repos/ottomate/architecture/)
+- `/projects/ottomate/graph` — react-flow Feature ↔ Flow ↔ Page ↔ Component
+- `/iterations/3` — integrated trace report for the Phase 1-9 build
 - `/inbox` · `/coverage` · `/risks` · `/components-browser` · `/search` — cross-cutting
+- **⌘K** anywhere — command palette: jump to projects, navigate, full-text search
 
 ## API surface (selected)
 
@@ -91,14 +107,23 @@ f8b40be Phase 1: DB migrations + seeds + Docker smoke test passing
 8. Inner dynamic segments named `[itemId]/[stepId]/[variantId]` (Next.js rejects duplicate `[id]`)
 9. `getRawSqlite()` helper exposed for FTS5 queries that fall outside drizzle's typed schema
 
-## What Phase 5 + 8 leftover items would add
+## Pilot 1 contents (the populated `ottomate` project)
 
-These are polish, not function. The build is operationally complete without them:
+| Doc | Count |
+|---|---|
+| Doc 1 — non-goals | 6 |
+| Doc 1 — success criteria | 6 |
+| Doc 2 — flows | 20 (13 UI + 7 backend) |
+| Doc 3 — features | 20 (15 phases + 5 cross-cutting) |
+| Doc 4 — pages | 18 (every UI surface) |
+| Doc 5 — data sources | 3 (tracker DB, YAML mirrors, mermaid sources) |
+| Doc 7 — open risks | 5 (no-tests, no-error-tracking, no-rate-limit, outdated-deps, no-backup) |
+| Doc 7 — secrets (names only) | 2 (TRACKER_API_TOKEN, ANTHROPIC_API_KEY) |
+| Doc 8 — decisions | 7 ADRs (one per Codex round + tasks-dashboard separation + bookworm/alpine) |
+| Iterations | 1 integrated (9 items APPROVED, trace report stored) |
+| Pack-up | 7 YAML mirrors generated (29KB), DB snapshot created |
 
-- **Phase 5**: UI Master Plan dedicated view, Mermaid architecture diagram embed, build-plan checkbox tracker, per-feature verifier drilldown.
-- **Phase 8**: cmdk command palette (Cmd+K from anywhere), interactive Feature ↔ Flow ↔ Page graph (react-flow / d3), risk heatmap interactive filtering.
-
-Pick these up when a pilot project surfaces concrete need.
+Visit `/projects/ottomate` after the SSH tunnel for the full picture.
 
 ## What pack-up returns now
 
