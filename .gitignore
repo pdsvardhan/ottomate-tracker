@@ -4,7 +4,7 @@ node_modules/
 .env.local
 .env.*.local
 .token
-data/
+/data/
 *.db
 *.db-journal
 *.tsbuildinfo
