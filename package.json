@@ -14,6 +14,7 @@
     "db:studio": "drizzle-kit studio",
     "seed:risks": "tsx scripts/seed-risks-catalog.ts",
     "seed:components": "tsx scripts/seed-master-components.ts",
+    "mirror:write": "tsx scripts/write-yaml-mirror.ts",
     "test": "vitest --run",
     "test:e2e": "playwright test"
   },
