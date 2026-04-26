@@ -11,7 +11,7 @@ data/
 .DS_Store
 .vscode/
 .idea/
-coverage/
+/coverage/
 test-results/
 playwright-report/
 playwright/.cache/
