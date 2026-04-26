@@ -10,6 +10,9 @@
   --color-border: #222233;
   --color-cyan: #00d4aa;
   --color-violet: #a855f7;
+  --color-amber: #f59e0b;
+  --color-rose: #f43f5e;
+  --color-emerald: #10b981;
 }
 
 html, body {
@@ -20,4 +23,23 @@ html, body {
 
 code, pre, kbd {
   font-family: var(--font-mono);
+}
+
+/* Subtle scrollbar in dark mode */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* Search snippet highlight */
+mark {
+  background: rgba(0, 212, 170, 0.18);
+  color: var(--color-cyan);
+  padding: 0 2px;
+  border-radius: 2px;
 }
