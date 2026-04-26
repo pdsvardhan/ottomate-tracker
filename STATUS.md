@@ -1,18 +1,18 @@
 # Ottomate v2 — Live Status
 
-**Last updated:** 2026-04-26 (foundations done)
+**Last updated:** 2026-04-26 (Phase 1 complete — tracker live)
 
 ## TL;DR
 
-Foundations laid. Plugin scaffolded locally, tracker deployed to server, Gitea repo pushed, all planning docs written. Next phases queued in `TODO.md`.
+Phase 1 done — tracker is live at `http://127.0.0.1:8110` on VAULT7A. DB migrated (43 tables), seeded (50 risks + 15 master components), Docker container healthy. Next: Phase 2 — REST API endpoints (~40 routes). See `PENDING.md`.
 
 ## Where everything lives
 
 | Layer | Location | Status |
 |---|---|---|
 | Skill plugin | `~/.claude/plugins/ottomate-v2/` | ✅ Scaffolded |
-| Tracker code | `/opt/homeserver/ottomate/` (server) | ✅ Scaffolded |
-| Gitea repo | `git.vault7a.xyz/pdsv/ottomate-tracker-v3` | ✅ Initial commit |
+| Tracker code | `/opt/homeserver/ottomate/` (server) | ✅ Live on :8110 |
+| Gitea repo | `git.vault7a.xyz/pdsv/ottomate-tracker-v3` | ✅ 5 commits |
 | Codex review folder | `~/Desktop/skill cleanup/CODEX REVIEW FILES - SKILL ISSUE/` | ✅ Comprehensive |
 | Memory | `~/.claude/projects/.../memory/ottomate-redesign-state.md` + `ottomate-implementation-plan.md` | ✅ Up to date |
 | Old skill (backup) | `~/.claude/plugins/ottomate/` | ✅ Untouched |
@@ -23,9 +23,9 @@ Foundations laid. Plugin scaffolded locally, tracker deployed to server, Gitea r
 
 | Phase | What | Status | Sessions |
 |---|---|---|---|
-| 0 | Foundations (scaffold, git, planning docs) | ✅ DONE | This session |
-| 1 | DB migrations + seeds | ⏳ NEXT | 1-2 |
-| 2 | REST API endpoints (~40) | ⏳ | 3-4 |
+| 0 | Foundations (scaffold, git, planning docs) | ✅ DONE | Prev |
+| 1 | DB migrations + seeds + Docker smoke test | ✅ DONE | This |
+| 2 | REST API endpoints (~40) | ⏳ NEXT | 3-4 |
 | 3 | Skill Stage 2/3 references | ⏳ | 1-2 |
 | 4 | Tracker UI Stage 1 docs | ⏳ | 3-4 |
 | 5 | Tracker UI Stage 2/3 | ⏳ | 3-4 |
@@ -43,9 +43,9 @@ Foundations laid. Plugin scaffolded locally, tracker deployed to server, Gitea r
 
 ## What's deployed right now
 
-The new tracker at `/opt/homeserver/ottomate/` — NOT YET RUNNING. Need Phase 1 (npm install + migrate) before it can boot.
+The new tracker at `/opt/homeserver/ottomate/` is **running** — `127.0.0.1:8110`, container `ottomate`, image `ottomate-ottomate:latest` (node:22-bookworm-slim). `curl http://127.0.0.1:8110/api/health` returns `{status:ok, db:connected}`.
 
-The old tracker at `/opt/homeserver/tracker-v2/` is still the live one at `tracker.vault7a.xyz`.
+The old tracker at `/opt/homeserver/tracker-v2/` is still the live one at `tracker.vault7a.xyz` (port 8100). DNS for `ottomate.vault7a.xyz` not yet configured — defer to Phase 13 cutover.
 
 ## Pilot scope (Phase 10)
 
@@ -58,24 +58,39 @@ See `PILOT_ONBOARDING.md` for details.
 
 ## Outstanding decisions
 
-- Bearer token: generate at `/opt/homeserver/ottomate/.token` before Phase 1 starts (`openssl rand -hex 32`)
+- Bearer token: ✅ generated at `/opt/homeserver/ottomate/.token` (chmod 600, mounted as Docker secret)
 - Cloudflare DNS for `ottomate.vault7a.xyz`: defer until Phase 13 cutover
-- ANTHROPIC_API_KEY for verifier sub-agent dispatch: needs to be set in tracker container env
+- ANTHROPIC_API_KEY: plumbed through `.env` → compose env (currently empty); user must populate before Phase 7 verifier dispatch
 
 ## Recent commits
 
 ```
 $ ssh pdsv@192.168.1.10 'cd /opt/homeserver/ottomate && git log --oneline -5'
+f8b40be Phase 1: DB migrations + seeds + Docker smoke test passing
+f1317a5 Add comprehensive handoff docs: REQUIREMENTS + SKILL_OVERVIEW + TRACKER_OVERVIEW + DECISIONS + DONE + PENDING + HANDOFF
+f6b2fac Add STATUS.md live dashboard
 7ed8e4a Add planning docs: TODO + PILOT_ONBOARDING + CUTOVER
 b368996 Initial scaffold: Ottomate tracker
 ```
 
+## What Phase 1 changed (notable beyond the plan)
+
+The original Dockerfile + scaffold had latent issues that surfaced on first build:
+
+1. `lib/db/client.ts` — `_bootstrap_promise` typed `Promise<typeof _db>` resolved to `Promise<DrizzleDb | null>`; health route hit "db possibly null" tsc error. Re-typed to non-nullable.
+2. `app/api/health/route.ts` — used plain string `db.run('SELECT 1 as ok')`; drizzle's `.run()` expects SQL chunk. Switched to `sql\`SELECT 1\`` template tag.
+3. Dockerfile on `node:22-alpine` — better-sqlite3 prebuilt binaries hit `fcntl64 symbol not found` (musl/glibc mismatch). Switched to `node:22-bookworm-slim`. Tasks-dashboard uses the same pattern.
+4. Missing `.dockerignore` — host-built `node_modules` (Node 20.19) was overwriting the builder stage's Node 22 binaries (`NODE_MODULE_VERSION 115 vs 127`). Added `.dockerignore` excluding `node_modules`, `.next`, secrets, planning docs.
+5. Container ran as `nextjs` (uid 1001) but host data/ owned by `pdsv` (uid 1000) → readonly DB. Pinned `user: "1000:1000"` in docker-compose.
+6. Missing `public/` dir broke `COPY --from=builder /app/public ./public`. Added empty `public/.gitkeep`.
+
+All committed in f8b40be.
+
 ## To resume work next session
 
-1. Read this STATUS.md + TODO.md
-2. Start with Phase 1: install + migrate + seed
-3. Verify health endpoint responds
-4. Move to Phase 2 (API endpoints)
+1. Read STATUS.md + PENDING.md
+2. Start with Phase 2: REST API endpoints (auth middleware first, then per-doc CRUD)
+3. Health check the tracker is still up: `ssh pdsv@192.168.1.10 'curl -sf http://127.0.0.1:8110/api/health'`
 
 ## Quick commands
 
