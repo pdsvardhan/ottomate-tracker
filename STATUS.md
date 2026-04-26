@@ -1,22 +1,45 @@
-# Ottomate v2 — Live Status
+# Ottomate — Live Status
 
-**Last updated:** 2026-04-26 (Phases 1-9 + Pilot 1 done; deferred polish shipped; Pilot 2 + 3 + 11-13 await user)
+**Last updated:** 2026-04-26 (cutover done locally — v2 is now the only ottomate)
 
 ## TL;DR
 
-Phases 1-9 + all deferred polish (UI Master Plan, Mermaid embed, react-flow graph, cmdk palette, chokidar watcher) shipped. **Pilot 1 (ottomate-tracker-v3 itself, meta) is fully onboarded** — 20 features, 20 flows, 18 pages, 5 open risks, 7 ADRs, 1 integrated iteration recording the Phase 1-9 build, 7 YAML mirrors generated via pack-up. Pilots 2 (BOTB) + 3 (tasks) await user-driven onboarding sessions. Phase 11+ migrations and Phase 13 cutover similarly await user.
+Cutover done. The new skill is at `~/.claude/plugins/ottomate/`, registered as `/ottomate`. Old skill (`ottomate-old`) and old tracker (port 8100, `/opt/homeserver/tracker-v2/`) are **deleted**. All 13 existing web projects are now in the tracker as Lite-mode entries (full Stage 1 backfill happens per-project via the skill on demand). The tracker is the only source of truth.
+
+**Ready for Codex review.** External infrastructure still pending (DNS for `ottomate.vault7a.xyz`, Phase 12 Codex Round 3, Phase 13 public cutover).
 
 ## Where everything lives
 
 | Layer | Location | Status |
 |---|---|---|
-| Skill plugin | `~/.claude/plugins/ottomate-v2/` | ✅ All references written (16 docs) |
+| Skill plugin | `~/.claude/plugins/ottomate/` | ✅ Active as `/ottomate` after restart |
 | Tracker code | `/opt/homeserver/ottomate/` (server) | ✅ Live on :8110 |
-| Gitea repo | `git.vault7a.xyz/pdsv/ottomate-tracker-v3` | ✅ 13 commits |
+| Gitea repo | http://localhost:3300/pdsv/ottomate-tracker-v3 (via SSH tunnel) | ✅ 18+ commits |
 | Memory | `~/.claude/projects/.../memory/ottomate-*.md` | ✅ Up to date |
-| Old skill (backup) | `~/.claude/plugins/ottomate/` | ✅ Untouched |
-| Old tracker (v2, still live) | `/opt/homeserver/tracker-v2/` | ✅ Running on port 8100 |
+| ~~Old skill~~ | ~~`~/.claude/plugins/ottomate-old/`~~ | 🗑️ Deleted 2026-04-26 |
+| ~~Old tracker (v2)~~ | ~~`/opt/homeserver/tracker-v2/`~~ | 🗑️ Container + image + dir removed |
 | Tasks-dashboard (separate) | `/mnt/storage/websites/tasks/` | ✅ Untouched (port 8507) |
+
+## All 14 projects in the tracker
+
+| Slug | Status | Lifecycle | Port | Notes |
+|---|---|---|---|---|
+| ottomate | building | building | 8110 | Meta — fully populated SO1 (Pilot 1 dogfood) |
+| balls-of-the-bull | building | building | 8501 | v0.2.0 built; Capacitor Android wrap |
+| cap-a | building | building | 8502 | tippecanoe blocker; MapLibre + Vite |
+| cricket-stats | building | building | 8101 | Best v1 data; Full-mode candidate |
+| desi-skies | building | ideating | — | Discovery; Next 16 + Python pipeline |
+| health | building | building | 8506 | DB-empty 1st-iteration candidate |
+| home | building | building | 8500 | Live home portal |
+| ingest | building | building | 8600 | Python FastAPI; RCS blocker carries over |
+| media-dashboard | building | building | 8504 | Best test coverage; Review stage |
+| paata | building | ideating | 3090 | Discovery; music library manager |
+| tasks | shipped | building | 8507 | tracked, NOT merged with tracker (R11) |
+| portfolio | archived | deprecated | — | Empty placeholder |
+| sms-receiver | archived | deprecated | — | Superseded by ingest |
+| vacayornay-data | archived | deprecated | — | Empty placeholder |
+
+The 10 active projects carried over from v1 tracker. Each has a placeholder success-criterion + non-goal noting "Stage 1 SO1 backfill pending — refine via /ottomate session".
 
 ## Phase progress
 
