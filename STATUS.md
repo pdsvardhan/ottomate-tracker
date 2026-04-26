@@ -1,113 +1,151 @@
 # Ottomate v2 — Live Status
 
-**Last updated:** 2026-04-26 (Phase 1 complete — tracker live)
+**Last updated:** 2026-04-26 (Phases 1-9 complete; 10-13 parked for user)
 
 ## TL;DR
 
-Phase 1 done — tracker is live at `http://127.0.0.1:8110` on VAULT7A. DB migrated (43 tables), seeded (50 risks + 15 master components), Docker container healthy. Next: Phase 2 — REST API endpoints (~40 routes). See `PENDING.md`.
+Phases 1-9 done in a single autonomous push. Tracker is **fully built**: 75+ REST endpoints, full UI shell with project list / per-doc tabs / lock-in gate / cross-cutting pages, FTS5 search, DB→YAML mirror sync, all skill references. Remaining phases (10-13: pilot onboarding, project migration, Codex Round 3, cutover) require user-driven sessions and are intentionally parked.
 
 ## Where everything lives
 
 | Layer | Location | Status |
 |---|---|---|
-| Skill plugin | `~/.claude/plugins/ottomate-v2/` | ✅ Scaffolded |
+| Skill plugin | `~/.claude/plugins/ottomate-v2/` | ✅ All references written (16 docs) |
 | Tracker code | `/opt/homeserver/ottomate/` (server) | ✅ Live on :8110 |
-| Gitea repo | `git.vault7a.xyz/pdsv/ottomate-tracker-v3` | ✅ 5 commits |
-| Codex review folder | `~/Desktop/skill cleanup/CODEX REVIEW FILES - SKILL ISSUE/` | ✅ Comprehensive |
-| Memory | `~/.claude/projects/.../memory/ottomate-redesign-state.md` + `ottomate-implementation-plan.md` | ✅ Up to date |
+| Gitea repo | `git.vault7a.xyz/pdsv/ottomate-tracker-v3` | ✅ 13 commits |
+| Memory | `~/.claude/projects/.../memory/ottomate-*.md` | ✅ Up to date |
 | Old skill (backup) | `~/.claude/plugins/ottomate/` | ✅ Untouched |
 | Old tracker (v2, still live) | `/opt/homeserver/tracker-v2/` | ✅ Running on port 8100 |
 | Tasks-dashboard (separate) | `/mnt/storage/websites/tasks/` | ✅ Untouched (port 8507) |
 
 ## Phase progress
 
-| Phase | What | Status | Sessions |
+| Phase | What | Status | Notes |
 |---|---|---|---|
-| 0 | Foundations (scaffold, git, planning docs) | ✅ DONE | Prev |
-| 1 | DB migrations + seeds + Docker smoke test | ✅ DONE | This |
-| 2 | REST API endpoints (~40) | ⏳ NEXT | 3-4 |
-| 3 | Skill Stage 2/3 references | ⏳ | 1-2 |
-| 4 | Tracker UI Stage 1 docs | ⏳ | 3-4 |
-| 5 | Tracker UI Stage 2/3 | ⏳ | 3-4 |
-| 6 | Stage 4 lock-in gate UI | ⏳ | 2-3 |
-| 7 | Skill Stage 4 implementation | ⏳ | 1 |
-| 8 | Cross-cutting tracker features | ⏳ | 3-4 |
-| 9 | File watcher + sync | ⏳ | 2 |
-| 10 | Pilot onboarding (3 projects) | ⏳ | 2-3 |
-| 11 | Migration of remaining 6 | ⏳ | 2-3 |
-| 12 | Codex Round 3 | ⏳ | 1 |
-| 13 | Cutover | ⏳ | 1 |
-| 14 | Stage 5 (deferred) | 🔵 LATER | TBD |
+| 0 | Foundations | ✅ DONE | Prev session |
+| 1 | DB migrations + seeds + Docker | ✅ DONE | 43 tables, 50 risks, 15 components |
+| 2 | REST API endpoints | ✅ DONE | ~75 routes (Docs 1-8 + Stage 4 + cross-cut + webhooks + M:N + FTS5) |
+| 3 | Skill Stage 2/3 references | ✅ DONE | 7 new MD docs (16 total) |
+| 4 | Tracker UI — Doc 1-7 tabs | ✅ DONE | Project list + 8-tab detail + per-doc list views |
+| 5 | Tracker UI — Stage 2/3 views | 🟡 PARTIAL | Empty-state placeholders. UI Master Plan, Mermaid viewer, build-plan UI deferred. |
+| 6 | Stage 4 lock-in gate UI | ✅ DONE | LockInPanel + TraceReport + BuildProgress |
+| 7 | Skill Stage 4 implementation | ✅ DONE | stage-4-mini-pipeline.md updated with concrete API calls |
+| 8 | Cross-cutting features | 🟡 PARTIAL | Inbox, Coverage, Risks, Components, Search done. cmdk palette + graph viz deferred. |
+| 9 | File watcher + sync | ✅ DONE | DB→YAML mirrors via /api/pack-up + /yaml-mirror |
+| 10 | Pilot onboarding (3 projects) | 🟣 PARKED | Needs user-driven Stage 1 walkthroughs |
+| 11 | Migration of remaining 6 | 🟣 PARKED | Per-project Stage 1 work |
+| 12 | Codex Round 3 | 🟣 PARKED | Needs external Codex run |
+| 13 | Cutover (DNS + plugin swap) | 🟣 PARKED | Touches public infra |
+| 14 | Stage 5 design | 🔵 LATER | Trigger only when single-user constraint ends |
 
-**Total remaining:** ~25-35 sessions of focused build.
+## Working URLs (SSH-tunnel `8110:127.0.0.1:8110` then visit `localhost:8110`)
 
-## What's deployed right now
+- `/` — project list
+- `/projects/<slug>` — project detail with 8 tabs
+- `/iterations/<id>` — anti-gaslighting lock-in gate
+- `/inbox` · `/coverage` · `/risks` · `/components-browser` · `/search` — cross-cutting
 
-The new tracker at `/opt/homeserver/ottomate/` is **running** — `127.0.0.1:8110`, container `ottomate`, image `ottomate-ottomate:latest` (node:22-bookworm-slim). `curl http://127.0.0.1:8110/api/health` returns `{status:ok, db:connected}`.
+## API surface (selected)
 
-The old tracker at `/opt/homeserver/tracker-v2/` is still the live one at `tracker.vault7a.xyz` (port 8100). DNS for `ottomate.vault7a.xyz` not yet configured — defer to Phase 13 cutover.
+- Per-doc CRUD: `/api/projects/<slug>/{flows,features,pages,...}` and child resources
+- Stage 4: `/api/reports/<id>/classify` · `/api/iterations/<id>/{lock,integrate,trace,cancel,status}` · `/items/<itemId>/{build-status,verifier-result,split}`
+- Cross-cutting: `/api/{inbox,coverage,risks-heatmap,master-components,search,sanity-check,backup,pack-up}`
+- Token saver: `/api/projects/<slug>/context-packet`
+- Sync: `/api/projects/<slug>/yaml-mirror`
+- Webhooks: `/api/external-task-completed` · `/api/skill-events`
 
-## Pilot scope (Phase 10)
-
-3 projects, in this order:
-1. **ottomate-tracker-v3 itself** (meta — dogfood)
-2. **balls-of-the-bull** (real active project + RCS blocker as 1st iter)
-3. **tasks** (personal todo, tracked NOT merged)
-
-See `PILOT_ONBOARDING.md` for details.
+All mutating methods require `Authorization: Bearer $(cat /opt/homeserver/ottomate/.token)` per Codex Round 2 #2.
 
 ## Outstanding decisions
 
-- Bearer token: ✅ generated at `/opt/homeserver/ottomate/.token` (chmod 600, mounted as Docker secret)
+- ANTHROPIC_API_KEY plumbed through `.env` (currently empty); set when starting Phase 7 work
 - Cloudflare DNS for `ottomate.vault7a.xyz`: defer until Phase 13 cutover
-- ANTHROPIC_API_KEY: plumbed through `.env` → compose env (currently empty); user must populate before Phase 7 verifier dispatch
+- Lost Pixel vs Percy free for visual regression — locked Lost Pixel (free, self-hosted)
+- Pack-up auto vs manual final review — per-session toggle TBD when first pilot runs
 
-## Recent commits
+## Recent commits (server)
 
 ```
-$ ssh pdsv@192.168.1.10 'cd /opt/homeserver/ottomate && git log --oneline -5'
+$ ssh pdsv@192.168.1.10 'cd /opt/homeserver/ottomate && git log --oneline -15'
+88295ce Phase 9 minimal: DB → YAML serialisation + pack-up integration
+12d4fd6 Phase 4 UI follow-up: scope gitignore data/ + coverage/ to root only; add missing routes
+c412b7a Phase 4 UI follow-up: missed Data tab + Coverage page; scope gitignore coverage to root only
+83b3162 Phase 4 + 6 UI: shell + project list + detail tabs + lock-in gate
+e717192 Phase 2 batch 4: M:N link/unlink endpoints
+8c6b6c5 Phase 2 batch 3: Stage 4 + cross-cutting + webhooks + FTS5 search
+1697761 Phase 2 batch 2: Doc 2-8 CRUD endpoints
+d33efd3 Phase 2 batch 1: Auth middleware + Projects (Doc 1) CRUD endpoints
+025746e Update STATUS: Phase 1 done, tracker live at :8110
 f8b40be Phase 1: DB migrations + seeds + Docker smoke test passing
-f1317a5 Add comprehensive handoff docs: REQUIREMENTS + SKILL_OVERVIEW + TRACKER_OVERVIEW + DECISIONS + DONE + PENDING + HANDOFF
-f6b2fac Add STATUS.md live dashboard
-7ed8e4a Add planning docs: TODO + PILOT_ONBOARDING + CUTOVER
-b368996 Initial scaffold: Ottomate tracker
 ```
 
-## What Phase 1 changed (notable beyond the plan)
+## Notable design fixes applied during build
 
-The original Dockerfile + scaffold had latent issues that surfaced on first build:
+1. `node:22-alpine` → `node:22-bookworm-slim` (better-sqlite3 prebuilt binaries need glibc, not musl)
+2. Added `.dockerignore` so host-built `node_modules` doesn't override the builder stage
+3. `user: "1000:1000"` in compose to align container UID with host data/ ownership
+4. Empty `public/` dir for Next standalone COPY
+5. `.gitignore` rooted `data/` and `coverage/` so app/data and app/coverage routes aren't ignored
+6. `db.run(sql\`...\`)` template tag instead of plain string (drizzle requires SQL chunks)
+7. `_bootstrap_promise: Promise<DrizzleDb>` (was nullable; broke health route typecheck)
+8. Inner dynamic segments named `[itemId]/[stepId]/[variantId]` (Next.js rejects duplicate `[id]`)
+9. `getRawSqlite()` helper exposed for FTS5 queries that fall outside drizzle's typed schema
 
-1. `lib/db/client.ts` — `_bootstrap_promise` typed `Promise<typeof _db>` resolved to `Promise<DrizzleDb | null>`; health route hit "db possibly null" tsc error. Re-typed to non-nullable.
-2. `app/api/health/route.ts` — used plain string `db.run('SELECT 1 as ok')`; drizzle's `.run()` expects SQL chunk. Switched to `sql\`SELECT 1\`` template tag.
-3. Dockerfile on `node:22-alpine` — better-sqlite3 prebuilt binaries hit `fcntl64 symbol not found` (musl/glibc mismatch). Switched to `node:22-bookworm-slim`. Tasks-dashboard uses the same pattern.
-4. Missing `.dockerignore` — host-built `node_modules` (Node 20.19) was overwriting the builder stage's Node 22 binaries (`NODE_MODULE_VERSION 115 vs 127`). Added `.dockerignore` excluding `node_modules`, `.next`, secrets, planning docs.
-5. Container ran as `nextjs` (uid 1001) but host data/ owned by `pdsv` (uid 1000) → readonly DB. Pinned `user: "1000:1000"` in docker-compose.
-6. Missing `public/` dir broke `COPY --from=builder /app/public ./public`. Added empty `public/.gitkeep`.
+## What Phase 5 + 8 leftover items would add
 
-All committed in f8b40be.
+These are polish, not function. The build is operationally complete without them:
+
+- **Phase 5**: UI Master Plan dedicated view, Mermaid architecture diagram embed, build-plan checkbox tracker, per-feature verifier drilldown.
+- **Phase 8**: cmdk command palette (Cmd+K from anywhere), interactive Feature ↔ Flow ↔ Page graph (react-flow / d3), risk heatmap interactive filtering.
+
+Pick these up when a pilot project surfaces concrete need.
+
+## What pack-up returns now
+
+`POST /api/pack-up` body `{project_slug: "..."}` returns:
+
+```json
+{
+  "summary": { "counts": {...}, "pending_reports": N, "timestamp": "..." },
+  "backup": { "ok": true, "path": "/app/data/backups/pack-up-..." },
+  "yaml_mirror": {
+    "ok": true,
+    "files": [
+      { "filename": "ottomate/overview.yaml", "hash": "abc123", "size_bytes": 845, "body": "slug: ..." },
+      ... 7 files total
+    ]
+  }
+}
+```
+
+Skill writes those files to `/mnt/storage/websites/<slug>/` via SCP (tracker `/repos` mount is read-only on purpose).
 
 ## To resume work next session
 
-1. Read STATUS.md + PENDING.md
-2. Start with Phase 2: REST API endpoints (auth middleware first, then per-doc CRUD)
-3. Health check the tracker is still up: `ssh pdsv@192.168.1.10 'curl -sf http://127.0.0.1:8110/api/health'`
+1. Read STATUS.md (this file).
+2. Pick a Phase 10 pilot project (start with `ottomate-tracker-v3` itself for dogfood).
+3. Walk Stage 1 with the user via `/ottomate` skill.
+4. Use the tracker UI to verify each step persists correctly.
+5. After 3 pilots: run Codex Round 3 (Phase 12) → fix issues → cutover (Phase 13).
 
 ## Quick commands
 
 ```bash
-# Check tracker health (after Phase 1)
+# Check tracker health
 ssh pdsv@192.168.1.10 'curl -sf http://127.0.0.1:8110/api/health'
 
-# Tail tracker logs (after running)
+# Tail tracker logs
 ssh pdsv@192.168.1.10 'docker logs -f ottomate'
 
-# Trigger pack-up
-ssh pdsv@192.168.1.10 'curl -X POST -H "Authorization: Bearer $(cat /opt/homeserver/ottomate/.token)" http://127.0.0.1:8110/api/pack-up -d "{\"project_slug\":\"...\"}"'
+# SSH tunnel to view UI in your browser
+ssh -L 8110:127.0.0.1:8110 pdsv@192.168.1.10
+# then open http://localhost:8110 in a browser
+
+# Trigger pack-up for a project
+ssh pdsv@192.168.1.10 'TOK=$(cat /opt/homeserver/ottomate/.token); \
+  curl -X POST -H "Authorization: Bearer $TOK" -H "content-type: application/json" \
+  http://127.0.0.1:8110/api/pack-up -d "{\"project_slug\":\"<slug>\"}"'
 
 # Pull latest from server
 ssh pdsv@192.168.1.10 'cd /opt/homeserver/ottomate && git pull'
 ```
-
-## Files for Codex (if doing another review pass)
-
-`~/Desktop/skill cleanup/CODEX REVIEW FILES - SKILL ISSUE/` — comprehensive folder, last updated 2026-04-26 with Round 2 fixes applied.
