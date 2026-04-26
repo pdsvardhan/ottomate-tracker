@@ -1,9 +1,10 @@
-// Per-project layout: tab navigation across the 7 docs.
+// Per-project layout: tab navigation across the 7 docs + Stage 2/3 views + iterations.
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
+import { DriftBanner } from '@/components/project/DriftBanner';
 
 const TABS = [
   { label: 'Overview', href: '' },
@@ -13,6 +14,9 @@ const TABS = [
   { label: 'Data', href: '/data' },
   { label: 'Risks', href: '/risks' },
   { label: 'Decisions', href: '/decisions' },
+  { label: 'Master Plan', href: '/master-plan' },
+  { label: 'Architecture', href: '/architecture' },
+  { label: 'Graph', href: '/graph' },
   { label: 'Iterations', href: '/iterations' },
 ];
 
@@ -46,13 +50,16 @@ export default async function ProjectLayout({
         </div>
       </header>
 
+      {/* Drift banner — only renders when there's actual drift */}
+      <DriftBanner slug={slug} />
+
       <nav className="border-b border-zinc-800 mb-6 -mx-8 px-8">
         <ul className="flex gap-1 overflow-x-auto">
           {TABS.map((t) => (
             <li key={t.href}>
               <Link
                 href={`/projects/${slug}${t.href}`}
-                className="block px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 border-b-2 border-transparent hover:border-zinc-700 transition-colors"
+                className="block px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 border-b-2 border-transparent hover:border-zinc-700 transition-colors whitespace-nowrap"
               >
                 {t.label}
               </Link>
