@@ -38,8 +38,14 @@ export const risks_catalog = sqliteTable('risks_catalog', {
 export const master_components = sqliteTable('master_components', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
+  // Extended category enum — covers the 15-category taxonomy in
+  // references/component-taxonomy.md. Original 6 retained for back-compat.
   category: text('category', {
-    enum: ['input', 'display', 'navigation', 'feedback', 'layout', 'overlay'],
+    enum: [
+      'input', 'display', 'navigation', 'feedback', 'layout', 'overlay',
+      'selection', 'button-action', 'animation', 'transition',
+      'dataviz', 'media', 'modern-specialty', 'interactive', 'forms-validation',
+    ],
   }),
   description: text('description'),
   source_paths: text('source_paths', { mode: 'json' }).$type<string[]>(),
@@ -47,6 +53,12 @@ export const master_components = sqliteTable('master_components', {
   dark_light_compat: integer('dark_light_compat', { mode: 'boolean' }).default(true),
   responsive: integer('responsive', { mode: 'boolean' }).default(true),
   used_in_projects: text('used_in_projects', { mode: 'json' }).$type<string[]>(),
+  // ── Library-enrichment fields (added 2026-04-26 for Stage 4 component-pick flow) ──
+  source_code: text('source_code'),
+  framework_tags: text('framework_tags', { mode: 'json' }).$type<string[]>(),
+  tags: text('tags', { mode: 'json' }).$type<string[]>(),
+  preview_url: text('preview_url'),
+  dependencies: text('dependencies', { mode: 'json' }).$type<string[]>(),
   created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
   updated_at: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
