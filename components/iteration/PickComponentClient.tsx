@@ -104,7 +104,11 @@ export function PickComponentClient({ iterationId, itemId, itemTitle }: Props) {
 
   return (
     <div className="space-y-4">
-      <TokenBar token={token} setToken={setToken} />
+      {!token && (
+        <div className="rounded-lg border border-amber-900/60 bg-amber-950/30 p-3 text-xs text-amber-300">
+          Auth token not auto-loaded. Reload the page; if it still fails, check that the tracker container has the bearer-token secret mounted.
+        </div>
+      )}
 
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
         <h3 className="text-sm font-semibold text-zinc-300 mb-3">Filter the library ({catalogSize} components)</h3>
@@ -249,28 +253,3 @@ export function PickComponentClient({ iterationId, itemId, itemTitle }: Props) {
   );
 }
 
-function TokenBar({ token, setToken }: { token: string; setToken: (t: string) => void }) {
-  const [draft, setDraft] = useState(token);
-  return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 flex items-center gap-3">
-      <span className="text-[11px] uppercase tracking-wider text-zinc-500 shrink-0">Bearer token</span>
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        type="password"
-        placeholder={token ? '(set)' : 'paste from /opt/homeserver/ottomate/.token'}
-        className="flex-1 bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-xs font-mono"
-      />
-      <button
-        type="button"
-        onClick={() => {
-          window.sessionStorage.setItem('ottomate_token', draft);
-          setToken(draft);
-        }}
-        className="text-xs rounded-md bg-zinc-800 hover:bg-zinc-700 px-3 py-1"
-      >
-        Set
-      </button>
-    </div>
-  );
-}
