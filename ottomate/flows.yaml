@@ -1,0 +1,262 @@
+flows:
+  - id: flow-browse-projects
+    title: Browse all projects
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User opens / (home)
+    expected_outcome: Sees project cards sorted by recent activity, click jumps to detail
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-project-detail
+    title: View project detail tabs
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User clicks a project card
+    expected_outcome: Sees 11 tabs (Overview, Flows, Features, Pages, Data, Risks,
+      Decisions, Master Plan, Architecture, Graph, Iterations); each tab
+      populated from DB
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-lock-in-gate
+    title: Review and lock iteration items
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User opens /iterations/[id] in awaiting-lock state
+    expected_outcome: Sees raw report on left, extracted items as cards on right;
+      can edit/split/reject; Lock & Build button enables once all items pass
+      confidence floor
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features:
+      - feat-anti-gaslighting
+    linked_pages: []
+  - id: flow-build-progress
+    title: Watch iteration build
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User stays on iteration page after locking
+    expected_outcome: BuildProgress view shows per-item status pills updating from
+      locked → building → verified or rejected
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-trace-report
+    title: Read post-integrate trace report
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User opens an integrated iteration
+    expected_outcome: TraceReport view shows side-by-side raw text + verified items
+      + verifier verdicts
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features:
+      - feat-anti-gaslighting
+    linked_pages: []
+  - id: flow-search
+    title: Cross-doc full-text search
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User types in /search or via ⌘K
+    expected_outcome: Hits FTS5 index; sees grouped results by doc type with bm25
+      ranking + highlighted snippets
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features:
+      - feat-fts5
+    linked_pages: []
+  - id: flow-cmdk
+    title: Quick-jump via command palette
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User presses ⌘K (or Ctrl+K) anywhere
+    expected_outcome: Palette opens; type to filter projects/nav/search; ⏎ navigates
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-inbox-triage
+    title: Triage cross-project bug inbox
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User opens /inbox
+    expected_outcome: Sees pending reports across all projects; status filter chips switch view
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-coverage-dashboard
+    title: Check test coverage roll-up
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User opens /coverage
+    expected_outcome: Per-project flow + feature pass-rate bars; colour-coded by threshold
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-risks-heatmap
+    title: Cross-project risk overview
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User opens /risks
+    expected_outcome: Sees catalog of 50 risk types with open instance counts
+      cross-project; resolved hidden by default
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-master-plan-view
+    title: Inspect locked UI Master Plan
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User opens /projects/[slug]/master-plan
+    expected_outcome: Sees palette swatches (dark+light), font samples, animation
+      level, aspect ratios
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-architecture-view
+    title: View Mermaid architecture diagrams
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User opens /projects/[slug]/architecture
+    expected_outcome: Renders all *.mmd files from /repos/[slug]/architecture/ via mermaid.js
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-graph-view
+    title: Explore relationships graph
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: User opens /projects/[slug]/graph
+    expected_outcome: Interactive react-flow canvas with flow/feature/page/component
+      nodes + labelled edges
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-submit-report
+    title: Skill submits raw user report
+    type: backend
+    priority: important
+    test_status: not-tested
+    trigger: Skill captures user feedback at Stage 4.1
+    expected_outcome: POST /api/projects/[slug]/reports stores raw text with status pending
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-classify-report
+    title: Skill classifies report into items
+    type: backend
+    priority: important
+    test_status: not-tested
+    trigger: Skill runs classifier prompt then submits results
+    expected_outcome: POST /api/reports/[id]/classify creates iteration
+      awaiting-lock + iteration_items pending-review
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-lock-iteration
+    title: User locks the items list
+    type: mixed
+    priority: important
+    test_status: not-tested
+    trigger: User clicks Lock & Build in the UI
+    expected_outcome: POST /api/iterations/[id]/lock validates confidence floor and
+      sets status=building + lock_in_audit JSON
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-verifier-result
+    title: Verifier posts 4-pass report
+    type: backend
+    priority: important
+    test_status: not-tested
+    trigger: Verifier sub-agent finishes per item
+    expected_outcome: POST /api/iterations/[id]/items/[itemId]/verifier-result
+      inserts verification_reports row + updates item status
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features:
+      - feat-verifier
+    linked_pages: []
+  - id: flow-integrate
+    title: Skill integrates the iteration
+    type: backend
+    priority: important
+    test_status: not-tested
+    trigger: All items verified or rejected
+    expected_outcome: POST /api/iterations/[id]/integrate stamps integrated_at and
+      persists trace_report
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-pack-up
+    title: Pack-up triggers DB to YAML mirror
+    type: backend
+    priority: important
+    test_status: not-tested
+    trigger: User says pack up at session end
+    expected_outcome: POST /api/pack-up backs up DB + serialises 7 SO1 docs to YAML
+      strings; skill SCPs to project repo
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features:
+      - feat-pack-up
+    linked_pages: []
+  - id: flow-drift-watch
+    title: Watcher detects manual YAML edits
+    type: automated
+    priority: important
+    test_status: not-tested
+    trigger: Chokidar fires on /repos/[slug]/ottomate/*.yaml change
+    expected_outcome: Recomputes hash, compares to last_yaml_hash; if different,
+      stamps drift_detected_at
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []

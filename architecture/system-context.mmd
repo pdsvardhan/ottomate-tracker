@@ -1,0 +1,11 @@
+graph TD
+    User[User / Pilot] -->|HTTPS via Cloudflare Tunnel| NPM[NPM Proxy Manager<br/>wildcard cert]
+    NPM -->|reverse proxy| Tracker[Next.js 16 App Router<br/>port 8110]
+    Tracker -->|drizzle-orm 0.36| DB[(SQLite<br/>/app/data/ottomate.db)]
+    Tracker -->|FTS5 triggers| FTS[(ottomate_fts<br/>cross-doc search)]
+    Skill[/ottomate skill<br/>Claude Code/] -->|bearer-auth GET/POST/PATCH/DELETE| Tracker
+    Skill -->|SSH pdsv@192.168.1.10| Server[VAULT7A host]
+    Skill -->|git push| Gitea[Gitea<br/>git.vault7a.xyz]
+    Server -->|filesystem| YAMLMirrors[/repos/<slug>/ottomate/*.yaml/]
+    Skill -->|read/write| YAMLMirrors
+    Tracker -.->|future| Infisical[Infisical<br/>planned secrets vault]

@@ -1,0 +1,66 @@
+slug: ottomate
+display_name: Ottomate
+summary:
+  tagline: Web project tracker companion to /ottomate skill
+  core_idea: "A tracker website + skill pair that orchestrates web-project work
+    across 4 stages (idea → design → build → iterate) on a home server.
+    Anti-gaslighting bedrock: every iteration goes through a lock-in gate where
+    the user confirms what got extracted from their request before code is
+    written."
+current_status: building
+lifecycle_phase: building
+scope_size: large
+target_devices: desktop
+hosting_target: vault7a-docker
+port: 8110
+public_url: https://ottomate.vault7a.xyz
+repository_url: http://git.vault7a.xyz/pdsv/ottomate-tracker-v3
+problem_statement: "The original /project skill suffered from scope gaslighting:
+  AI claimed features were built when they were stubs, silently deferred work
+  without telling the user, and lost context across sessions. Ottomate replaces
+  it with explicit lock-in gates, an independent verifier sub-agent, and a
+  tracker website that stores all state so a fresh Claude session can pick up
+  exactly where the last one left off."
+non_goals:
+  - Multi-user auth (single-user only on VAULT7A)
+  - Real-time websockets (polling is fine for v3)
+  - Mobile native apps (web-only; mobile browsers ok)
+  - Offline mode (always-on home server assumption)
+  - SaaS subscriptions (everything self-hosted)
+  - Merging with tasks-dashboard (must stay separate per user emphatic
+    instruction)
+success_criteria:
+  - "Anti-gaslighting bedrock works: every Stage 4 iteration shows trace report
+    mapping raw text → locked items → built code → verifier verdict"
+  - "Tracker UI complete: project list, 11-tab project detail, lock-in gate,
+    cross-cutting pages (inbox, coverage, risks, components, search)"
+  - Verifier sub-agent runs independent of coder, hard-fails on stub detection
+  - Bearer auth enforced on every mutation; localhost-bound 127.0.0.1:8110 +
+    Cloudflare Tunnel for public
+  - DB → YAML mirror sync at pack-up so project repos have human-readable
+    narrative + git history
+  - Migration of all 13 existing web projects so tracker becomes single source
+    of truth
+preferences:
+  likes:
+    - dark mode
+    - free / self-hosted tooling
+    - explicit confirmations
+    - trace reports
+  dislikes:
+    - SaaS subscriptions
+    - silent fallbacks
+    - polite hedging
+  must_haves:
+    - bearer auth on mutations
+    - schema-validated docs
+    - verifier sub-agent independent of coder
+  avoid:
+    - Snyk
+    - Percy SaaS
+    - merging tasks-dashboard into tracker
+tags:
+  - meta
+  - tracker
+  - skill
+  - anti-gaslighting

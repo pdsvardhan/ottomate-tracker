@@ -1,0 +1,14 @@
+graph TD
+    Request[Incoming Request] --> Method{HTTP method?}
+    Method -->|GET| Allow[200 OK<br/>read-only, no auth]
+    Method -->|POST / PATCH / DELETE| Header{Authorization header?}
+    Header -->|missing or malformed| Unauth[401 unauthorized]
+    Header -->|Bearer present| Validate{token matches<br/>TRACKER_API_TOKEN?}
+    Validate -->|no| Forbid[403 forbidden]
+    Validate -->|yes| Route[execute mutation]
+    Route --> Audit[skill_events row]
+    subgraph TokenSource[Token storage]
+        TokenFile[/opt/homeserver/ottomate/.token<br/>chmod 600]
+        EnvVar[$TRACKER_API_TOKEN in .env]
+    end
+    TokenSource -.->|loaded at boot| Validate

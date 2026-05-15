@@ -1,0 +1,39 @@
+conceptual:
+  project_slug: ottomate
+  has_data_layer: true
+  retention_policy_type: forever
+  retention_reason: Tracker keeps full project history for audit + Stage 4 trace reports
+  freshness_threshold_hours: 1
+  freshness_notification_target: log
+sources:
+  - id: 1
+    project_slug: ottomate
+    name: Tracker SQLite (canonical)
+    source_type: user-input
+    url_or_path: /app/data/ottomate.db
+    ingestion_method: webhook-receive
+    refresh_strategy: upsert
+    deduplication_strategy: primary-key
+    backfill_supported: false
+  - id: 2
+    project_slug: ottomate
+    name: YAML mirrors in project repos
+    source_type: user-input
+    url_or_path: /repos/<slug>/ottomate/*.yaml
+    ingestion_method: manual
+    refresh_strategy: full-refresh
+    deduplication_strategy: hash-based
+    backfill_supported: false
+  - id: 3
+    project_slug: ottomate
+    name: Mermaid architecture sources
+    source_type: user-input
+    url_or_path: /repos/<slug>/architecture/*.mmd
+    ingestion_method: manual
+    refresh_strategy: full-refresh
+    backfill_supported: false
+contract:
+  project_slug: ottomate
+  database_engine: sqlite
+  storage_location: in-project-sqlite
+  migration_tooling: drizzle

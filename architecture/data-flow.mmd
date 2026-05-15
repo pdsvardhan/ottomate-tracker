@@ -1,0 +1,10 @@
+graph LR
+    Pilot[Pilot user] -->|raw text via skill| Reports[(reports table<br/>status=pending)]
+    Reports -->|classifier prompt<br/>prompts/classify-text.md| Items[(iteration_items<br/>with confidence)]
+    Items -->|lock-in gate<br/>user confirms| Locked[iterations.status=building]
+    Locked -->|skill builds per item| BuildStatus[(item build-status)]
+    BuildStatus -->|4-pass verifier<br/>Stage 3.4 / 4.7| VerifyReport[(verification_reports)]
+    VerifyReport -->|integrate| MergeSha[merge sha + deploy_url]
+    MergeSha -->|pack-up ritual| Mirror[npm run mirror:write]
+    Mirror -->|writes| YAML[/repos/<slug>/ottomate/*.yaml/]
+    YAML -->|git commit + push| GiteaRepo[Gitea repo]

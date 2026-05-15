@@ -1,0 +1,76 @@
+decisions:
+  - id: adr-001-no-merge-tasks
+    project_slug: ottomate
+    title: Tasks-dashboard stays separate from tracker
+    status: accepted
+    date: 2026-04-26T00:00:00.000Z
+    tags:
+      - separation
+      - user-direction
+    body_path: decisions/adr-001-no-merge-tasks.md
+  - id: adr-002-localhost-bound
+    project_slug: ottomate
+    title: "Tracker container localhost-bound (Codex P1 #8)"
+    status: accepted
+    date: 2026-04-26T00:00:00.000Z
+    tags:
+      - security
+      - codex
+    body_path: decisions/adr-002-localhost-bound.md
+  - id: adr-003-bookworm-not-alpine
+    project_slug: ottomate
+    title: Use node:22-bookworm-slim, not alpine
+    status: accepted
+    date: 2026-04-26T00:00:00.000Z
+    tags:
+      - docker
+      - infrastructure
+    body_path: decisions/adr-003-bookworm-not-alpine.md
+  - id: adr-004-bearer-auth
+    project_slug: ottomate
+    title: "Bearer auth on every mutation (Codex Round 2 #2)"
+    status: accepted
+    date: 2026-04-26T00:00:00.000Z
+    tags:
+      - security
+      - codex
+    body_path: decisions/adr-004-bearer-auth.md
+  - id: adr-005-risks-resolve-not-delete
+    project_slug: ottomate
+    title: "Risks resolve, not delete (Codex P1 #10)"
+    status: accepted
+    date: 2026-04-26T00:00:00.000Z
+    tags:
+      - data-model
+      - codex
+    body_path: decisions/adr-005-risks-resolve-not-delete.md
+  - id: adr-006-trivy-not-snyk
+    project_slug: ottomate
+    title: "Trivy + Grype + OSV-Scanner, not Snyk (Codex P1 #11)"
+    status: accepted
+    date: 2026-04-26T00:00:00.000Z
+    tags:
+      - security
+      - tooling
+      - codex
+    body_path: decisions/adr-006-trivy-not-snyk.md
+  - id: adr-007-migration-first-bootstrap
+    project_slug: ottomate
+    title: "Migration-first DB bootstrap (Codex Round 2 #1)"
+    status: accepted
+    date: 2026-04-26T00:00:00.000Z
+    tags:
+      - data-model
+      - codex
+    body_path: decisions/adr-007-migration-first-bootstrap.md
+  - id: adr-008-build-plan-v1
+    project_slug: ottomate
+    title: Build plan v1 — 14 phases (Phase 0 → 14)
+    status: accepted
+    date: +058338-01-12T00:00:00.000Z
+    tags:
+      - build-plan
+      - topological
+      - phases
+      - catchup
+    body_path: _archive/DONE.md + _archive/PENDING.md

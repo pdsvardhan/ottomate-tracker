@@ -1,0 +1,320 @@
+pages:
+  - id: page-home
+    title: Project list
+    route: /
+    purpose: "Home: cards grid of all tracked projects with status pills +
+      pending-bug count chip"
+    layout_type: list
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components:
+      - name: ProjectCard
+        purpose_on_page: Slug + display_name + tagline + lifecycle badge in grid
+        category: card
+        picked: false
+        variants: []
+      - name: ProjectFilter
+        purpose_on_page: Filter chips by current_status / scope_size
+        category: filter
+        picked: false
+        variants: []
+      - name: CreateProjectButton
+        purpose_on_page: Opens new-project flow
+        category: button
+        picked: false
+        variants: []
+  - id: page-project-overview
+    title: Project overview
+    route: /projects/[slug]
+    purpose: "Doc 1 view: tagline, core idea, problem statement, success criteria,
+      non-goals, preferences, manifest sidebar"
+    layout_type: detail
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components:
+      - name: ProjectHeader
+        purpose_on_page: display_name + tagline + lifecycle badge + URLs
+        category: hero
+        picked: false
+        variants: []
+      - name: ProjectTabs
+        purpose_on_page: Flows/Features/Pages/Data/Risks/Decisions/MasterPlan/Architecture/Graph
+        category: tabs
+        picked: false
+        variants: []
+      - name: PreferencesPanel
+        purpose_on_page: Likes / dislikes / must-haves / avoid lists
+        category: panel
+        picked: false
+        variants: []
+      - name: LifecyclePhaseTimeline
+        purpose_on_page: Phase transitions visualizer
+        category: timeline
+        picked: false
+        variants: []
+  - id: page-flows-list
+    title: Flows tab
+    route: /projects/[slug]/flows
+    purpose: "Doc 2: tabular list of user flows with priority + test status pills"
+    layout_type: list
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components:
+      - name: FlowListItem
+        purpose_on_page: title + type + priority + test_status badge
+        category: row
+        picked: false
+        variants: []
+      - name: FlowGraphPreview
+        purpose_on_page: Small force-directed graph preview when available
+        category: viz
+        picked: false
+        variants: []
+  - id: page-features-list
+    title: Features tab
+    route: /projects/[slug]/features
+    purpose: "Doc 3: tabular list of features with status, priority, size, test
+      status pills"
+    layout_type: list
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components: []
+  - id: page-pages-list
+    title: Pages tab
+    route: /projects/[slug]/pages
+    purpose: "Doc 4: tabular list of pages with route, layout, permissions"
+    layout_type: list
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components: []
+  - id: page-data-tab
+    title: Data tab
+    route: /projects/[slug]/data
+    purpose: "Doc 5: conceptual + contract + sources block"
+    layout_type: detail
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components: []
+  - id: page-risks-tab
+    title: Risks tab
+    route: /projects/[slug]/risks
+    purpose: "Doc 7: open risk instances + policy + auth + 3rd-party + secrets blocks"
+    layout_type: detail
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components: []
+  - id: page-decisions-tab
+    title: Decisions tab
+    route: /projects/[slug]/decisions
+    purpose: "Doc 8: ADR index by date with status + tags"
+    layout_type: list
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components: []
+  - id: page-master-plan
+    title: UI Master Plan
+    route: /projects/[slug]/master-plan
+    purpose: "Stage 2.2: palette swatches dark+light, font samples, animation level,
+      aspect ratios"
+    layout_type: detail
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components:
+      - name: PaletteSwatchGrid
+        purpose_on_page: Swatches for palette_dark + palette_light
+        category: grid
+        picked: false
+        variants: []
+      - name: TypographySamplePanel
+        purpose_on_page: Heading / body / mono samples
+        category: panel
+        picked: false
+        variants: []
+  - id: page-architecture
+    title: Architecture diagrams
+    route: /projects/[slug]/architecture
+    purpose: "Stage 2.5: Mermaid sources from /repos/[slug]/architecture/*.mmd
+      rendered client-side"
+    layout_type: detail
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components: []
+  - id: page-graph
+    title: Relationships graph
+    route: /projects/[slug]/graph
+    purpose: "Interactive react-flow canvas: flow/feature/page/component nodes + edges"
+    layout_type: detail
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components: []
+  - id: page-iterations-list
+    title: Iterations
+    route: /projects/[slug]/iterations
+    purpose: "Stage 4 history: iteration cards by number with status pill"
+    layout_type: list
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components: []
+  - id: page-iteration-detail
+    title: Iteration detail (lock-in gate)
+    route: /iterations/[id]
+    purpose: THE anti-gaslighting bedrock; LockInPanel pre-lock, BuildProgress
+      mid-build, TraceReport post-integrate
+    layout_type: detail
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components:
+      - name: RawReportPanel
+        purpose_on_page: Collapsible original message (anti-gaslight evidence)
+        category: panel
+        picked: false
+        variants: []
+      - name: ExtractedItemCard
+        purpose_on_page: Per-item type/title/description/confidence/affected refs
+        category: card
+        picked: false
+        variants: []
+      - name: ConfidenceBadge
+        purpose_on_page: "Colored badge: low (red) / medium (amber) / high (emerald)"
+        category: badge
+        picked: false
+        variants: []
+      - name: LockBuildButton
+        purpose_on_page: Primary CTA — enabled only when all items resolved
+        category: button
+        picked: false
+        variants: []
+      - name: RejectedExcerptsList
+        purpose_on_page: Items classifier deemed non-actionable, with reasons
+        category: list
+        picked: false
+        variants: []
+  - id: page-inbox
+    title: Bug inbox
+    route: /inbox
+    purpose: Cross-project pending reports with status filter chips
+    layout_type: list
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components:
+      - name: BugListItem
+        purpose_on_page: flow_id + raw_text + project + status row
+        category: row
+        picked: false
+        variants: []
+      - name: TriageActions
+        purpose_on_page: Classify / dismiss / split per item
+        category: toolbar
+        picked: false
+        variants: []
+      - name: InboxProjectFilter
+        purpose_on_page: Narrow inbox by project chips
+        category: filter
+        picked: false
+        variants: []
+  - id: page-coverage
+    title: Coverage dashboard
+    route: /coverage
+    purpose: Per-project flow + feature pass-rate roll-up bars
+    layout_type: dashboard
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components:
+      - name: CoverageProgressBar
+        purpose_on_page: Per-project test-coverage indicator
+        category: progress
+        picked: false
+        variants: []
+      - name: FailingFlowsList
+        purpose_on_page: Top failing flows across projects
+        category: list
+        picked: false
+        variants: []
+      - name: UntestedListCallout
+        purpose_on_page: Flows with no test_runs ever
+        category: callout
+        picked: false
+        variants: []
+  - id: page-risks-heatmap
+    title: Risk heatmap
+    route: /risks
+    purpose: Cross-project risk-type counts; resolved hidden by default
+    layout_type: dashboard
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components:
+      - name: RiskTypeCell
+        purpose_on_page: Heatmap cell per (project, risk_type)
+        category: cell
+        picked: false
+        variants: []
+      - name: HotZoneCallout
+        purpose_on_page: Risk concentration warnings
+        category: callout
+        picked: false
+        variants: []
+      - name: RiskInstanceDrawer
+        purpose_on_page: Slide-out with risk instance details
+        category: drawer
+        picked: false
+        variants: []
+  - id: page-components-browser
+    title: Master components browser
+    route: /components-browser
+    purpose: Central asset library catalog with text search
+    layout_type: list
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components:
+      - name: MasterComponentCard
+        purpose_on_page: Name + category + variants + thumbnail
+        category: card
+        picked: false
+        variants: []
+      - name: CategoryChips
+        purpose_on_page: Filter by component category
+        category: filter
+        picked: false
+        variants: []
+      - name: UsedInProjectsPill
+        purpose_on_page: Shows which projects consume this master component
+        category: pill
+        picked: false
+        variants: []
+  - id: page-search
+    title: Full-text search
+    route: /search
+    purpose: FTS5 over flows + features + pages + bugs + decisions; grouped results
+      with snippets
+    layout_type: form
+    permissions: anonymous
+    mobile_handling: responsive
+    entry_points: []
+    components:
+      - name: SearchInput
+        purpose_on_page: Debounced FTS5 input with token highlighting
+        category: input
+        picked: false
+        variants: []
+      - name: SearchResultGroup
+        purpose_on_page: Results grouped by doc_type (feature/flow/page/bug/decision)
+        category: list
+        picked: false
+        variants: []

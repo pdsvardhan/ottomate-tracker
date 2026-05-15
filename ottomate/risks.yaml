@@ -1,0 +1,108 @@
+risks:
+  - id: 1
+    project_slug: ottomate
+    risk_type_id: no-tests
+    status: open
+    hidden_by_default: false
+    severity_override: high
+    notes: No vitest or playwright tests written yet for tracker code
+    created_at: 2026-04-26T13:44:40.000Z
+  - id: 2
+    project_slug: ottomate
+    risk_type_id: no-error-tracking
+    status: open
+    hidden_by_default: false
+    notes: GlitchTip not yet deployed; runtime errors only land in docker logs
+    created_at: 2026-04-26T13:44:40.000Z
+  - id: 3
+    project_slug: ottomate
+    risk_type_id: no-rate-limit
+    status: open
+    hidden_by_default: false
+    notes: localhost-bound + bearer auth deemed sufficient for single-user; revisit
+      at Phase 13 cutover
+    created_at: 2026-04-26T13:44:40.000Z
+  - id: 4
+    project_slug: ottomate
+    risk_type_id: outdated-deps
+    status: open
+    hidden_by_default: false
+    severity_override: medium
+    notes: npm audit reports 13 vulnerabilities after mermaid + reactflow install
+    created_at: 2026-04-26T13:45:08.000Z
+  - id: 5
+    project_slug: ottomate
+    risk_type_id: no-backup
+    status: open
+    hidden_by_default: false
+    severity_override: medium
+    notes: DB backup at pack-up time but no automated cron — add BorgBackup nightly
+    created_at: 2026-04-26T13:45:08.000Z
+policy:
+  project_slug: ottomate
+  exposure: intranet-only
+  access_control: auth-required
+  data_sensitivity_tier: none
+  encryption_at_rest: false
+  encryption_in_transit: true
+  key_management: env-vars
+  rate_limiting_enabled: false
+auth_config:
+  project_slug: ottomate
+  strategy: custom
+  providers:
+    - bearer-token
+  session_management: client-jwt
+  mfa_supported: false
+  auth_library: custom
+third_party_services:
+  - id: 13
+    project_slug: ottomate
+    name: Gitea
+    purpose: Repo hosting on git.vault7a.xyz (internal Docker network)
+    auth_method: bearer-pat
+    failure_mode: "block: no commits / pushes"
+  - id: 14
+    project_slug: ottomate
+    name: Cloudflare Tunnel
+    purpose: Public exposure of vault7a.xyz services (zero-trust)
+    auth_method: tunnel-token
+    failure_mode: "degraded: LAN-only access"
+  - id: 15
+    project_slug: ottomate
+    name: Cloudflare DNS Zone
+    purpose: vault7a.xyz routing + subdomain CNAMEs
+    auth_method: api-token
+    failure_mode: "degraded: cached TTL window"
+  - id: 16
+    project_slug: ottomate
+    name: NPM Proxy Manager
+    purpose: Reverse proxy + wildcard TLS termination
+    auth_method: basic-auth
+    failure_mode: "block: no HTTPS"
+  - id: 17
+    project_slug: ottomate
+    name: Infisical (planned)
+    purpose: Secrets vault for cross-project credentials
+    auth_method: service-token
+    failure_mode: "n/a: not yet deployed"
+  - id: 18
+    project_slug: ottomate
+    name: Mermaid CLI
+    purpose: Build-time SVG render from .mmd sources
+    auth_method: none (local binary)
+    failure_mode: "degraded: no architecture diagrams"
+secrets:
+  - id: 2
+    project_slug: ottomate
+    name: TRACKER_API_TOKEN
+    where_stored: env-vars
+    what_for: Bearer token for mutating API calls; mounted as Docker secret from
+      .token file
+    rotation_cadence: ad-hoc
+  - id: 3
+    project_slug: ottomate
+    name: ANTHROPIC_API_KEY
+    where_stored: env-vars
+    what_for: Verifier sub-agent dispatch in Stage 3/4 (currently empty placeholder)
+    rotation_cadence: ad-hoc
