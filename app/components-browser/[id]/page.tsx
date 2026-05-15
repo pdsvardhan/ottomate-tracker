@@ -19,7 +19,7 @@ export default async function ComponentDetailPage({ params }: Ctx) {
     .where(eq(schema.master_components.id, id)).get();
   if (!component) notFound();
 
-  const hasSource = Boolean(component.source_code && component.source_code.trim().length > 0);
+  const hasSource = Boolean(component.source_paths?.[0] && component.source_paths?.[0].trim().length > 0);
   const hasPreview = Boolean(component.preview_url && component.preview_url.trim().length > 0);
 
   return (
@@ -61,7 +61,7 @@ export default async function ComponentDetailPage({ params }: Ctx) {
         <h2 className="text-sm font-semibold text-zinc-300 mb-2">Source code {hasSource ? '' : <span className="text-xs font-normal text-zinc-600">— not yet provided</span>}</h2>
         {hasSource ? (
           <pre className="rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-xs font-mono text-zinc-300 overflow-x-auto max-h-[480px] overflow-y-auto leading-relaxed">
-            {component.source_code}
+            {component.source_paths?.[0]}
           </pre>
         ) : (
           <div className="rounded-xl border border-dashed border-zinc-800 p-8 text-center">

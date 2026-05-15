@@ -19,7 +19,6 @@ export const MasterComponentCreateSchema = z.object({
   responsive: z.boolean().optional(),
   used_in_projects: z.array(z.string()).nullish(),
   // ── enrichment fields ──
-  source_code: z.string().nullish(),
   framework_tags: z.array(z.string()).nullish(),
   tags: z.array(z.string()).nullish(),
   preview_url: z.string().url().nullish(),

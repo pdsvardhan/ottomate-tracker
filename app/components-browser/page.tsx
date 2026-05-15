@@ -44,10 +44,10 @@ export default async function ComponentsBrowser({ searchParams }: { searchParams
       if (!Array.isArray(c.tags) || !c.tags.includes(tag)) return false;
     }
     if (only === 'no-source') {
-      if (c.source_code && c.source_code.trim().length > 0) return false;
+      if (c.source_paths?.[0] && c.source_paths?.[0].trim().length > 0) return false;
     }
     if (only === 'with-source') {
-      if (!c.source_code || c.source_code.trim().length === 0) return false;
+      if (!c.source_paths?.[0] || c.source_paths?.[0].trim().length === 0) return false;
     }
     return true;
   });
@@ -61,7 +61,7 @@ export default async function ComponentsBrowser({ searchParams }: { searchParams
     grouped.set(key, arr);
   }
 
-  const totalWithSource = all.filter((c) => c.source_code && c.source_code.trim().length > 0).length;
+  const totalWithSource = all.filter((c) => c.source_paths?.[0] && c.source_paths?.[0].trim().length > 0).length;
 
   return (
     <div className="px-8 py-8 max-w-7xl mx-auto">
@@ -166,7 +166,7 @@ export default async function ComponentsBrowser({ searchParams }: { searchParams
 }
 
 function ComponentCard({ component }: { component: typeof schema.master_components.$inferSelect }) {
-  const hasSource = Boolean(component.source_code && component.source_code.trim().length > 0);
+  const hasSource = Boolean(component.source_paths?.[0] && component.source_paths?.[0].trim().length > 0);
   return (
     <Link
       href={`/components-browser/${component.id}`}

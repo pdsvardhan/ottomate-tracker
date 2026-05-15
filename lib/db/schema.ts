@@ -54,7 +54,6 @@ export const master_components = sqliteTable('master_components', {
   responsive: integer('responsive', { mode: 'boolean' }).default(true),
   used_in_projects: text('used_in_projects', { mode: 'json' }).$type<string[]>(),
   // ── Library-enrichment fields (added 2026-04-26 for Stage 4 component-pick flow) ──
-  source_code: text('source_code'),
   framework_tags: text('framework_tags', { mode: 'json' }).$type<string[]>(),
   tags: text('tags', { mode: 'json' }).$type<string[]>(),
   preview_url: text('preview_url'),
@@ -639,3 +638,255 @@ export const schema_version = sqliteTable('schema_version', {
   applied_at: integer('applied_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
   notes: text('notes'),
 });
+
+// ============================================================================
+// AUDIT 2026-04-29 ADDITIONS (Phase B)
+// ============================================================================
+// ============================================================================
+// Phase transition tables (CC-7 ledger)
+// ============================================================================
+
+export const feature_phase_transitions = sqliteTable('feature_phase_transitions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  feature_id: text('feature_id').notNull().references(() => features.id, { onDelete: 'cascade' }),
+  from_phase: text('from_phase').notNull(),
+  to_phase: text('to_phase').notNull(),
+  transitioned_at: text('transitioned_at').notNull(),
+  session_id: text('session_id').notNull(),
+  evidence_kind: text('evidence_kind'),
+  evidence_ref: text('evidence_ref'),
+  triggered_by: text('triggered_by').notNull().default('skill_auto'),
+  notes: text('notes'),
+}, (table) => ({
+  feature_idx: index('idx_fpt_feature').on(table.feature_id, table.transitioned_at),
+  session_idx: index('idx_fpt_session').on(table.session_id),
+}));
+
+export const flow_phase_transitions = sqliteTable('flow_phase_transitions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  flow_id: text('flow_id').notNull().references(() => flows.id, { onDelete: 'cascade' }),
+  from_phase: text('from_phase').notNull(),
+  to_phase: text('to_phase').notNull(),
+  transitioned_at: text('transitioned_at').notNull(),
+  session_id: text('session_id').notNull(),
+  evidence_kind: text('evidence_kind'),
+  evidence_ref: text('evidence_ref'),
+  triggered_by: text('triggered_by').notNull().default('skill_auto'),
+  notes: text('notes'),
+}, (table) => ({
+  flow_idx: index('idx_flpt_flow').on(table.flow_id, table.transitioned_at),
+}));
+
+export const page_phase_transitions = sqliteTable('page_phase_transitions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  page_id: text('page_id').notNull().references(() => pages.id, { onDelete: 'cascade' }),
+  from_phase: text('from_phase').notNull(),
+  to_phase: text('to_phase').notNull(),
+  transitioned_at: text('transitioned_at').notNull(),
+  session_id: text('session_id').notNull(),
+  evidence_kind: text('evidence_kind'),
+  evidence_ref: text('evidence_ref'),
+  triggered_by: text('triggered_by').notNull().default('skill_auto'),
+  notes: text('notes'),
+}, (table) => ({
+  page_idx: index('idx_ppt_page').on(table.page_id, table.transitioned_at),
+}));
+
+export const component_phase_transitions = sqliteTable('component_phase_transitions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  component_id: integer('component_id').notNull().references(() => components.id, { onDelete: 'cascade' }),
+  from_phase: text('from_phase').notNull(),
+  to_phase: text('to_phase').notNull(),
+  transitioned_at: text('transitioned_at').notNull(),
+  session_id: text('session_id').notNull(),
+  evidence_kind: text('evidence_kind'),
+  evidence_ref: text('evidence_ref'),
+  triggered_by: text('triggered_by').notNull().default('skill_auto'),
+  notes: text('notes'),
+}, (table) => ({
+  component_idx: index('idx_cpt_component').on(table.component_id, table.transitioned_at),
+}));
+
+export const risk_lifecycle_transitions = sqliteTable('risk_lifecycle_transitions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  risk_instance_id: integer('risk_instance_id').notNull().references(() => risk_instances.id, { onDelete: 'cascade' }),
+  from_phase: text('from_phase').notNull(),
+  to_phase: text('to_phase').notNull(),
+  transitioned_at: text('transitioned_at').notNull(),
+  session_id: text('session_id').notNull(),
+  evidence_kind: text('evidence_kind'),
+  evidence_ref: text('evidence_ref'),
+  triggered_by: text('triggered_by').notNull().default('skill_auto'),
+  notes: text('notes'),
+}, (table) => ({
+  riskIdx: index('idx_rlt_risk').on(table.risk_instance_id, table.transitioned_at),
+}));
+
+export const iteration_item_transitions = sqliteTable('iteration_item_transitions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  iteration_item_id: integer('iteration_item_id').notNull().references(() => iteration_items.id, { onDelete: 'cascade' }),
+  from_phase: text('from_phase').notNull(),
+  to_phase: text('to_phase').notNull(),
+  transitioned_at: text('transitioned_at').notNull(),
+  session_id: text('session_id').notNull(),
+  evidence_kind: text('evidence_kind'),
+  evidence_ref: text('evidence_ref'),
+  triggered_by: text('triggered_by').notNull().default('skill_auto'),
+  notes: text('notes'),
+}, (table) => ({
+  itemIdx: index('idx_iit_item').on(table.iteration_item_id, table.transitioned_at),
+  session_idx: index('idx_iit_session').on(table.session_id),
+}));
+
+// ============================================================================
+// intent_drafts (Stage 0.4)
+// ============================================================================
+
+export const intent_drafts = sqliteTable('intent_drafts', {
+  project_slug: text('project_slug').primaryKey().references(() => projects.slug, { onDelete: 'cascade' }),
+
+  core_idea_raw: text('core_idea_raw').notNull(),
+  core_idea_raw_captured_at: text('core_idea_raw_captured_at').notNull(),
+  core_idea_raw_session_id: text('core_idea_raw_session_id').notNull(),
+
+  extracted_hints: text('extracted_hints'), // JSON
+  hints_extracted_at: text('hints_extracted_at'),
+  hints_session_id: text('hints_session_id'),
+
+  core_idea_refined: text('core_idea_refined'),
+  core_idea_refined_at: text('core_idea_refined_at'),
+  core_idea_refined_session_id: text('core_idea_refined_session_id'),
+
+  features_sketch: text('features_sketch'), // JSON array
+  flows_sketch: text('flows_sketch'),
+  risk_concerns_initial: text('risk_concerns_initial'),
+  sketches_generated_at: text('sketches_generated_at'),
+
+  sketch_input_hash: text('sketch_input_hash'),
+  sketch_cache_hit_count: integer('sketch_cache_hit_count').notNull().default(0),
+
+  dropped_hallucinations: text('dropped_hallucinations'), // JSON
+
+  status: text('status').notNull().default('captured'),
+
+  created_at: text('created_at').notNull(),
+  updated_at: text('updated_at').notNull(),
+}, (table) => ({
+  statusIdx: index('idx_id_status').on(table.status),
+  session_idx: index('idx_id_session').on(table.core_idea_raw_session_id),
+}));
+
+// ============================================================================
+// nd1_archive
+// ============================================================================
+
+export const nd1_archive = sqliteTable('nd1_archive', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
+  version: integer('version').notNull().default(1),
+  finalized_at: text('finalized_at').notNull(),
+  finalized_session_id: text('finalized_session_id').notNull(),
+
+  payload_json: text('payload_json').notNull(),
+  payload_hash: text('payload_hash').notNull(),
+
+  journey_type: integer('journey_type').notNull(),
+  features_sketch_count: integer('features_sketch_count'),
+  flows_sketch_count: integer('flows_sketch_count'),
+  risk_concerns_count: integer('risk_concerns_count'),
+
+  status: text('status').notNull().default('consumed'),
+  consumed_at: text('consumed_at'),
+  archive_path: text('archive_path'),
+}, (table) => ({
+  projVersionIdx: index('idx_nda_proj_version').on(table.project_slug, table.version),
+  statusIdx: index('idx_nda_status').on(table.status),
+}));
+
+// ============================================================================
+// sanity_check_runs (CC-1)
+// ============================================================================
+
+export const sanity_check_runs = sqliteTable('sanity_check_runs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  project_slug: text('project_slug').references(() => projects.slug, { onDelete: 'set null' }),
+  phase: text('phase').notNull(),
+  ran_at: text('ran_at').notNull(),
+  duration_ms: integer('duration_ms'),
+
+  verdict: text('verdict').notNull(),
+  results_json: text('results_json').notNull(),
+
+  blockers_resolved: text('blockers_resolved'), // JSON
+  confirms_resolved: text('confirms_resolved'), // JSON
+
+  session_id: text('session_id'),
+}, (table) => ({
+  projRanIdx: index('idx_scr_proj_ran').on(table.project_slug, table.ran_at),
+  phaseIdx: index('idx_scr_phase').on(table.phase),
+  verdictIdx: index('idx_scr_verdict').on(table.verdict),
+  session_idx: index('idx_scr_session').on(table.session_id),
+}));
+
+// ============================================================================
+// drift_resolutions (CC-1)
+// ============================================================================
+
+export const drift_resolutions = sqliteTable('drift_resolutions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
+  detected_at: text('detected_at').notNull(),
+  detected_session_id: text('detected_session_id').notNull(),
+
+  file_path: text('file_path').notNull(),
+  doc_kind: text('doc_kind').notNull(),
+
+  db_canonical_hash: text('db_canonical_hash').notNull(),
+  file_hash: text('file_hash').notNull(),
+  last_synced_hash: text('last_synced_hash'),
+
+  resolution: text('resolution'),
+  resolved_at: text('resolved_at'),
+  resolved_session_id: text('resolved_session_id'),
+  notes: text('notes'),
+}, (table) => ({
+  projIdx: index('idx_dr_proj').on(table.project_slug, table.detected_at),
+}));
+
+// ============================================================================
+// skill_events (timeline log)
+// ============================================================================
+
+export const skill_events = sqliteTable('skill_events', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  project_slug: text('project_slug').references(() => projects.slug, { onDelete: 'set null' }),
+  event_type: text('event_type').notNull(),
+  event_at: text('event_at').notNull(),
+  session_id: text('session_id'),
+
+  iteration_id: integer('iteration_id').references(() => iterations.id, { onDelete: 'set null' }),
+  feature_id: text('feature_id'),
+  flow_id: text('flow_id'),
+  page_id: text('page_id'),
+  component_id: integer('component_id'),
+
+  evidence: text('evidence'), // JSON
+  notes: text('notes'),
+}, (table) => ({
+  projAtIdx: index('idx_se_proj_at').on(table.project_slug, table.event_at),
+  event_typeIdx: index('idx_se_event_type').on(table.event_type),
+  session_idx: index('idx_se_session').on(table.session_id),
+}));
+
+// ============================================================================
+// Type exports for convenience
+// ============================================================================
+export type FeaturePhaseTransition = typeof feature_phase_transitions.$inferSelect;
+export type FeaturePhaseTransitionInsert = typeof feature_phase_transitions.$inferInsert;
+export type IntentDraft = typeof intent_drafts.$inferSelect;
+export type IntentDraftInsert = typeof intent_drafts.$inferInsert;
+export type Nd1ArchiveRow = typeof nd1_archive.$inferSelect;
+export type SanityCheckRun = typeof sanity_check_runs.$inferSelect;
+export type DriftResolution = typeof drift_resolutions.$inferSelect;
+export type SkillEvent = typeof skill_events.$inferSelect;
+export type SkillEventInsert = typeof skill_events.$inferInsert;

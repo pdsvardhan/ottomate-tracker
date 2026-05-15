@@ -13,7 +13,7 @@ type Component = {
   description: string | null;
   tags: string[] | null;
   framework_tags: string[] | null;
-  source_code: string | null;
+  source_code?: string | null;
   preview_url: string | null;
   dependencies: string[] | null;
   variants: string[] | null;
