@@ -4,16 +4,21 @@
 // it can write to /mnt/storage/websites/<slug>/ when the container
 // only has /repos mounted read-only.
 //
+// Iteration #6 follow-up (ADR-011): also walks each repo's public_docs/
+// subdirectory and POSTs the bodies into project_docs via the new
+// /api/projects/<slug>/public-docs endpoint.
+//
 // Usage:
 //   npx tsx scripts/write-yaml-mirror.ts <slug>
 //   npx tsx scripts/write-yaml-mirror.ts <slug> --no-pack-up  (just GET, no backup)
+//   npx tsx scripts/write-yaml-mirror.ts <slug> --skip-public-docs  (skip the ingest)
 //
 // Env overrides:
 //   TRACKER_BASE   default http://127.0.0.1:8110
 //   REPOS_BASE     default /mnt/storage/websites
 //   TRACKER_API_TOKEN_FILE  default /opt/homeserver/ottomate/.token
 
-import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
 const TRACKER_BASE = process.env.TRACKER_BASE ?? 'http://127.0.0.1:8110';
@@ -23,9 +28,10 @@ const TOKEN_FILE = process.env.TRACKER_API_TOKEN_FILE ?? '/opt/homeserver/ottoma
 const args = process.argv.slice(2);
 const slug = args.find((a) => !a.startsWith('--'));
 const skipPackup = args.includes('--no-pack-up');
+const skipPublicDocs = args.includes('--skip-public-docs');
 
 if (!slug) {
-  console.error('usage: write-yaml-mirror <slug> [--no-pack-up]');
+  console.error('usage: write-yaml-mirror <slug> [--no-pack-up] [--skip-public-docs]');
   process.exit(1);
 }
 
@@ -77,6 +83,57 @@ function fnv1a(input: string): string {
   return hash.toString(16).padStart(8, '0');
 }
 
+const ALLOWED_DOC_NAMES = ['architecture-summary', 'feature-spec-public', 'adr-summary'] as const;
+type AllowedDocName = (typeof ALLOWED_DOC_NAMES)[number];
+
+interface PublicDocPayload {
+  doc_name: AllowedDocName;
+  body: string;
+}
+
+function readPublicDocs(projectDir: string): PublicDocPayload[] {
+  const dir = path.join(projectDir, 'public_docs');
+  if (!existsSync(dir)) return [];
+  const out: PublicDocPayload[] = [];
+  for (const name of ALLOWED_DOC_NAMES) {
+    const file = path.join(dir, `${name}.md`);
+    if (!existsSync(file)) continue;
+    try {
+      const body = readFileSync(file, 'utf8');
+      if (body.trim().length === 0) continue;
+      out.push({ doc_name: name, body });
+    } catch {
+      // skip unreadable
+    }
+  }
+  return out;
+}
+
+async function ingestPublicDocs(projectDir: string): Promise<void> {
+  const docs = readPublicDocs(projectDir);
+  if (docs.length === 0) {
+    console.log('  · public_docs/ ingest: no docs to send (skipped)');
+    return;
+  }
+  const res = await fetch(`${TRACKER_BASE}/api/projects/${slug}/public-docs`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${token}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ docs, delete_missing: true }),
+  });
+  if (!res.ok) {
+    console.warn(`  ⚠ public_docs/ ingest failed: ${res.status} ${await res.text()}`);
+    return;
+  }
+  const data = (await res.json()) as { summary: Record<string, string>; total_docs: number };
+  for (const [name, verb] of Object.entries(data.summary)) {
+    console.log(`  · public_docs/ ${name}: ${verb}`);
+  }
+  console.log(`  · project_docs total for ${slug}: ${data.total_docs}`);
+}
+
 (async () => {
   const data = await callApi();
   const files = 'yaml_mirror' in data ? data.yaml_mirror?.files : data.files;
@@ -115,8 +172,6 @@ function fnv1a(input: string): string {
       continue;
     }
     if (priorHash && priorHash !== f.hash) {
-      // Existing on disk differs from both the new content AND from the
-      // pack-up's own previously-recorded hash. This is the drift case.
       const yamlMirrorRow = (data as PackUpResponse).yaml_mirror?.files.find(
         (x) => x.filename === f.filename,
       );
@@ -131,6 +186,13 @@ function fnv1a(input: string): string {
     writeFileSync(full, f.body, 'utf8');
     console.log(`  ✓ ${f.filename} (${f.size_bytes} bytes, hash=${f.hash})`);
     written++;
+  }
+
+  // public_docs/ ingest — ADR-011 follow-up (iteration #6 item 51).
+  if (!skipPublicDocs) {
+    await ingestPublicDocs(projectDir);
+  } else {
+    console.log('  · public_docs/ ingest: skipped via --skip-public-docs');
   }
 
   console.log();

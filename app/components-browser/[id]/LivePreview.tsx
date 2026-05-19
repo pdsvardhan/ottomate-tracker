@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Sandpack } from '@codesandbox/sandpack-react';
 
 interface SourceFile {
   name: string;
@@ -18,10 +19,10 @@ interface LivePreviewProps {
  * Live preview for a master_component's source files.
  *
  * Strategy:
- * - HTML bundle (index.html + sibling .css + .js): concatenate into iframe srcdoc.
- * - TSX/JSX/JS (no HTML): show a "static preview not available yet" stub. Sandpack
- *   integration is queued for a follow-up iteration.
- * - PUG: shows source only; rendering would need a transformer.
+ * - HTML bundle (index.html + sibling .css + .js) → iframe with srcdoc.
+ * - TSX/JSX → Sandpack provider (react-ts template) with the source mounted at /App.tsx
+ *   and any sibling .css concatenated into /styles.css. Iteration #6 item 49.
+ * - PUG: source only; rendering would need a transformer (deferred).
  * - No source: empty state.
  */
 export function LivePreview({ componentId, files }: LivePreviewProps) {
@@ -30,16 +31,18 @@ export function LivePreview({ componentId, files }: LivePreviewProps) {
 
   const html = useMemo(() => files.find((f) => f.ext === '.html'), [files]);
   const css = useMemo(() => files.filter((f) => f.ext === '.css' || f.ext === '.scss'), [files]);
-  const js = useMemo(() => files.filter((f) => f.ext === '.js'), [files]);
+  const js = useMemo(() => files.filter((f) => f.ext === '.js' && !files.find((g) => g.ext === '.tsx' || g.ext === '.jsx')), [files]);
+  const tsxOrJsx = useMemo(
+    () => files.find((f) => f.ext === '.tsx' || f.ext === '.jsx' || f.ext === '.ts'),
+    [files],
+  );
 
-  const previewable = Boolean(html);
+  const previewableHtml = Boolean(html);
+  const previewableTsx = Boolean(tsxOrJsx);
 
   const srcdoc = useMemo(() => {
     if (!html) return null;
     let bundled = html.content;
-    // Inline any sibling CSS/JS that the HTML doesn't already reference.
-    // The static HTML files mostly already <link>/<script> their siblings;
-    // but the iframe has no FS access so we inline everything we can.
     const cssBlocks = css
       .filter((f) => !bundled.includes(`href="${f.name}"`))
       .map((f) => `<style>\n${f.content}\n</style>`);
@@ -64,6 +67,41 @@ export function LivePreview({ componentId, files }: LivePreviewProps) {
     }
     return bundled;
   }, [html, css, js]);
+
+  // Build Sandpack files map for the TSX/JSX preview.
+  const sandpackFiles = useMemo(() => {
+    if (!tsxOrJsx) return null;
+    const cssBlob = css.map((f) => f.content).join('\n\n');
+    const cssFile = cssBlob.trim().length > 0
+      ? cssBlob
+      : '/* Tailwind via CDN; component-specific styles go here. */';
+    // Wrap component source in a minimal App that imports it via default export.
+    // If the source already exports a default React component, we just mount it.
+    // Otherwise we render a placeholder.
+    const wrapped = `${tsxOrJsx.content}\n\n// — Sandpack mount —\n// (Default export is rendered automatically when /App.tsx exports it.)\n`;
+    return {
+      '/App.tsx': wrapped,
+      '/styles.css': cssFile,
+      '/index.tsx': [
+        `import React from 'react';`,
+        `import { createRoot } from 'react-dom/client';`,
+        `import './styles.css';`,
+        `import App from './App';`,
+        ``,
+        `const root = createRoot(document.getElementById('root')!);`,
+        `root.render(<App />);`,
+      ].join('\n'),
+      '/public/index.html': [
+        `<!doctype html>`,
+        `<html><head>`,
+        `  <meta charset="utf-8" />`,
+        `  <title>Sandpack preview</title>`,
+        `  <script src="https://cdn.tailwindcss.com"></script>`,
+        `  <style>body{background:#0a0a0f;color:#e4e4e7;margin:0;padding:1rem;font-family:system-ui,sans-serif;}</style>`,
+        `</head><body><div id="root"></div></body></html>`,
+      ].join('\n'),
+    };
+  }, [tsxOrJsx, css]);
 
   if (files.length === 0) {
     return (
@@ -91,7 +129,10 @@ export function LivePreview({ componentId, files }: LivePreviewProps) {
                 : 'text-zinc-400 hover:text-zinc-200 border border-transparent')
             }
           >
-            Preview {!previewable && <span className="ml-1 text-[10px] text-zinc-600">(deferred)</span>}
+            Preview{' '}
+            {!previewableHtml && !previewableTsx && (
+              <span className="ml-1 text-[10px] text-zinc-600">(deferred)</span>
+            )}
           </button>
           <button
             type="button"
@@ -129,20 +170,37 @@ export function LivePreview({ componentId, files }: LivePreviewProps) {
 
       {/* Content area */}
       {tab === 'preview' ? (
-        previewable && srcdoc ? (
+        previewableHtml && srcdoc ? (
           <iframe
             srcDoc={srcdoc}
             title={`${componentId} live preview`}
             className="w-full h-[520px] bg-white"
             sandbox="allow-scripts"
           />
+        ) : previewableTsx && sandpackFiles ? (
+          <div className="bg-zinc-950/80">
+            <Sandpack
+              template="react-ts"
+              files={sandpackFiles}
+              theme="dark"
+              options={{
+                showNavigator: false,
+                showTabs: false,
+                showLineNumbers: false,
+                showInlineErrors: true,
+                editorHeight: 520,
+                editorWidthPercentage: 0,
+                wrapContent: false,
+              }}
+            />
+          </div>
         ) : (
           <div className="p-10 text-center bg-zinc-950/40">
-            <p className="text-sm text-zinc-300">Live preview not yet available for this file type.</p>
+            <p className="text-sm text-zinc-300">Live preview not available for this file type.</p>
             <p className="mt-1 text-xs text-zinc-500">
-              {files.map((f) => f.ext).filter((v, i, a) => a.indexOf(v) === i).join(', ')} — sandbox compilation (sandpack-react) is queued for a follow-up iteration.
+              {files.map((f) => f.ext).filter((v, i, a) => a.indexOf(v) === i).join(', ')} — only .html or .tsx/.jsx bundles render live.
             </p>
-            <p className="mt-3 text-xs text-zinc-600">Use the Source tab for now.</p>
+            <p className="mt-3 text-xs text-zinc-600">Use the Source tab.</p>
           </div>
         )
       ) : (

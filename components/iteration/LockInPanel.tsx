@@ -1,10 +1,17 @@
 // Anti-gaslighting bedrock UI (R1.3): user reviews extracted items
 // side-by-side with original raw text, edits / rejects / approves, then locks.
+// Spotlight Glass redesign — iteration #6 item 50.
 
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/Badge';
+import {
+  FILTER_CONTROL_CLASSES,
+  PRIMARY_BUTTON_CLASSES,
+  SECONDARY_BUTTON_CLASSES,
+} from '@/components/ui/FilterBar';
 
 type Item = {
   id: number;
@@ -36,7 +43,12 @@ export function LockInPanel({ iterationId, rawText, items: initialItems }: Props
 
   const active = items.filter((i) => i.status !== 'rejected');
   const blocking = active.filter((i) => (i.confidence ?? 0) < CONFIDENCE_FLOOR && !i.user_edited);
+  const rejected = items.filter((i) => i.status === 'rejected');
   const canLock = active.length > 0 && blocking.length === 0;
+
+  function token(): string | null {
+    return typeof window !== 'undefined' ? window.sessionStorage.getItem('ottomate_token') : null;
+  }
 
   async function patchItem(itemId: number, patch: Partial<Item>) {
     setBusy(`item-${itemId}`);
@@ -44,7 +56,10 @@ export function LockInPanel({ iterationId, rawText, items: initialItems }: Props
     try {
       const res = await fetch(`/api/iterations/${iterationId}/items/${itemId}`, {
         method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
+        },
         body: JSON.stringify(patch),
       });
       if (!res.ok) {
@@ -66,7 +81,10 @@ export function LockInPanel({ iterationId, rawText, items: initialItems }: Props
     try {
       const res = await fetch(`/api/iterations/${iterationId}/items/${itemId}`, {
         method: 'DELETE',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
+        },
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -87,7 +105,10 @@ export function LockInPanel({ iterationId, rawText, items: initialItems }: Props
     try {
       const res = await fetch(`/api/iterations/${iterationId}/lock`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
+        },
         body: JSON.stringify({}),
       });
       if (!res.ok) {
@@ -103,41 +124,49 @@ export function LockInPanel({ iterationId, rawText, items: initialItems }: Props
 
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
-      <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-7rem)] overflow-auto">
-        <h2 className="text-sm font-semibold text-zinc-300 mb-2">Original report</h2>
+      <section className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl p-5 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-7rem)] overflow-auto">
+        <h2 className="text-sm font-semibold bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent mb-3">
+          Original report
+        </h2>
         {rawText ? (
           <p className="text-sm text-zinc-400 whitespace-pre-wrap leading-relaxed">{rawText}</p>
         ) : (
-          <p className="text-xs text-zinc-600">— no raw text linked</p>
+          <p className="text-xs text-zinc-600 italic">— no raw text linked</p>
         )}
-        <div className="mt-4 pt-4 border-t border-zinc-800 text-[11px] text-zinc-500">
-          What you see on the right is what the skill extracted. Edit anything that doesn't match. Reject anything that's not what you asked for.
-        </div>
+        <p className="mt-4 pt-4 border-t border-zinc-800/40 text-[11px] text-zinc-500 leading-relaxed">
+          What you see on the right is what the skill extracted from your text. Edit anything that doesn't match.
+          Reject anything that wasn't what you asked for. Lock only after every item reads true.
+        </p>
       </section>
 
       <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-300">Extracted items ({active.length})</h2>
+        <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={lock}
-              disabled={!canLock || busy !== null}
-              className="rounded-lg px-4 py-2 text-sm font-semibold transition-colors enabled:bg-cyan-500 enabled:text-zinc-950 enabled:hover:bg-cyan-400 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed"
-              title={canLock ? 'Lock this list and start the build' : 'All items must be confidence ≥ 0.7 OR user-edited'}
-            >
-              {busy === 'lock' ? 'Locking…' : '🔒 Lock & build'}
-            </button>
+            <h2 className="text-sm font-semibold bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
+              Extracted items
+            </h2>
+            <Badge variant="count">{active.length} active</Badge>
+            {rejected.length > 0 && <Badge variant="status" tone="blocked">{rejected.length} rejected</Badge>}
           </div>
+          <button
+            type="button"
+            onClick={lock}
+            disabled={!canLock || busy !== null}
+            className={PRIMARY_BUTTON_CLASSES + ' disabled:opacity-40 disabled:cursor-not-allowed'}
+            title={canLock ? 'Lock this list and start the build' : 'All active items must be confidence ≥ 0.7 OR user-edited'}
+          >
+            {busy === 'lock' ? 'Locking…' : '🔒 Lock & build'}
+          </button>
         </div>
 
         {blocking.length > 0 && (
-          <div className="mb-3 rounded-lg border border-amber-900/60 bg-amber-950/30 p-3 text-xs text-amber-300">
-            {blocking.length} item{blocking.length === 1 ? '' : 's'} below confidence floor ({CONFIDENCE_FLOOR}) — edit to confirm intent, or reject.
+          <div className="mb-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 backdrop-blur px-4 py-3 text-xs text-amber-200">
+            {blocking.length} item{blocking.length === 1 ? '' : 's'} below the confidence floor ({CONFIDENCE_FLOOR}).
+            Edit to confirm intent, or reject — the lock button enables once nothing's flagged.
           </div>
         )}
         {error && (
-          <div className="mb-3 rounded-lg border border-rose-900/60 bg-rose-950/30 p-3 text-xs text-rose-300">
+          <div className="mb-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 backdrop-blur px-4 py-3 text-xs text-rose-200">
             {error}
           </div>
         )}
@@ -174,58 +203,55 @@ function ItemCard({
 
   const isRejected = item.status === 'rejected';
   const lowConfidence = (item.confidence ?? 0) < CONFIDENCE_FLOOR;
+  const needsReview = lowConfidence && !item.user_edited && !isRejected;
 
-  const borderClass = isRejected
-    ? 'border-zinc-900 bg-zinc-950 opacity-60'
-    : lowConfidence && !item.user_edited
-    ? 'border-amber-900/60 bg-amber-950/20'
-    : 'border-zinc-800 bg-zinc-900/40';
+  const surface = isRejected
+    ? 'border-zinc-900/60 bg-zinc-950/40 opacity-60'
+    : needsReview
+    ? 'border-amber-500/30 bg-amber-500/5 backdrop-blur-xl'
+    : 'border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl';
 
   return (
-    <li className={`rounded-xl border p-4 transition-colors ${borderClass}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className="text-[10px] uppercase tracking-wider rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-zinc-400">
-              {item.item_type}
-            </span>
-            {item.target_kind && (
-              <span className="text-[10px] text-zinc-500">→ {item.target_kind}{item.target_id ? `:${item.target_id}` : ''}</span>
-            )}
-            {item.user_edited && (
-              <span className="text-[10px] text-cyan-400">edited</span>
-            )}
-            {!item.user_edited && item.confidence != null && (
-              <span className={`text-[10px] ${lowConfidence ? 'text-amber-400' : 'text-zinc-500'}`}>
-                {(item.confidence * 100).toFixed(0)}% conf
-              </span>
-            )}
-            {isRejected && <span className="text-[10px] text-rose-400">rejected</span>}
-          </div>
-          {editing && !isRejected ? (
-            <>
-              <input
-                value={draft.title}
-                onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-sm font-medium"
-              />
-              <textarea
-                value={draft.description}
-                onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-                placeholder="Add a description (optional)…"
-                className="mt-2 w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-300 min-h-[60px]"
-              />
-            </>
-          ) : (
-            <>
-              <h3 className="text-sm font-medium text-zinc-100">{item.title}</h3>
-              {item.description && (
-                <p className="mt-1 text-xs text-zinc-400 whitespace-pre-wrap">{item.description}</p>
-              )}
-            </>
-          )}
-        </div>
+    <li className={'rounded-2xl border p-4 transition-colors ' + surface}>
+      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+        {item.item_type && <Badge variant="tag">{item.item_type}</Badge>}
+        {item.target_kind && (
+          <Badge variant="tag">{item.target_kind}{item.target_id ? `:${item.target_id}` : ''}</Badge>
+        )}
+        {item.user_edited && <Badge variant="status" tone="building">edited</Badge>}
+        {!item.user_edited && item.confidence != null && (
+          <Badge variant="status" tone={lowConfidence ? 'open' : 'neutral'}>
+            {(item.confidence * 100).toFixed(0)}% conf
+          </Badge>
+        )}
+        {isRejected && <Badge variant="status" tone="blocked">rejected</Badge>}
       </div>
+
+      {editing && !isRejected ? (
+        <div className="space-y-2">
+          <input
+            value={draft.title}
+            onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+            className={FILTER_CONTROL_CLASSES + ' w-full text-sm font-medium'}
+          />
+          <textarea
+            value={draft.description}
+            onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+            placeholder="Add a description (optional)…"
+            rows={3}
+            className={FILTER_CONTROL_CLASSES + ' w-full text-sm text-zinc-300 resize-y'}
+          />
+        </div>
+      ) : (
+        <>
+          <h3 className="text-sm font-semibold text-zinc-100 leading-snug">{item.title}</h3>
+          {item.description && (
+            <p className="mt-1.5 text-xs text-zinc-400 whitespace-pre-wrap leading-relaxed">
+              {item.description}
+            </p>
+          )}
+        </>
+      )}
 
       {!isRejected && (
         <div className="mt-3 flex items-center gap-2 text-xs">
@@ -238,7 +264,7 @@ function ItemCard({
                   onPatch({ title: draft.title, description: draft.description || null });
                   setEditing(false);
                 }}
-                className="rounded-md bg-cyan-500 text-zinc-950 px-3 py-1 font-medium hover:bg-cyan-400 disabled:opacity-50"
+                className={PRIMARY_BUTTON_CLASSES + ' text-xs disabled:opacity-50'}
               >
                 Save
               </button>
@@ -249,7 +275,7 @@ function ItemCard({
                   setDraft({ title: item.title, description: item.description ?? '' });
                   setEditing(false);
                 }}
-                className="text-zinc-400 hover:text-zinc-200"
+                className={SECONDARY_BUTTON_CLASSES + ' text-xs disabled:opacity-50'}
               >
                 Cancel
               </button>
@@ -259,15 +285,16 @@ function ItemCard({
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="text-cyan-400 hover:text-cyan-300"
+                className="text-cyan-300 hover:text-cyan-100 transition-colors"
               >
                 Edit
               </button>
+              <span className="text-zinc-700">·</span>
               <button
                 type="button"
                 disabled={busy}
                 onClick={onReject}
-                className="text-rose-400 hover:text-rose-300"
+                className="text-rose-300 hover:text-rose-100 transition-colors disabled:opacity-50"
               >
                 Reject
               </button>
