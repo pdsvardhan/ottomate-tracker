@@ -1,14 +1,63 @@
-// /components-browser/[id] — single component view + edit.
-// Layout: Preview area (top), Source code (collapsible), Edit form (below).
+// /components-browser/[id] — single component detail.
+// Spotlight Glass redesign (iteration #5 item 38). Reads source files from disk
+// at /asset-library/components/<id>/, passes them to <LivePreview> which renders
+// either an iframe (HTML bundle) or a code-only view (TSX/JSX, sandpack TBD).
 
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import Link from 'next/link';
 import { eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { getDb, schema } from '@/lib/db/client';
-import { ComponentEditor } from '@/components/master-component/ComponentEditor';
-import { ComponentPreview } from '@/components/master-component/ComponentPreview';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { LivePreview } from './LivePreview';
 
 export const dynamic = 'force-dynamic';
+
+const ASSET_ROOT = '/asset-library/components';
+const READABLE_EXT = new Set(['.tsx', '.ts', '.jsx', '.js', '.html', '.css', '.scss', '.md', '.json', '.pug']);
+
+interface SourceFile {
+  name: string;
+  content: string;
+  size: number;
+  ext: string;
+}
+
+async function readComponentFiles(componentId: string, primaryFile: string | null): Promise<SourceFile[]> {
+  const dir = path.join(ASSET_ROOT, componentId);
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    const result: SourceFile[] = [];
+    for (const e of entries) {
+      if (!e.isFile()) continue;
+      const ext = path.extname(e.name).toLowerCase();
+      if (!READABLE_EXT.has(ext)) continue;
+      const full = path.join(dir, e.name);
+      const stat = await fs.stat(full);
+      if (stat.size > 500_000) continue;
+      const content = await fs.readFile(full, 'utf8');
+      result.push({ name: e.name, content, size: stat.size, ext });
+    }
+    result.sort((a, b) => {
+      if (a.name === primaryFile) return -1;
+      if (b.name === primaryFile) return 1;
+      const indexFiles = ['index.html', 'index.tsx', 'index.ts', 'index.jsx', 'index.js'];
+      const aIdx = indexFiles.indexOf(a.name);
+      const bIdx = indexFiles.indexOf(b.name);
+      if (aIdx !== -1 || bIdx !== -1) {
+        if (aIdx === -1) return 1;
+        if (bIdx === -1) return -1;
+        return aIdx - bIdx;
+      }
+      return a.name.localeCompare(b.name);
+    });
+    return result;
+  } catch {
+    return [];
+  }
+}
 
 interface Ctx { params: Promise<{ id: string }>; }
 
@@ -19,89 +68,95 @@ export default async function ComponentDetailPage({ params }: Ctx) {
     .where(eq(schema.master_components.id, id)).get();
   if (!component) notFound();
 
-  const hasSource = Boolean(component.source_paths?.[0] && component.source_paths?.[0].trim().length > 0);
-  const hasPreview = Boolean(component.preview_url && component.preview_url.trim().length > 0);
+  const files = await readComponentFiles(id, component.primary_file);
+
+  const quality = (component.quality_grade ?? '') as 'A' | 'B' | 'C' | '';
 
   return (
-    <div className="px-8 py-8 max-w-5xl mx-auto">
-      <Link href="/components-browser" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-        ← All components
+    <div className="px-8 py-10 max-w-6xl mx-auto">
+      <Link href="/components-browser" className="text-xs text-zinc-500 hover:text-cyan-300 transition-colors">
+        ← all components
       </Link>
 
-      <header className="mt-2 mb-6">
-        <div className="flex items-baseline justify-between gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold">{component.name}</h1>
-          <div className="flex items-center gap-2">
-            {component.category && (
-              <span className="text-[10px] uppercase tracking-wider rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-zinc-400">
-                {component.category}
-              </span>
-            )}
-            {(component.tags ?? []).map((t) => (
-              <span key={t} className="text-[10px] uppercase tracking-wider rounded-full bg-zinc-800/60 text-zinc-400 px-2 py-0.5">
-                {t}
-              </span>
-            ))}
-          </div>
-        </div>
-        <p className="mt-1 text-xs font-mono text-zinc-500">{component.id}</p>
-        {component.description && (
-          <p className="mt-2 text-sm text-zinc-400">{component.description}</p>
-        )}
-      </header>
+      <div className="mt-3">
+        <PageHeader
+          title={component.name}
+          tagline={component.id}
+          meta={
+            <span className="inline-flex items-center gap-2 flex-wrap">
+              {component.category && <Badge variant="tag">{component.category}</Badge>}
+              {component.library && <Badge variant="library">{component.library}</Badge>}
+              {quality && <Badge variant="quality" grade={quality} />}
+              {((component.tags ?? []) as string[]).slice(0, 5).map((t) => (
+                <Badge key={t} variant="tag">{t}</Badge>
+              ))}
+            </span>
+          }
+          actions={
+            component.source_url ? (
+              <a
+                href={component.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-cyan-300 hover:text-cyan-100 transition-colors"
+              >
+                Open upstream →
+              </a>
+            ) : null
+          }
+        />
+      </div>
 
-      {/* Preview section */}
-      <section className="mb-6">
-        <h2 className="text-sm font-semibold text-zinc-300 mb-2">Preview</h2>
-        <ComponentPreview previewUrl={component.preview_url ?? null} />
+      {component.description && (
+        <p className="mb-8 text-sm text-zinc-400 leading-relaxed max-w-3xl">{component.description}</p>
+      )}
+
+      {/* Live preview pane */}
+      <section className="mb-8">
+        <LivePreview componentId={component.id} files={files} />
       </section>
 
-      {/* Source code section */}
-      <section className="mb-6">
-        <h2 className="text-sm font-semibold text-zinc-300 mb-2">Source code {hasSource ? '' : <span className="text-xs font-normal text-zinc-600">— not yet provided</span>}</h2>
-        {hasSource ? (
-          <pre className="rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-xs font-mono text-zinc-300 overflow-x-auto max-h-[480px] overflow-y-auto leading-relaxed">
-            {component.source_paths?.[0]}
-          </pre>
-        ) : (
-          <div className="rounded-xl border border-dashed border-zinc-800 p-8 text-center">
-            <p className="text-zinc-500 text-sm">No source code yet. Paste it in the editor below.</p>
-          </div>
-        )}
+      {/* Metadata grid */}
+      <section className="grid gap-4 md:grid-cols-3">
+        <MetaCard label="Frameworks" values={((component.framework_tags ?? []) as string[])} />
+        <MetaCard label="Variants" values={((component.variants ?? []) as string[])} />
+        <MetaCard label="Dependencies" values={((component.dependencies ?? []) as string[])} />
+        <MetaCard label="Used in projects" values={((component.used_in_projects ?? []) as string[])} />
+        <MetaCard
+          label="File on disk"
+          values={component.primary_file ? [component.primary_file] : []}
+          fallback={files[0]?.name ?? null}
+        />
+        <MetaCard
+          label="Ingestion"
+          values={[component.ingestion_method ?? '—']}
+        />
       </section>
 
-      {/* Quick metadata grid */}
-      <section className="mb-6 grid gap-3 md:grid-cols-3">
-        <Stat label="Frameworks" values={component.framework_tags ?? []} />
-        <Stat label="Variants" values={component.variants ?? []} />
-        <Stat label="Dependencies" values={component.dependencies ?? []} />
-      </section>
-
-      {/* Edit form */}
-      <section>
-        <details>
-          <summary className="cursor-pointer text-sm font-semibold text-zinc-300 hover:text-zinc-100 mb-3">
-            ✎ Edit fields {hasSource || hasPreview ? '' : '(start here — add source code + preview)'}
-          </summary>
-          <div className="mt-4">
-            <ComponentEditor initial={component} />
-          </div>
-        </details>
-      </section>
+      {/* Edit + Delete deferred per B.4 follow-up */}
+      <p className="mt-10 text-[11px] text-zinc-600">
+        Edit / delete UI lands with a follow-up — for now use{' '}
+        <code className="font-mono text-zinc-500">PATCH /api/master-components/{component.id}</code> or{' '}
+        <code className="font-mono text-zinc-500">DELETE</code> directly.
+      </p>
     </div>
   );
 }
 
-function Stat({ label, values }: { label: string; values: string[] }) {
+function MetaCard({ label, values, fallback }: { label: string; values: string[]; fallback?: string | null }) {
+  const display = values.length > 0 ? values : fallback ? [fallback] : [];
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-      <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-1">{label}</div>
-      {values.length === 0 ? (
+    <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl p-4">
+      <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2">{label}</div>
+      {display.length === 0 ? (
         <span className="text-xs text-zinc-600">— none</span>
       ) : (
-        <div className="flex flex-wrap gap-1">
-          {values.map((v) => (
-            <span key={v} className="text-[11px] font-mono text-zinc-300 bg-zinc-900 rounded px-1.5 py-0.5 border border-zinc-800">
+        <div className="flex flex-wrap gap-1.5">
+          {display.map((v) => (
+            <span
+              key={v}
+              className="text-[11px] font-mono text-zinc-300 bg-zinc-900/60 rounded px-1.5 py-0.5 border border-zinc-800"
+            >
               {v}
             </span>
           ))}
