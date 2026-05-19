@@ -6,7 +6,11 @@ const categoryEnum = z.enum([
   'input', 'display', 'navigation', 'feedback', 'layout', 'overlay',
   'selection', 'button-action', 'animation', 'transition',
   'dataviz', 'media', 'modern-specialty', 'interactive', 'forms-validation',
+  // Added 2026-05-19 for iteration #5 — must mirror schema.ts category enum.
+  'auth-screens', 'dashboard-shells', 'ai-blocks',
 ]);
+
+const qualityEnum = z.enum(['A', 'B', 'C']);
 
 export const MasterComponentCreateSchema = z.object({
   id: z.string().regex(/^mc-[a-z0-9-]+$/, 'id must match ^mc-[a-z0-9-]+$').min(4).max(80),
@@ -23,6 +27,18 @@ export const MasterComponentCreateSchema = z.object({
   tags: z.array(z.string()).nullish(),
   preview_url: z.string().url().nullish(),
   dependencies: z.array(z.string()).nullish(),
+  // ── 2026-05-19 expansion ──
+  library: z.string().max(80).nullish(),
+  source_url: z.string().url().nullish(),
+  quality_grade: qualityEnum.nullish(),
+  ingestion_method: z.string().max(40).nullish(),
+  primary_file: z.string().max(120).nullish(),
+  license_note: z.string().max(200).nullish(),
+  // ── B.4 modal helpers (NOT stored in DB; route writes them to filesystem) ──
+  // If `source_code` + `primary_file` are provided, the route writes the file to
+  //   /asset-library/<id>/<primary_file>
+  // and sets source_paths = ['/asset-library/<id>/<primary_file>'].
+  source_code: z.string().max(500_000).nullish(),
 });
 
 // PUT body: same schema minus id, all optional. Lets the user fill source_code etc. one field at a time.

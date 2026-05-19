@@ -13,6 +13,7 @@ import {
   PRIMARY_BUTTON_CLASSES,
 } from '@/components/ui/FilterBar';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { AddComponentModal } from '@/components/master-component/AddComponentModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -196,6 +197,12 @@ export default async function ComponentsBrowser({
           );
         })}
       </div>
+
+      {/* CRUD modals — mounted once; toggled by ?action= URL param */}
+      <AddComponentModal
+        categories={CATEGORY_ORDER.map((c) => c.id)}
+        libraries={libraries}
+      />
     </div>
   );
 }

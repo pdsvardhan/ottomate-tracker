@@ -16,7 +16,10 @@ services:
     volumes:
       - ./data:/app/data:rw
       - /mnt/storage/websites:/repos:ro    # Read-only access to project repos for sync
-      - /mnt/storage/ottomate/assets:/asset-library:ro    # Read-only central asset library
+      # /asset-library was :ro through 2026-05-19 — flipped to :rw for iteration #5
+      # so the catalog CRUD modal (B.4) can write source files to <id>/<primary_file>.
+      # Writes are gated by bearer auth + localhost-only bind (port 8110:127.0.0.1).
+      - /mnt/storage/ottomate/assets:/asset-library:rw    # Central asset library (writable)
     environment:
       - NODE_ENV=production
       - DATABASE_URL=file:/app/data/ottomate.db
