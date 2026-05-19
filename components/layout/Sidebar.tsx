@@ -1,19 +1,19 @@
 // Sidebar navigation — server component (just links).
+// Iteration #5: dropped Risks (item 25) + Search (item 36); added Inspirations.
 
 import Link from 'next/link';
 
-const NAV: Array<{ label: string; href: string; section?: string }> = [
+const NAV: Array<{ label: string; href: string }> = [
   { label: 'Projects', href: '/' },
   { label: 'Bug Inbox', href: '/inbox' },
   { label: 'Coverage', href: '/coverage' },
-  { label: 'Risks', href: '/risks' },
   { label: 'Components', href: '/components-browser' },
-  { label: 'Search', href: '/search' },
+  { label: 'Inspirations', href: '/inspirations' },
 ];
 
 export function Sidebar() {
   return (
-    <aside className="w-60 shrink-0 border-r border-zinc-800/80 bg-zinc-950/60 backdrop-blur">
+    <aside className="w-60 shrink-0 border-r border-zinc-800/80 bg-zinc-950/60 backdrop-blur relative z-10">
       <div className="px-5 py-6">
         <Link href="/" className="block">
           <span className="text-2xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-violet-500 bg-clip-text text-transparent">
@@ -30,14 +30,14 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
-            className="block px-3 py-2 rounded-md text-sm text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100 transition-colors"
+            className="block px-3 py-2 rounded-lg text-sm text-zinc-400 hover:bg-zinc-900/60 hover:text-cyan-100 transition-colors"
           >
             {item.label}
           </Link>
         ))}
       </nav>
 
-      <div className="mt-auto px-5 py-4 text-[11px] text-zinc-600 border-t border-zinc-800/80">
+      <div className="absolute bottom-0 left-0 right-0 px-5 py-4 text-[11px] text-zinc-600 border-t border-zinc-800/80">
         <div>v0.1.0 · :8110</div>
         <div className="truncate">VAULT7A · localhost-bound</div>
       </div>
