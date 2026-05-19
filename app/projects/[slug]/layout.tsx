@@ -11,9 +11,7 @@ import { DriftBanner } from '@/components/project/DriftBanner';
 
 const TABS = [
   { label: 'Overview', href: '' },
-  { label: 'Flows', href: '/flows' },
-  { label: 'Features', href: '/features' },
-  { label: 'Pages', href: '/pages' },
+  { label: 'Capabilities', href: '/capabilities' },
   { label: 'Architecture', href: '/architecture' },
   { label: 'Iterations', href: '/iterations' },
 ];
