@@ -8,7 +8,7 @@ interface BadgeProps {
   variant: BadgeVariant;
   tone?: StatusTone;
   grade?: QualityGrade;
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
   title?: string;
 }
