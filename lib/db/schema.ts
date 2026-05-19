@@ -287,12 +287,24 @@ export const components = sqliteTable('components', {
   name: text('name').notNull(),
   purpose_on_page: text('purpose_on_page'),
   category: text('category', {
-    enum: ['input', 'display', 'navigation', 'feedback', 'layout', 'overlay'],
+    // Loose category — sync'd with master_components category enum for cross-link;
+    // older rows may use the original 6-cat list (input/display/...). Storing as TEXT
+    // here keeps backwards compat without an exhaustive enum.
+    enum: ['input', 'display', 'navigation', 'feedback', 'layout', 'overlay',
+           'selection', 'button-action', 'animation', 'transition',
+           'dataviz', 'media', 'modern-specialty', 'interactive', 'forms-validation',
+           'auth-screens', 'dashboard-shells', 'ai-blocks'],
   }),
   data_consumed: text('data_consumed'),
   data_produced: text('data_produced'),
   picked: integer('picked', { mode: 'boolean' }).default(false),
   asset_library_ref: text('asset_library_ref').references(() => master_components.id),
+  // Added across iteration #5 and earlier; surfaced in schema.ts now (DB had them already).
+  picked_variant: text('picked_variant'),
+  picked_at: text('picked_at'),
+  picked_provenance: text('picked_provenance'),
+  skip_reason: text('skip_reason'),
+  current_phase: text('current_phase').default('PROPOSED'),
 });
 
 export const component_variants = sqliteTable('component_variants', {
