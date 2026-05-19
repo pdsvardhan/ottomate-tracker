@@ -134,6 +134,9 @@ export const projects = sqliteTable('projects', {
   }>(),
   tags: text('tags', { mode: 'json' }).$type<string[]>(),
   needs_stage_1_catchup: integer('needs_stage_1_catchup', { mode: 'boolean' }).default(false),
+  // Added 2026-05-19 (iter-5 C.8 / T6). Single boolean for "is this active or not".
+  // Co-exists with lifecycle_phase='deprecated'; backfilled from existing dep rows.
+  archived: integer('archived', { mode: 'boolean' }).default(false),
   created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
   updated_at: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
