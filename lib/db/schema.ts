@@ -38,13 +38,14 @@ export const risks_catalog = sqliteTable('risks_catalog', {
 export const master_components = sqliteTable('master_components', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  // Extended category enum — covers the 15-category taxonomy in
+  // Extended category enum — covers the 18-category taxonomy (post-2026-05-19) in
   // references/component-taxonomy.md. Original 6 retained for back-compat.
   category: text('category', {
     enum: [
       'input', 'display', 'navigation', 'feedback', 'layout', 'overlay',
       'selection', 'button-action', 'animation', 'transition',
       'dataviz', 'media', 'modern-specialty', 'interactive', 'forms-validation',
+      'auth-screens', 'dashboard-shells', 'ai-blocks',
     ],
   }),
   description: text('description'),
@@ -58,8 +59,34 @@ export const master_components = sqliteTable('master_components', {
   tags: text('tags', { mode: 'json' }).$type<string[]>(),
   preview_url: text('preview_url'),
   dependencies: text('dependencies', { mode: 'json' }).$type<string[]>(),
+  primary_file: text('primary_file'),
+  license_note: text('license_note'),
+  // ── 2026-05-19 expansion (library + quality columns) ──
+  library: text('library'),                       // e.g. 'magicui', 'react-bits', 'aceternity', 'custom'
+  source_url: text('source_url'),                 // upstream URL the source was pulled from
+  quality_grade: text('quality_grade', { enum: ['A', 'B', 'C'] }),
+  ingestion_method: text('ingestion_method'),     // 'clone' | 'gist' | 'hand-authored' | 'manual'
   created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
   updated_at: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
+// Visual inspirations (Dribbble / Figma community / etc.) for Stage 2.2 UI master plan.
+// Added 2026-05-19. Each inspiration may reference master_components that implement its style.
+export const inspirations = sqliteTable('inspirations', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  source_url: text('source_url').notNull(),
+  source_type: text('source_type', {
+    enum: ['dribbble', 'figma-community', 'behance', 'mobbin', 'other'],
+  }).notNull(),
+  domain: text('domain'),
+  style_tags: text('style_tags', { mode: 'json' }).$type<string[]>(),
+  thumbnail_url: text('thumbnail_url'),
+  notes: text('notes'),
+  matched_master_component_ids: text('matched_master_component_ids', { mode: 'json' }).$type<string[]>(),
+  match_confidence: text('match_confidence', { enum: ['high', 'medium', 'low', 'unmatched'] }),
+  added_at: integer('added_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  used_in_projects: text('used_in_projects', { mode: 'json' }).$type<string[]>(),
 });
 
 // External project mapping (tracker slug ↔ tasks-dashboard slug, etc.)
@@ -443,6 +470,9 @@ export const adr_index = sqliteTable('adr_index', {
   tags: text('tags', { mode: 'json' }).$type<string[]>(),
   body_path: text('body_path').notNull(),
   superseded_by: text('superseded_by'),
+  // Added 2026-05-19 (ADR-010) — pairs the ADR card with a diagram_artifacts.kind region.
+  // NULL → renders under the "General decisions" rail on the Architecture tab.
+  anchored_to: text('anchored_to', { enum: ['process', 'topology', 'data', 'ux', 'api'] }),
 });
 
 export const adr_features = sqliteTable('adr_features', {
@@ -878,6 +908,68 @@ export const skill_events = sqliteTable('skill_events', {
   session_idx: index('idx_se_session').on(table.session_id),
 }));
 
+// ═══════════════════════════════════════════════════════════════════
+// ITERATION #5 — FOUNDATION TABLES (added 2026-05-19)
+// See migration 0002_iteration5_foundation.sql and ITERATION-5-UI-PLAN.md.
+// ═══════════════════════════════════════════════════════════════════
+
+// Public docs ingested by mirror:write from each repo's public_docs/ subdir (ADR-011).
+export const project_docs = sqliteTable('project_docs', {
+  project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
+  doc_name: text('doc_name', {
+    enum: ['architecture-summary', 'feature-spec-public', 'adr-summary'],
+  }).notNull(),
+  body: text('body').notNull(),
+  source_hash: text('source_hash'),
+  mirrored_at: integer('mirrored_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+}, (t) => ({ pk: primaryKey({ columns: [t.project_slug, t.doc_name] }) }));
+
+// Per-project to-do list (E.3) — optional checklist per project.
+export const project_todos = sqliteTable('project_todos', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  done: integer('done', { mode: 'boolean' }).default(false),
+  sort_order: integer('sort_order').default(0),
+  created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  updated_at: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
+// Diagram artifacts (Mermaid sources) shown on the Architecture tab (E.6).
+export const diagram_artifacts = sqliteTable('diagram_artifacts', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
+  kind: text('kind', { enum: ['process', 'topology', 'data', 'ux', 'api'] }).notNull(),
+  mermaid_src: text('mermaid_src').notNull(),
+  caption: text('caption'),
+  position: integer('position').default(0),
+  updated_at: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+}, (t) => ({
+  uq: uniqueIndex('uq_diagram_artifacts_proj_kind_pos').on(t.project_slug, t.kind, t.position),
+}));
+
+// Per-project component feedback (B.6) — user verdicts on catalog entries from a specific project lens.
+export const component_feedback = sqliteTable('component_feedback', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
+  mc_id: text('mc_id').notNull().references(() => master_components.id, { onDelete: 'cascade' }),
+  verdict: text('verdict', {
+    enum: ['good', 'bad', 'needs-fix', 'classification-wrong'],
+  }).notNull(),
+  note: text('note'),
+  created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
+// Per-flow test runs (E.9) — user-reported pass/fail per flow.
+export const flow_test_runs = sqliteTable('flow_test_runs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  flow_id: text('flow_id').notNull().references(() => flows.id, { onDelete: 'cascade' }),
+  status: text('status', { enum: ['passing', 'failing', 'not-tested'] }).notNull(),
+  ran_at: integer('ran_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  ran_by: text('ran_by', { enum: ['user', 'automated'] }),
+  notes: text('notes'),
+});
+
 // ============================================================================
 // Type exports for convenience
 // ============================================================================
@@ -889,4 +981,14 @@ export type Nd1ArchiveRow = typeof nd1_archive.$inferSelect;
 export type SanityCheckRun = typeof sanity_check_runs.$inferSelect;
 export type DriftResolution = typeof drift_resolutions.$inferSelect;
 export type SkillEvent = typeof skill_events.$inferSelect;
+
+// Iteration #5 foundation types
+export type MasterComponent = typeof master_components.$inferSelect;
+export type Inspiration = typeof inspirations.$inferSelect;
+export type ProjectDoc = typeof project_docs.$inferSelect;
+export type ProjectTodo = typeof project_todos.$inferSelect;
+export type DiagramArtifact = typeof diagram_artifacts.$inferSelect;
+export type ComponentFeedback = typeof component_feedback.$inferSelect;
+export type FlowTestRun = typeof flow_test_runs.$inferSelect;
+export type AdrIndexRow = typeof adr_index.$inferSelect;
 export type SkillEventInsert = typeof skill_events.$inferInsert;
