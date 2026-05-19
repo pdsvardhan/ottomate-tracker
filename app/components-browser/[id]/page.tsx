@@ -6,12 +6,13 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import Link from 'next/link';
-import { eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { getDb, schema } from '@/lib/db/client';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { LivePreview } from './LivePreview';
+import { FeedbackWidget } from '@/components/master-component/FeedbackWidget';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,6 +70,19 @@ export default async function ComponentDetailPage({ params }: Ctx) {
   if (!component) notFound();
 
   const files = await readComponentFiles(id, component.primary_file);
+
+  const projects = db
+    .select({ slug: schema.projects.slug, display_name: schema.projects.display_name })
+    .from(schema.projects)
+    .orderBy(asc(schema.projects.display_name))
+    .all();
+
+  const feedback = db
+    .select()
+    .from(schema.component_feedback)
+    .where(eq(schema.component_feedback.mc_id, id))
+    .orderBy(desc(schema.component_feedback.created_at))
+    .all();
 
   const quality = (component.quality_grade ?? '') as 'A' | 'B' | 'C' | '';
 
@@ -130,6 +144,21 @@ export default async function ComponentDetailPage({ params }: Ctx) {
         <MetaCard
           label="Ingestion"
           values={[component.ingestion_method ?? '—']}
+        />
+      </section>
+
+      {/* Per-project feedback (iteration #5 item 39) */}
+      <section className="mt-10">
+        <FeedbackWidget
+          mcId={component.id}
+          projects={projects}
+          initialFeedback={feedback.map((f) => ({
+            id: f.id,
+            project_slug: f.project_slug,
+            verdict: f.verdict as 'good' | 'bad' | 'needs-fix' | 'classification-wrong',
+            note: f.note,
+            created_at: f.created_at instanceof Date ? f.created_at.getTime() / 1000 : (f.created_at ?? 0),
+          }))}
         />
       </section>
 
