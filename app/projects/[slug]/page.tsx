@@ -1,149 +1,257 @@
-// Project Overview tab — Doc 1 detail view.
+// Project Overview tab — Spotlight Glass redesign (E.2 closes iteration #5 item 17).
+// Composes: PipelineProgress + KeyContextPanel + DocsRail + TodoList + ActivityFeed.
+// Pulls data: projects + preferences + non_goals + success_criteria + features + flows
+// + components + iterations + project_docs + project_todos + skill_events + risks.
 
-import { asc, eq } from 'drizzle-orm';
+import Link from 'next/link';
+import { asc, count, desc, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { notFound } from 'next/navigation';
+import { PipelineProgress } from '@/components/project/PipelineProgress';
+import { KeyContextPanel } from '@/components/project/KeyContextPanel';
+import { DocsRail } from '@/components/project/DocsRail';
+import { TodoList } from '@/components/project/TodoList';
+import { ActivityFeed } from '@/components/project/ActivityFeed';
+import { Badge } from '@/components/ui/Badge';
 
 export const dynamic = 'force-dynamic';
 
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-[11px] uppercase tracking-wider text-zinc-500">{label}</dt>
-      <dd className="mt-1 text-sm text-zinc-200">{value || <span className="text-zinc-600">—</span>}</dd>
-    </div>
-  );
+function unix(value: unknown): number {
+  if (value instanceof Date) return Math.floor(value.getTime() / 1000);
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return Math.floor(Date.parse(value) / 1000);
+  return 0;
 }
 
 export default async function ProjectOverview({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const db = await getDb();
-  const project = db.select().from(schema.projects)
-    .where(eq(schema.projects.slug, slug)).get();
+  const project = db.select().from(schema.projects).where(eq(schema.projects.slug, slug)).get();
   if (!project) notFound();
 
+  // Pull all the data the overview needs in parallel-ish single-thread queries.
   const non_goals = db.select().from(schema.project_non_goals)
     .where(eq(schema.project_non_goals.project_slug, slug))
     .orderBy(asc(schema.project_non_goals.sort_order)).all();
   const success_criteria = db.select().from(schema.project_success_criteria)
     .where(eq(schema.project_success_criteria.project_slug, slug))
     .orderBy(asc(schema.project_success_criteria.sort_order)).all();
+  const features = db.select().from(schema.features)
+    .where(eq(schema.features.project_slug, slug)).all();
+  const flows = db.select().from(schema.flows)
+    .where(eq(schema.flows.project_slug, slug)).all();
+  const pages = db.select().from(schema.pages)
+    .where(eq(schema.pages.project_slug, slug)).all();
+  const components = db.select().from(schema.components)
+    .where(eq(schema.components.project_slug, slug)).all();
+  const iterations = db.select().from(schema.iterations)
+    .where(eq(schema.iterations.project_slug, slug)).all();
+  const todos = db.select().from(schema.project_todos)
+    .where(eq(schema.project_todos.project_slug, slug))
+    .orderBy(asc(schema.project_todos.sort_order), asc(schema.project_todos.id)).all();
+  const docs = db.select().from(schema.project_docs)
+    .where(eq(schema.project_docs.project_slug, slug)).all();
+  const risks = db.select().from(schema.risk_instances)
+    .where(eq(schema.risk_instances.project_slug, slug)).all();
+
+  // Activity (top 7)
+  const skillEvents = db.select().from(schema.skill_events)
+    .where(eq(schema.skill_events.project_slug, slug))
+    .orderBy(desc(schema.skill_events.event_at)).limit(20).all();
+
+  // Preferences JSON (may be null)
+  type PrefsShape = { likes?: string[]; dislikes?: string[]; must_haves?: string[]; avoid?: string[] };
+  const prefs = (project.preferences ?? {}) as PrefsShape;
+
+  // Stage progress heuristics
+  const featuresDone = features.filter((f) => f.status === 'done').length;
+  const flowsTested = flows.filter((f) => f.test_status && f.test_status !== 'not-tested').length;
+  const componentsPicked = components.filter((c) => c.picked).length;
+  const iterationsIntegrated = iterations.filter((it) => it.integrated_at).length;
+  const iterationsBuilding = iterations.filter((it) => it.status === 'building').length;
+
+  const stages = [
+    {
+      label: 'Stage 0',
+      description: 'intake',
+      status: 'done' as const,
+      done: 1,
+      total: 1,
+    },
+    {
+      label: 'Stage 1',
+      description: 'SO1 docs',
+      status: (features.length > 0 && flows.length > 0 && pages.length > 0 ? 'done' : 'in-progress') as 'done' | 'in-progress',
+      done: features.length + flows.length + pages.length,
+      total: features.length + flows.length + pages.length,
+    },
+    {
+      label: 'Stage 2',
+      description: 'UI + components',
+      status: (componentsPicked === components.length && components.length > 0 ? 'done' : 'in-progress') as 'done' | 'in-progress',
+      done: componentsPicked,
+      total: components.length,
+    },
+    {
+      label: 'Stage 3',
+      description: 'build + deploy',
+      status: (featuresDone === features.length && features.length > 0 ? 'done' : 'in-progress') as 'done' | 'in-progress',
+      done: featuresDone,
+      total: features.length,
+    },
+    {
+      label: 'Stage 4',
+      description: 'iterate',
+      status: (iterationsBuilding > 0 ? 'in-progress' : iterations.length > 0 ? 'done' : 'pending') as 'done' | 'in-progress' | 'pending',
+      done: iterationsIntegrated,
+      total: iterations.length,
+    },
+  ];
+
+  // Activity events feed (server-side construction)
+  const events: Array<{
+    at: number; kind: 'iteration' | 'feature' | 'component_pick' | 'skill_event';
+    actor: string; verb: string; target_label: string;
+    target_kind?: string; target_id?: string | number;
+  }> = [];
+
+  for (const it of iterations) {
+    if (it.integrated_at) {
+      events.push({
+        at: unix(it.integrated_at), kind: 'iteration', actor: 'skill',
+        verb: 'integrated', target_label: `iteration #${it.iteration_number}`,
+        target_kind: 'iteration', target_id: it.id,
+      });
+    }
+    if (it.locked_at) {
+      events.push({
+        at: unix(it.locked_at), kind: 'iteration', actor: 'user',
+        verb: 'locked', target_label: `iteration #${it.iteration_number}`,
+        target_kind: 'iteration', target_id: it.id,
+      });
+    }
+  }
+  for (const f of features) {
+    if (f.updated_at) {
+      events.push({
+        at: unix(f.updated_at), kind: 'feature', actor: 'skill',
+        verb: f.status === 'done' ? 'shipped' : 'updated', target_label: f.title,
+        target_kind: 'feature', target_id: f.id,
+      });
+    }
+  }
+  for (const c of components) {
+    if (c.picked_at) {
+      events.push({
+        at: unix(c.picked_at), kind: 'component_pick', actor: 'user',
+        verb: 'picked', target_label: `${c.name}${c.asset_library_ref ? ' → ' + c.asset_library_ref : ''}`,
+        target_kind: 'component', target_id: c.id,
+      });
+    }
+  }
+  for (const e of skillEvents) {
+    events.push({
+      at: unix(e.event_at), kind: 'skill_event', actor: e.session_id ?? 'skill',
+      verb: e.event_type ?? 'event', target_label: e.event_type ?? 'skill event',
+    });
+  }
+  events.sort((a, b) => b.at - a.at);
+  const topEvents = events.slice(0, 7);
+
+  const openRisks = risks.filter((r) => r.status === 'open');
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <section className="lg:col-span-2 space-y-6">
-        {project.tagline && (
-          <p className="text-lg text-zinc-300">{project.tagline}</p>
-        )}
-        {project.core_idea && (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <h3 className="text-sm font-semibold text-zinc-300 mb-2">Core idea</h3>
-            <p className="text-sm text-zinc-400 whitespace-pre-wrap">{project.core_idea}</p>
-          </div>
-        )}
-        {project.problem_statement && (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <h3 className="text-sm font-semibold text-zinc-300 mb-2">Problem statement</h3>
-            <p className="text-sm text-zinc-400 whitespace-pre-wrap">{project.problem_statement}</p>
-          </div>
-        )}
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <h3 className="text-sm font-semibold text-zinc-300 mb-3">Success criteria</h3>
-            {success_criteria.length === 0 ? (
-              <p className="text-xs text-zinc-600">— none yet</p>
-            ) : (
-              <ul className="space-y-1.5 text-sm text-zinc-300 list-disc list-inside marker:text-emerald-500">
-                {success_criteria.map((s) => <li key={s.id}>{s.content}</li>)}
-              </ul>
-            )}
-          </div>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <h3 className="text-sm font-semibold text-zinc-300 mb-3">Non-goals</h3>
-            {non_goals.length === 0 ? (
-              <p className="text-xs text-zinc-600">— none yet</p>
-            ) : (
-              <ul className="space-y-1.5 text-sm text-zinc-300 list-disc list-inside marker:text-rose-500">
-                {non_goals.map((n) => <li key={n.id}>{n.content}</li>)}
-              </ul>
-            )}
-          </div>
+    <div className="space-y-6">
+      {/* Tagline + URLs */}
+      <div className="flex items-baseline justify-between gap-4 flex-wrap">
+        <div className="min-w-0 flex-1">
+          {project.tagline && <p className="text-base text-zinc-300">{project.tagline}</p>}
+          {project.core_idea && (
+            <p className="mt-1 text-sm text-zinc-500 leading-relaxed max-w-3xl">{project.core_idea}</p>
+          )}
         </div>
-
-        {project.preferences && (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <h3 className="text-sm font-semibold text-zinc-300 mb-3">Preferences</h3>
-            <div className="grid gap-3 md:grid-cols-2 text-xs text-zinc-400">
-              <PrefBlock label="Likes" items={project.preferences?.likes} colour="text-emerald-400" />
-              <PrefBlock label="Dislikes" items={project.preferences?.dislikes} colour="text-rose-400" />
-              <PrefBlock label="Must haves" items={project.preferences?.must_haves} colour="text-cyan-400" />
-              <PrefBlock label="Avoid" items={project.preferences?.avoid} colour="text-amber-400" />
-            </div>
-          </div>
-        )}
-      </section>
-
-      <aside className="space-y-4">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-          <h3 className="text-sm font-semibold text-zinc-300 mb-3">Manifest</h3>
-          <dl className="space-y-3">
-            <Field label="Lifecycle phase" value={project.lifecycle_phase} />
-            <Field label="Scope size" value={project.scope_size} />
-            <Field label="Target devices" value={project.target_devices} />
-            <Field label="Hosting" value={project.hosting_target} />
-            <Field label="Port" value={project.port ? `:${project.port}` : null} />
-            <Field
-              label="Public URL"
-              value={project.public_url ? (
-                <a href={project.public_url} target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline break-all">
-                  {project.public_url}
-                </a>
-              ) : null}
-            />
-            <Field
-              label="Repo"
-              value={project.repository_url ? (
-                <a href={project.repository_url} target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline break-all">
-                  {project.repository_url}
-                </a>
-              ) : null}
-            />
-            <Field
-              label="Updated"
-              value={project.updated_at ? new Date(project.updated_at).toLocaleString() : null}
-            />
-          </dl>
+        <div className="flex items-center gap-3 text-xs">
+          {project.public_url && (
+            <a href={project.public_url} target="_blank" rel="noopener noreferrer"
+               className="text-cyan-300 hover:text-cyan-100 transition-colors">
+              live ↗
+            </a>
+          )}
+          {project.repository_url && (
+            <a href={project.repository_url} target="_blank" rel="noopener noreferrer"
+               className="text-zinc-400 hover:text-zinc-200 transition-colors">
+              repo ↗
+            </a>
+          )}
+          <Link href={`/projects/${slug}/components-pick`}
+                className="text-zinc-400 hover:text-zinc-200 transition-colors">
+            pick →
+          </Link>
         </div>
+      </div>
 
-        {project.tags && project.tags.length > 0 && (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
-            <h3 className="text-sm font-semibold text-zinc-300 mb-3">Tags</h3>
-            <div className="flex flex-wrap gap-1.5">
-              {project.tags.map((t) => (
-                <span key={t} className="text-[11px] rounded-full bg-zinc-800/80 text-zinc-300 px-2 py-0.5">
-                  {t}
-                </span>
+      {/* ROW 1 — Pipeline */}
+      <PipelineProgress stages={stages} />
+
+      {/* ROW 2 — Key context */}
+      <KeyContextPanel
+        must_haves={prefs.must_haves ?? []}
+        non_goals={non_goals.map((n) => n.content)}
+        likes={prefs.likes ?? []}
+        dislikes={prefs.dislikes ?? []}
+        success_criteria={success_criteria.map((s) => s.content)}
+      />
+
+      {/* ROW 3 — Status (blockers + todos) */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl p-5">
+          <div className="flex items-baseline justify-between mb-3">
+            <h3 className="text-sm font-semibold text-zinc-200">Blockers</h3>
+            <Badge variant="count">{openRisks.length} open</Badge>
+          </div>
+          {openRisks.length === 0 ? (
+            <p className="text-xs text-zinc-600 italic">No open risks — clean slate.</p>
+          ) : (
+            <ul className="space-y-2">
+              {openRisks.slice(0, 5).map((r) => (
+                <li key={r.id} className="text-xs text-zinc-400 leading-relaxed">
+                  <code className="font-mono text-zinc-500">{r.risk_type_id ?? 'risk'}</code>
+                  {r.notes && <span className="ml-2">{r.notes}</span>}
+                </li>
               ))}
-            </div>
-          </div>
-        )}
-      </aside>
-    </div>
-  );
-}
+              {openRisks.length > 5 && (
+                <li className="text-[11px] text-zinc-600 italic">+ {openRisks.length - 5} more</li>
+              )}
+            </ul>
+          )}
+        </div>
 
-function PrefBlock({ label, items, colour }: { label: string; items?: string[]; colour: string }) {
-  return (
-    <div>
-      <div className={`text-[10px] uppercase tracking-wider ${colour}`}>{label}</div>
-      {items && items.length > 0 ? (
-        <ul className="mt-1 space-y-0.5 text-zinc-300">
-          {items.map((i) => <li key={i}>· {i}</li>)}
-        </ul>
-      ) : (
-        <p className="mt-1 text-zinc-600">— none</p>
-      )}
+        <TodoList
+          projectSlug={slug}
+          initialTodos={todos.map((t) => ({
+            id: t.id,
+            title: t.title,
+            done: Boolean(t.done),
+            sort_order: t.sort_order,
+          }))}
+        />
+      </div>
+
+      {/* ROW 4 — Docs rail */}
+      <DocsRail
+        docs={docs.map((d) => ({
+          doc_name: d.doc_name,
+          body: d.body,
+          mirrored_at: d.mirrored_at instanceof Date ? d.mirrored_at.getTime() / 1000 : (d.mirrored_at ?? 0),
+        }))}
+        repoUrl={project.repository_url}
+      />
+
+      {/* ROW 5 — Activity */}
+      <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl p-5">
+        <h3 className="text-sm font-semibold text-zinc-200 mb-3">Recent activity</h3>
+        <ActivityFeed slug={slug} events={topEvents} emptyLabel="No activity recorded yet for this project." />
+      </div>
     </div>
   );
 }
