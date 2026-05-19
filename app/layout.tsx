@@ -6,8 +6,8 @@ import { TokenInjector } from '@/components/auth/TokenInjector';
 import { getServerToken } from '@/lib/token';
 
 export const metadata: Metadata = {
-  title: 'Ottomate — Web Project Tracker',
-  description: 'Tracker for the Ottomate web project pipeline',
+  title: "Ottomate",
+  description: 'Ottomate manages your web project pipeline.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

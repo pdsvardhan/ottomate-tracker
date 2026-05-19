@@ -21,7 +21,7 @@ export function Sidebar() {
           </span>
         </Link>
         <p className="mt-1 text-[11px] uppercase tracking-wider text-zinc-500">
-          Web project tracker
+          Web project pipeline
         </p>
       </div>
 

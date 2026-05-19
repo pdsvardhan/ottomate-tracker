@@ -28,6 +28,7 @@ export async function GET(req: Request, { params }: Ctx) {
       display_name: project.display_name,
       core_idea: project.core_idea,
       lifecycle_phase: project.lifecycle_phase,
+      current_status: project.current_status,
       preferences: project.preferences,
     },
   };

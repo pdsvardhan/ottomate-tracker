@@ -106,7 +106,7 @@ export function PickComponentClient({ iterationId, itemId, itemTitle }: Props) {
     <div className="space-y-4">
       {!token && (
         <div className="rounded-lg border border-amber-900/60 bg-amber-950/30 p-3 text-xs text-amber-300">
-          Auth token not auto-loaded. Reload the page; if it still fails, check that the tracker container has the bearer-token secret mounted.
+          Auth token not auto-loaded. Reload the page; if it still fails, check that the Ottomate container has the bearer-token secret mounted.
         </div>
       )}
 

@@ -10,7 +10,7 @@ export function TopBar() {
         <PaletteHost />
         <span className="text-xs text-zinc-500 inline-flex items-center gap-1.5">
           <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          tracker live
+          Ottomate live
         </span>
       </div>
     </header>
