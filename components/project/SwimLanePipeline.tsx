@@ -21,6 +21,8 @@ export interface StageNode {
 
 interface SwimLanePipelineProps {
   stages: StageNode[];
+  /** Optional honest one-line headline, e.g. "Stage 3 · 7/13 features shipped". */
+  headline?: string;
 }
 
 const STATUS_TONE: Record<StageNode['status'], { dot: string; ring: string; bar: string; label: string; pulse: boolean }> = {
@@ -47,18 +49,25 @@ const STATUS_TONE: Record<StageNode['status'], { dot: string; ring: string; bar:
   },
 };
 
-export function SwimLanePipeline({ stages }: SwimLanePipelineProps) {
+export function SwimLanePipeline({ stages, headline }: SwimLanePipelineProps) {
   // Default-expand the in-progress stage so users see what's next instantly.
   const inProgressIdx = stages.findIndex((s) => s.status === 'in-progress');
   const [expandedIdx, setExpandedIdx] = useState<number | null>(inProgressIdx >= 0 ? inProgressIdx : null);
 
   return (
     <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl p-6">
-      <div className="flex items-baseline justify-between mb-5">
-        <h3 className="text-sm font-semibold bg-gradient-to-r from-cyan-200 via-zinc-100 to-violet-200 bg-clip-text text-transparent">
-          Pipeline
-        </h3>
-        <span className="text-[11px] font-mono text-zinc-500">click a stage to drill in</span>
+      <div className="flex items-baseline justify-between gap-4 mb-5 flex-wrap">
+        <div className="flex items-baseline gap-3 min-w-0">
+          <h3 className="text-sm font-semibold bg-gradient-to-r from-cyan-200 via-zinc-100 to-violet-200 bg-clip-text text-transparent">
+            Pipeline
+          </h3>
+          {headline && (
+            <span className="text-xs font-medium text-cyan-200/90 truncate" title={headline}>
+              {headline}
+            </span>
+          )}
+        </div>
+        <span className="text-[11px] font-mono text-zinc-500 shrink-0">click a stage to drill in</span>
       </div>
 
       {/* The swim lane — 5 stages connected horizontally */}

@@ -1,18 +1,17 @@
-// Project Overview tab — Spotlight Glass redesign v2 (iter-7 item 52).
-// Composes: ProjectIntro (audience-facing) -> SwimLanePipeline (click-expand) ->
-// AboutThisProject (compact pointers) -> Blockers + TodoList -> DocsRail -> ActivityFeed.
+// Project Overview tab — Spotlight Glass redesign v3 (showcase overhaul).
+// Composes: ProjectIntro (audience-facing) -> SwimLanePipeline (honest progress) ->
+// DocsRail -> ActivityFeed.
+// Removed for the recruiter-facing showcase: AboutThisProject (must-haves/non-goals/
+// likes/dislikes) and the Blockers + TodoList widget — they were internal-planning
+// surfaces that don't belong in a public portfolio view. Components remain in the repo.
 
-import Link from 'next/link';
-import { asc, desc, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { notFound } from 'next/navigation';
 import { ProjectIntro } from '@/components/project/ProjectIntro';
 import { SwimLanePipeline, type StageNode } from '@/components/project/SwimLanePipeline';
-import { AboutThisProject } from '@/components/project/AboutThisProject';
 import { DocsRail } from '@/components/project/DocsRail';
-import { TodoList } from '@/components/project/TodoList';
 import { ActivityFeed } from '@/components/project/ActivityFeed';
-import { Badge } from '@/components/ui/Badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,12 +29,6 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
   if (!project) notFound();
 
   // ── Data pulls ──
-  const non_goals = db.select().from(schema.project_non_goals)
-    .where(eq(schema.project_non_goals.project_slug, slug))
-    .orderBy(asc(schema.project_non_goals.sort_order)).all();
-  const success_criteria = db.select().from(schema.project_success_criteria)
-    .where(eq(schema.project_success_criteria.project_slug, slug))
-    .orderBy(asc(schema.project_success_criteria.sort_order)).all();
   const features = db.select().from(schema.features)
     .where(eq(schema.features.project_slug, slug)).all();
   const flows = db.select().from(schema.flows)
@@ -46,9 +39,6 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     .where(eq(schema.components.project_slug, slug)).all();
   const iterations = db.select().from(schema.iterations)
     .where(eq(schema.iterations.project_slug, slug)).all();
-  const todos = db.select().from(schema.project_todos)
-    .where(eq(schema.project_todos.project_slug, slug))
-    .orderBy(asc(schema.project_todos.sort_order), asc(schema.project_todos.id)).all();
   const docs = db.select().from(schema.project_docs)
     .where(eq(schema.project_docs.project_slug, slug)).all();
   const risks = db.select().from(schema.risk_instances)
@@ -64,32 +54,44 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     .where(eq(schema.skill_events.project_slug, slug))
     .orderBy(desc(schema.skill_events.event_at)).limit(20).all();
 
-  // ── Preferences JSON (may be null) ──
-  type PrefsShape = { likes?: string[]; dislikes?: string[]; must_haves?: string[]; avoid?: string[] };
-  const prefs = (project.preferences ?? {}) as PrefsShape;
-
   // ── Compute stage data for swim-lane ──
-  // Each stage has sub_tasks that surface "what's done and what's left".
-  const featuresDone = features.filter((f) => f.status === 'done').length;
-  const featuresInProgress = features.filter((f) => f.status === 'building').length;
+  // Status values in the features table are: planned | building | done | dropped.
+  // "shipped" = done; "in progress" = building. dropped features are excluded from totals.
+  const featuresActive = features.filter((f) => f.status !== 'dropped');
+  const featuresDone = featuresActive.filter((f) => f.status === 'done').length;
+  const featuresInProgress = featuresActive.filter((f) => f.status === 'building').length;
+  const featuresTotal = featuresActive.length;
   const componentsPicked = components.filter((c) => c.picked).length;
   const componentsSkipped = components.filter((c) => c.skip_reason).length;
   const iterationsIntegrated = iterations.filter((it) => it.integrated_at).length;
   const iterationsInProgress = iterations.filter((it) => it.status === 'building').length;
-  const flowsTested = flows.filter((f) => f.test_status === 'passing').length;
-  const allItems = iterations.flatMap((it) => Array(0).fill(it.id)); // placeholder; iteration items not joined
 
   // Heuristic stage status — adapted for "ottomate is its own meta project".
   const stage0_done = project.lifecycle_phase !== 'ideating';
-  const stage1_total = features.length + flows.length + pages.length;
-  const stage1_done_count = stage1_total; // by the time SO1 docs exist they're considered "captured"
-  const stage1_done = stage1_total > 0;
+  // Stage 1 (SO1 spec) progress reflects REAL state: how many of the three SO1
+  // doc-kinds (features / flows / pages) actually have rows. No more "always 100%".
+  const so1Kinds = [features.length > 0, flows.length > 0, pages.length > 0];
+  const stage1_present = so1Kinds.filter(Boolean).length; // 0..3
+  const stage1_total = so1Kinds.length; // 3
+  const stage1_done = stage1_present === stage1_total;
+  const stage1_started = stage1_present > 0;
   const stage2_done = components.length > 0 && componentsPicked + componentsSkipped === components.length;
   const stage2_in_progress = !stage2_done && (componentsPicked > 0 || (ui_master_plan != null));
-  const stage3_done = features.length > 0 && featuresDone === features.length;
+  const stage3_done = featuresTotal > 0 && featuresDone === featuresTotal;
   const stage3_in_progress = !stage3_done && (featuresDone > 0 || featuresInProgress > 0);
   const stage4_in_progress = iterationsInProgress > 0;
   const stage4_done = iterations.length > 0 && iterationsInProgress === 0;
+
+  // ── Honest headline: current lifecycle stage + real feature-shipped count. ──
+  // Pick the furthest-along active stage as the headline stage.
+  const headlineStage = stage4_in_progress || stage4_done ? 'Stage 4'
+    : stage3_in_progress || stage3_done ? 'Stage 3'
+    : stage2_in_progress || stage2_done ? 'Stage 2'
+    : stage1_started ? 'Stage 1'
+    : 'Stage 0';
+  const progressHeadline = featuresTotal > 0
+    ? `${headlineStage} · ${featuresDone}/${featuresTotal} features shipped`
+    : `${headlineStage} · spec in progress`;
 
   const stages: StageNode[] = [
     {
@@ -109,17 +111,21 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
       id: 'stage-1',
       label: 'Stage 1',
       tagline: 'SO1 docs',
-      status: stage1_done && !stage2_in_progress && !stage3_done ? 'done' : stage1_done ? 'done' : 'in-progress',
-      done: stage1_done_count,
+      // Honest: progress is how many of the three SO1 doc-kinds actually have rows,
+      // not a hardcoded done==total.
+      status: stage1_done ? 'done' : stage1_started ? 'in-progress' : 'pending',
+      done: stage1_present,
       total: stage1_total,
       sub_tasks: [
-        { label: 'features defined', done: features.length, total: features.length },
-        { label: 'flows defined', done: flows.length, total: flows.length },
-        { label: 'pages defined', done: pages.length, total: pages.length },
+        { label: 'features defined', done: features.length > 0 ? 1 : 0, total: 1 },
+        { label: 'flows defined', done: flows.length > 0 ? 1 : 0, total: 1 },
+        { label: 'pages defined', done: pages.length > 0 ? 1 : 0, total: 1 },
         { label: 'risks captured', done: risks.length, total: risks.length },
         { label: 'ADRs accepted', done: adrs.filter((a) => a.status === 'accepted').length, total: adrs.length },
       ],
-      note: 'All seven SO1 docs locked. Counts mirror the DB.',
+      note: stage1_done
+        ? 'All three SO1 doc-kinds (features / flows / pages) are populated; counts mirror the DB.'
+        : 'SO1 spec in progress — features / flows / pages get captured here.',
     },
     {
       id: 'stage-2',
@@ -144,11 +150,12 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
       tagline: 'build + deploy',
       status: stage3_done ? 'done' : stage3_in_progress ? 'in-progress' : 'pending',
       done: featuresDone,
-      total: features.length,
+      total: featuresTotal,
+      // "flows tested" removed — every flow is currently `not-tested`, so the bar was
+      // always 0 and read as a fake/cosmetic metric. Sub-tasks now reflect real counts only.
       sub_tasks: [
-        { label: 'features shipped', done: featuresDone, total: features.length },
-        { label: 'features in-progress', done: featuresInProgress, total: features.length },
-        { label: 'flows tested', done: flowsTested, total: flows.length },
+        { label: 'features shipped', done: featuresDone, total: featuresTotal },
+        { label: 'features in-progress', done: featuresInProgress, total: featuresTotal },
         { label: 'open risks resolved', done: risks.filter((r) => r.status === 'resolved').length, total: risks.length },
       ],
       note: stage3_done
@@ -162,10 +169,11 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
       status: stage4_in_progress ? 'in-progress' : stage4_done ? 'done' : 'pending',
       done: iterationsIntegrated,
       total: iterations.length,
+      // "pending reports" stub removed — it was hardcoded 0/0 and never wired to the
+      // reports table, so it rendered an empty cosmetic row.
       sub_tasks: [
         { label: 'iterations integrated', done: iterationsIntegrated, total: iterations.length },
         { label: 'iterations in-progress', done: iterationsInProgress, total: iterations.length },
-        { label: 'pending reports', done: 0, total: 0 }, // TODO query reports
       ],
       note: 'Each iteration = raw report -> classify -> lock -> build -> verify -> integrate. Loops forever.',
     },
@@ -225,8 +233,6 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
   events.sort((a, b) => b.at - a.at);
   const topEvents = events.slice(0, 7);
 
-  const openRisks = risks.filter((r) => r.status === 'open');
-
   return (
     <div className="space-y-6">
       {/* ROW 1 — Audience intro */}
@@ -242,59 +248,10 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
         tags={((project.tags ?? []) as string[])}
       />
 
-      {/* ROW 2 — Pipeline swim-lane */}
-      <SwimLanePipeline stages={stages} />
+      {/* ROW 2 — Pipeline swim-lane (honest headline derived from real feature counts) */}
+      <SwimLanePipeline stages={stages} headline={progressHeadline} />
 
-      {/* ROW 3 — About this project (compact) */}
-      <AboutThisProject
-        tagline={project.tagline}
-        must_haves={prefs.must_haves ?? []}
-        non_goals={non_goals.map((n) => n.content)}
-        success_criteria={success_criteria.map((s) => s.content)}
-        likes={prefs.likes ?? []}
-        dislikes={prefs.dislikes ?? []}
-        avoid={prefs.avoid ?? []}
-      />
-
-      {/* ROW 4 — Blockers + Todos */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl p-5">
-          <div className="flex items-baseline justify-between mb-3">
-            <h3 className="text-sm font-semibold text-zinc-200">Blockers</h3>
-            <Badge variant="count">{openRisks.length} open</Badge>
-          </div>
-          {openRisks.length === 0 ? (
-            <p className="text-xs text-zinc-600 italic">No open risks — clean slate.</p>
-          ) : (
-            <ul className="space-y-2">
-              {openRisks.slice(0, 5).map((r) => (
-                <li key={r.id} className="text-xs text-zinc-400 leading-relaxed flex items-start gap-2">
-                  <span className="mt-1.5 size-1 rounded-full bg-rose-400 shrink-0" />
-                  <div className="min-w-0">
-                    <code className="font-mono text-zinc-500">{r.risk_type_id ?? 'risk'}</code>
-                    {r.notes && <p className="text-zinc-300 mt-0.5">{r.notes}</p>}
-                  </div>
-                </li>
-              ))}
-              {openRisks.length > 5 && (
-                <li className="text-[11px] text-zinc-600 italic pt-1">+ {openRisks.length - 5} more</li>
-              )}
-            </ul>
-          )}
-        </div>
-
-        <TodoList
-          projectSlug={slug}
-          initialTodos={todos.map((t) => ({
-            id: t.id,
-            title: t.title,
-            done: Boolean(t.done),
-            sort_order: t.sort_order,
-          }))}
-        />
-      </div>
-
-      {/* ROW 5 — Docs rail */}
+      {/* ROW 3 — Docs rail */}
       <DocsRail
         docs={docs.map((d) => ({
           doc_name: d.doc_name,
