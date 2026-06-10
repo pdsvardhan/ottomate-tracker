@@ -1,10 +1,17 @@
 // /api/backup — POST: snapshot the SQLite DB to data/backups/.
 // Codex P0 #2 — backup before destructive ops.
+// 2026-06-10: copyFileSync -> VACUUM INTO after the WAL-split incident. A raw
+// file copy misses un-checkpointed WAL pages (the Jun 4-10 backups silently
+// excluded 6 days of writes) and can tear mid-write. VACUUM INTO snapshots
+// through the app's own SQLite connection, then the result is integrity-checked
+// before reporting ok.
 
 import { NextResponse } from 'next/server';
-import { copyFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { mkdirSync, readdirSync, statSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
+import Database from 'better-sqlite3';
 import { requireBearer } from '@/lib/auth';
+import { getRawSqlite } from '@/lib/db/client';
 
 export const runtime = 'nodejs';
 
@@ -17,12 +24,24 @@ export async function POST(req: Request) {
   mkdirSync(backupDir, { recursive: true });
   const dest = path.join(backupDir, `backup-${Date.now()}.db`);
   try {
-    copyFileSync(dbPath, dest);
+    const raw = await getRawSqlite();
+    raw.prepare('VACUUM INTO ?').run(dest);
+    const check = new Database(dest, { readonly: true });
+    const integrity = check.prepare('PRAGMA integrity_check').get() as { integrity_check: string };
+    check.close();
+    if (integrity.integrity_check !== 'ok') {
+      try { unlinkSync(dest); } catch {}
+      return NextResponse.json(
+        { error: 'backup_failed_integrity', detail: integrity.integrity_check },
+        { status: 500 }
+      );
+    }
   } catch (err) {
+    try { unlinkSync(dest); } catch {}
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
   const size = statSync(dest).size;
-  return NextResponse.json({ ok: true, path: dest, size_bytes: size });
+  return NextResponse.json({ ok: true, path: dest, size_bytes: size, method: 'vacuum_into' });
 }
 
 export async function GET() {
