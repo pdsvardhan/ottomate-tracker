@@ -67,7 +67,7 @@ function lifecycleStage(phase: string | null): string {
 
 function progressLabel(phase: string | null, stat: FeatureStat): string {
   const stage = lifecycleStage(phase);
-  if (stat.total === 0) return `${stage} · spec`;
+  if (stat.total === 0) return stage;
   return `${stage} · ${stat.done}/${stat.total} shipped`;
 }
 
