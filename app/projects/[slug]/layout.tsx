@@ -11,7 +11,8 @@ import { DriftBanner } from '@/components/project/DriftBanner';
 
 const TABS = [
   { label: 'Overview', href: '' },
-  { label: 'Capabilities', href: '/capabilities' },
+  // Visible label only — route path stays /capabilities (folder unchanged).
+  { label: 'Features & Flows', href: '/capabilities' },
   { label: 'Architecture', href: '/architecture' },
   { label: 'Iterations', href: '/iterations' },
 ];

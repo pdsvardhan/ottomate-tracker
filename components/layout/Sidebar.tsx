@@ -3,9 +3,10 @@
 
 import Link from 'next/link';
 
+// Bug Inbox nav entry removed from the showcase — the /inbox route and its API
+// stay in place (deferred, not deleted); we just don't surface it in the main nav.
 const NAV: Array<{ label: string; href: string }> = [
   { label: 'Projects', href: '/' },
-  { label: 'Bug Inbox', href: '/inbox' },
   { label: 'Coverage', href: '/coverage' },
   { label: 'Components', href: '/components-browser' },
   { label: 'Inspirations', href: '/inspirations' },

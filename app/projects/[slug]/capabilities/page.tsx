@@ -92,7 +92,7 @@ export default async function CapabilitiesTab({ params }: { params: Promise<{ sl
         <header className="mb-4 flex items-baseline justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-xl font-semibold bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
-              Capabilities
+              Features &amp; Flows
             </h2>
             <p className="text-xs text-zinc-500 mt-1">
               What this website actually does, written as user-facing feature specs.

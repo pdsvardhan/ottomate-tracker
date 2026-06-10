@@ -1,8 +1,11 @@
 'use client';
 
+// Bug-reporting UI (the "fail" + "bug" buttons that opened the bug inbox) is
+// deferred for the recruiter-facing showcase — NOT deleted. The /api/flows/[id]/test
+// endpoint and the reports backend remain; only the inline triggers are hidden here.
+
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
 
 interface FlowRow {
@@ -21,7 +24,9 @@ const STATUS_TONE: Record<string, 'shipped' | 'blocked' | 'neutral' | 'open'> = 
   'not-tested': 'neutral',
 };
 
-export function FlowTestRow({ flow, projectSlug }: { flow: FlowRow; projectSlug: string }) {
+// projectSlug is still accepted (callers pass it) but is currently unused now that
+// the inline bug-report link is deferred. Kept in the type to avoid churn at call sites.
+export function FlowTestRow({ flow }: { flow: FlowRow; projectSlug?: string }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
@@ -31,7 +36,7 @@ export function FlowTestRow({ flow, projectSlug }: { flow: FlowRow; projectSlug:
   const status = flow.test_status ?? 'not-tested';
   const tone = STATUS_TONE[status] ?? 'neutral';
 
-  async function mark(newStatus: 'passing' | 'failing') {
+  async function mark(newStatus: 'passing') {
     setBusy(true);
     setError(null);
     try {
@@ -80,22 +85,7 @@ export function FlowTestRow({ flow, projectSlug }: { flow: FlowRow; projectSlug:
           >
             pass
           </button>
-          <button
-            type="button"
-            onClick={() => mark('failing')}
-            disabled={busy}
-            title="Mark failing — opens bug report"
-            className="rounded-md px-2 py-1 text-[11px] border border-rose-500/20 bg-rose-500/5 text-rose-300 hover:bg-rose-500/10 transition-colors disabled:opacity-50"
-          >
-            fail
-          </button>
-          <Link
-            href={`/inbox?action=new&project=${projectSlug}&flow=${flow.id}`}
-            title="Report bug on this flow"
-            className="rounded-md px-2 py-1 text-[11px] border border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
-          >
-            bug
-          </Link>
+          {/* "fail" + "bug" buttons deferred for the showcase (see file header). */}
         </div>
       </div>
 

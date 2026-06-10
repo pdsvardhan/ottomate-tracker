@@ -14,9 +14,9 @@ interface Props {
   projects: Project[];
 }
 
+// Bug Inbox link removed from the palette for the showcase (route/API kept, just hidden).
 const NAV_LINKS: { label: string; href: string }[] = [
   { label: 'Projects', href: '/' },
-  { label: 'Bug Inbox', href: '/inbox' },
   { label: 'Coverage Dashboard', href: '/coverage' },
   { label: 'Risk Heatmap', href: '/risks' },
   { label: 'Components', href: '/components-browser' },

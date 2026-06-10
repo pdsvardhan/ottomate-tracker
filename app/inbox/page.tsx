@@ -1,15 +1,14 @@
 // Cross-project bug inbox.
 // Iteration #5 C.5: + Submit-bug modal wired (closes item 33).
-// Wider UI redesign lives in E.5 (Group E).
+// Showcase overhaul: submit-bug entry points (modal trigger + header action) deferred;
+// route kept live as a read-only report list. SubmitBugModal component retained in repo.
 
 import Link from 'next/link';
-import { asc, desc, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { PRIMARY_BUTTON_CLASSES } from '@/components/ui/FilterBar';
-import { SubmitBugModal } from './SubmitBugModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,22 +40,6 @@ export default async function InboxPage({
       .all().length;
   }
 
-  const projects = db
-    .select({ slug: schema.projects.slug, display_name: schema.projects.display_name })
-    .from(schema.projects)
-    .orderBy(asc(schema.projects.display_name))
-    .all();
-
-  const flows = db
-    .select({
-      id: schema.flows.id,
-      title: schema.flows.title,
-      project_slug: schema.flows.project_slug,
-    })
-    .from(schema.flows)
-    .orderBy(asc(schema.flows.id))
-    .all();
-
   return (
     <div className="px-8 py-10 max-w-6xl mx-auto">
       <PageHeader
@@ -72,11 +55,6 @@ export default async function InboxPage({
             <span className="text-zinc-700">·</span>
             <span>{counts.ignored} ignored</span>
           </span>
-        }
-        actions={
-          <Link href="/inbox?action=new" className={PRIMARY_BUTTON_CLASSES}>
-            + Submit bug
-          </Link>
         }
       />
 
@@ -137,7 +115,9 @@ export default async function InboxPage({
         </ul>
       )}
 
-      <SubmitBugModal projects={projects} flows={flows} />
+      {/* SubmitBugModal trigger deferred for the showcase — modal component is kept in
+          the repo (app/inbox/SubmitBugModal.tsx), just not mounted here. The /inbox
+          route stays live (read-only report list). */}
     </div>
   );
 }

@@ -28,7 +28,9 @@ function timeAgo(unixSeconds: number): string {
 
 function targetHref(slug: string, e: ActivityEvent): string | null {
   if (e.target_kind === 'iteration') return `/iterations/${e.target_id}`;
-  if (e.target_kind === 'feature') return `/projects/${slug}/features`;
+  // Feature links now point at the Features & Flows tab (/capabilities) — the old
+  // /features route was removed in the showcase overhaul and would 404.
+  if (e.target_kind === 'feature') return `/projects/${slug}/capabilities`;
   if (e.target_kind === 'component') return `/projects/${slug}/components-pick`;
   return null;
 }
