@@ -7,7 +7,7 @@ import { getDb, getRawSqlite } from '@/lib/db/client';
 import { sanity_check_runs, projects } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { execSync } from 'node:child_process';
-import { statSync, existsSync, readFileSync } from 'node:fs';
+import { statSync, existsSync, readFileSync, readdirSync, readlinkSync } from 'node:fs';
 
 export const runtime = 'nodejs';
 
@@ -256,6 +256,34 @@ async function runBootstrapChecks(): Promise<CheckResult[]> {
     });
   } catch {
     checks.push({ id: 'last-session-audit', result: 'pass', detail: { first_run: true } });
+  }
+
+  // 8. WAL integrity — detect the 2026-06-10 WAL-split failure mode: this
+  // process holding deleted -wal/-shm inodes means committed writes are
+  // invisible on disk and will be LOST on container restart (adr-015).
+  try {
+    const deletedDbFds: string[] = [];
+    for (const fd of readdirSync('/proc/self/fd')) {
+      try {
+        const target = readlinkSync(`/proc/self/fd/${fd}`);
+        if (/ottomate\.db(-wal|-shm)? \(deleted\)$/.test(target)) deletedDbFds.push(target);
+      } catch {
+        // fd closed mid-scan
+      }
+    }
+    checks.push({
+      id: 'wal-integrity',
+      result: deletedDbFds.length === 0 ? 'pass' : 'fail',
+      detail: { deleted_db_fds: deletedDbFds },
+      auto_fix: deletedDbFds.length === 0 ? undefined : {
+        action: 'manual',
+        command: 'cat /proc/<server-pid>/fd/<N> — rescue main+wal BEFORE any restart (see decisions/adr-015-wal-safe-backups.md)',
+        approval_required: true,
+        explanation: 'Live DB writes exist only in deleted inodes; do NOT restart the container before rescuing them',
+      },
+    });
+  } catch {
+    checks.push({ id: 'wal-integrity', result: 'pass', detail: { note: '/proc unavailable (non-linux dev env)' } });
   }
 
   return checks;

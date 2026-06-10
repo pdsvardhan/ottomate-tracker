@@ -2,6 +2,7 @@
 // Reads from TRACKER_API_TOKEN_FILE (Docker secret) or TRACKER_API_TOKEN env.
 
 import { readFileSync } from 'node:fs';
+import { timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 
 let _cachedToken: string | null = null;
@@ -42,7 +43,9 @@ export function requireBearer(req: Request): NextResponse | null {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const provided = header.slice('Bearer '.length).trim();
-  if (provided !== expected) {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   return null;
