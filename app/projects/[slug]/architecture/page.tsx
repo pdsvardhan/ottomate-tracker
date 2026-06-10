@@ -1,15 +1,15 @@
-// Architecture tab — Spotlight Glass redesign (E.6 closes iteration #5 item 29).
-// Renders 5 canonical diagram kinds + ADR cards anchored to each kind (per ADR-010)
-// + a data-model rail (per ADR-009; conditional on has_data_layer or any data_sources).
+// Architecture tab — Spotlight Glass redesign + showcase overhaul.
+// Renders the available diagram kinds as named, zoom/pan/fullscreen tabs.
+// The ADR side-rail and the "General decisions" section were removed for the
+// showcase (owner doesn't want ADRs surfaced) — the diagram area is the focus.
 // Filesystem .mmd fallback retained for legacy projects.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { asc, eq, isNull } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { notFound } from 'next/navigation';
-import { MermaidView } from '@/components/architecture/MermaidView';
-import { Badge } from '@/components/ui/Badge';
+import { ArchitectureDiagrams, type DiagramGroup } from '@/components/architecture/ArchitectureDiagrams';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
@@ -82,26 +82,6 @@ export default async function ArchitectureTab({ params }: { params: Promise<{ sl
     }
   }
 
-  // ADRs for this project, grouped by anchored_to.
-  const adrs = db.select().from(schema.adr_index)
-    .where(eq(schema.adr_index.project_slug, slug))
-    .orderBy(asc(schema.adr_index.id))
-    .all();
-  const adrsByAnchor = new Map<string, typeof adrs>();
-  for (const a of adrs) {
-    const key = a.anchored_to ?? 'general';
-    const arr = adrsByAnchor.get(key) ?? [];
-    arr.push(a);
-    adrsByAnchor.set(key, arr);
-  }
-
-  // Data-model rail context: hide the data section entirely if neither flag.
-  const dataConcepts = db.select().from(schema.project_data_concepts)
-    .where(eq(schema.project_data_concepts.project_slug, slug)).get();
-  const dataSourcesCount = db.select().from(schema.data_sources)
-    .where(eq(schema.data_sources.project_slug, slug)).all().length;
-  const hasDataLayer = Boolean(dataConcepts?.has_data_layer) || dataSourcesCount > 0;
-
   if (byKind.size === 0) {
     return (
       <EmptyState
@@ -111,109 +91,32 @@ export default async function ArchitectureTab({ params }: { params: Promise<{ sl
     );
   }
 
-  return (
-    <div className="space-y-12">
-      {KIND_ORDER.map((kind) => {
-        const group = byKind.get(kind) ?? [];
-        const adrCards = adrsByAnchor.get(kind) ?? [];
-        // Hide the data section entirely when not applicable.
-        if (kind === 'data' && !hasDataLayer && group.length === 0) return null;
-        if (group.length === 0 && adrCards.length === 0) return null;
+  // Build named, ordered diagram groups for the client tab switcher.
+  // Known kinds first (in KIND_ORDER), then any unrecognised kinds the DB may hold.
+  const knownGroups: DiagramGroup[] = KIND_ORDER
+    .filter((kind) => (byKind.get(kind) ?? []).length > 0)
+    .map((kind) => {
+      const arr = byKind.get(kind)!;
+      return {
+        kind,
+        label: KIND_LABELS[kind],
+        desc: KIND_DESC[kind],
+        legacy: arr.some((d) => d.origin === 'filesystem'),
+        diagrams: arr.map((d) => ({ source: d.source, caption: d.caption })),
+      };
+    });
 
-        return (
-          <section key={kind} id={`arch-${kind}`} className="scroll-mt-20">
-            <header className="mb-4">
-              <div className="flex items-baseline gap-3 flex-wrap">
-                <h2 className="text-xl font-semibold bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
-                  {KIND_LABELS[kind]}
-                </h2>
-                <Badge variant="count">{group.length}</Badge>
-                {group.some((d) => d.origin === 'filesystem') && (
-                  <Badge variant="status" tone="open" title="Legacy filesystem-backed diagram.">
-                    legacy
-                  </Badge>
-                )}
-              </div>
-              <p className="text-xs text-zinc-500 mt-1">{KIND_DESC[kind]}</p>
-            </header>
+  const extraGroups: DiagramGroup[] = Array.from(byKind.entries())
+    .filter(([kind]) => !(KIND_ORDER as readonly string[]).includes(kind))
+    .map(([kind, arr]) => ({
+      kind,
+      label: kind.charAt(0).toUpperCase() + kind.slice(1),
+      desc: 'Project-specific diagram.',
+      legacy: arr.some((d) => d.origin === 'filesystem'),
+      diagrams: arr.map((d) => ({ source: d.source, caption: d.caption })),
+    }));
 
-            <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-              <div className="space-y-4">
-                {group.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-zinc-900/60 bg-zinc-950/30 backdrop-blur p-6 text-center text-xs text-zinc-600">
-                    No diagram yet for this kind — seed via{' '}
-                    <code className="font-mono text-zinc-500">INSERT INTO diagram_artifacts</code>.
-                  </div>
-                ) : (
-                  group.map((d, i) => (
-                    <div key={`${kind}-${i}`} className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl p-4">
-                      {d.caption && (
-                        <p className="text-xs text-zinc-500 mb-3 font-mono">{d.caption}</p>
-                      )}
-                      <MermaidView source={d.source} filename={d.caption ?? `${kind}-${i + 1}.mmd`} />
-                    </div>
-                  ))
-                )}
-              </div>
+  const groups = [...knownGroups, ...extraGroups];
 
-              {adrCards.length > 0 && (
-                <aside className="space-y-3">
-                  <h3 className="text-[11px] uppercase tracking-wider text-zinc-500">ADRs that shaped this</h3>
-                  {adrCards.map((a) => (
-                    <details key={a.id} className="rounded-2xl border border-zinc-800/60 bg-zinc-900/40 backdrop-blur-xl px-4 py-3">
-                      <summary className="cursor-pointer list-none">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <code className="text-[10px] font-mono text-zinc-500 truncate">{a.id}</code>
-                          {a.status && <Badge variant="status" tone={a.status === 'accepted' ? 'shipped' : 'neutral'}>{a.status}</Badge>}
-                        </div>
-                        <p className="text-sm text-zinc-200 mt-1">{a.title}</p>
-                        {((a.tags ?? []) as string[]).length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {((a.tags ?? []) as string[]).slice(0, 4).map((t) => (
-                              <Badge key={t} variant="tag">{t}</Badge>
-                            ))}
-                          </div>
-                        )}
-                      </summary>
-                      <p className="mt-3 pt-3 border-t border-zinc-800/40 text-xs text-zinc-400 font-mono">
-                        body_path: {a.body_path}
-                      </p>
-                    </details>
-                  ))}
-                </aside>
-              )}
-            </div>
-          </section>
-        );
-      })}
-
-      {/* General decisions rail (ADRs with anchored_to = NULL) */}
-      {(adrsByAnchor.get('general') ?? []).length > 0 && (
-        <section>
-          <header className="mb-4">
-            <h2 className="text-xl font-semibold bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
-              General decisions
-            </h2>
-            <p className="text-xs text-zinc-500 mt-1">Meta + process ADRs without a specific diagram anchor.</p>
-          </header>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {(adrsByAnchor.get('general') ?? []).map((a) => (
-              <details key={a.id} className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl px-4 py-3">
-                <summary className="cursor-pointer list-none">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <code className="text-[10px] font-mono text-zinc-500 truncate">{a.id}</code>
-                    {a.status && <Badge variant="status" tone={a.status === 'accepted' ? 'shipped' : 'neutral'}>{a.status}</Badge>}
-                  </div>
-                  <p className="text-sm text-zinc-200 mt-1">{a.title}</p>
-                </summary>
-                <p className="mt-3 pt-3 border-t border-zinc-800/40 text-xs text-zinc-400 font-mono">
-                  body_path: {a.body_path}
-                </p>
-              </details>
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
-  );
+  return <ArchitectureDiagrams groups={groups} />;
 }
