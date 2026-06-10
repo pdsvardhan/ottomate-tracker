@@ -1,6 +1,6 @@
 # API inventory (generated)
 
-> Generated 2026-06-10T17:42:09+05:30 by `scripts/generate-api-inventory.sh` from route code.
+> Generated 2026-06-10T19:41:28+05:30 by `scripts/generate-api-inventory.sh` from route code.
 > Path/method/auth existence here outranks any prose doc. Do not hand-edit.
 
 | route | methods | bearer-auth |
@@ -50,7 +50,7 @@
 | `/api/projects/[slug]/adr-index/[id]` | GET PATCH DELETE | yes |
 | `/api/projects/[slug]/adr-index` | GET POST | yes |
 | `/api/projects/[slug]/architecture/[file]` | GET | no |
-| `/api/projects/[slug]/architecture` | GET | no |
+| `/api/projects/[slug]/architecture` | GET POST | yes |
 | `/api/projects/[slug]/auth-config` | GET PUT | yes |
 | `/api/projects/[slug]/components-pick/status` | GET | no |
 | `/api/projects/[slug]/context-packet` | GET | no |
