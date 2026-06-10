@@ -1,6 +1,7 @@
 // DB client — Codex P0 #1 fix: migration-first bootstrap with promise mutex.
 // Don't copy tasks-dashboard's _sqlite-before-runBootstrap race.
 
+import { readFileSync, existsSync } from 'node:fs';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
@@ -33,6 +34,7 @@ export async function getDb() {
     // Codex P0 #1: migration-first. App doesn't proceed until DDL complete.
     try {
       migrate(db, { migrationsFolder: './lib/db/migrations' });
+      ensureFreshSchema(sqlite);
       setupFts5(sqlite);
     } catch (err) {
       console.error('[ottomate] Migration failed:', err);
@@ -55,6 +57,27 @@ export async function getRawSqlite(): Promise<Database.Database> {
   await getDb();
   if (!_sqlite) throw new Error('SQLite handle not initialised');
   return _sqlite;
+}
+
+// Fresh-install catch-up (task #11, 2026-06-10). drizzle's journal only lists
+// 0000/0001, but migrations 0002-0006 + the audit-* dirs were hand-applied to
+// the live DB and never journaled — so migrate() leaves a fresh clone missing
+// ~20 tables + columns and the app crashes on boot. `fresh-catchup.sql` is
+// generated from the live schema (ground truth) and verified to reproduce it
+// exactly. Gated on a sentinel (feature_claims = the last delta's table) so it
+// is a strict no-op on the live/migrated DB. Runs before setupFts5.
+function ensureFreshSchema(sqlite: Database.Database) {
+  const hasDelta = sqlite
+    .prepare(`SELECT 1 FROM sqlite_master WHERE type='table' AND name='feature_claims'`)
+    .get();
+  if (hasDelta) return; // live or already-caught-up DB → nothing to do
+  const file = './lib/db/migrations/fresh-catchup.sql';
+  if (!existsSync(file)) {
+    console.warn('[ottomate] fresh DB but fresh-catchup.sql missing — schema will be incomplete');
+    return;
+  }
+  sqlite.exec(readFileSync(file, 'utf8'));
+  console.log('[ottomate] fresh DB detected — applied fresh-catchup.sql (un-journaled delta schema)');
 }
 
 // FTS5 setup — idempotent. Builds the cross-doc search index used by /api/search.
