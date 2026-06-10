@@ -1,7 +1,7 @@
 // /api/projects/[slug]/features/[id] — detail + patch + delete
 
 import { NextResponse } from 'next/server';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, count, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { notFound, readAuthBody } from '@/lib/api';
 import { requireBearer } from '@/lib/auth';
@@ -28,9 +28,27 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (!result.ok) return result.res;
   const { slug, id } = await params;
   const db = await getDb();
-  const existing = db.select({ id: schema.features.id }).from(schema.features)
+  const existing = db.select({ id: schema.features.id, status: schema.features.status })
+    .from(schema.features)
     .where(and(eq(schema.features.id, id), eq(schema.features.project_slug, slug))).get();
   if (!existing) return notFound(`Feature '${id}' not found in '${slug}'`);
+
+  // Anti-gaslight rule 3 (2026-05-19): block transition to status='building' if
+  // the feature has 0 acceptance_criteria. Caught a real bug in feat-phase-10
+  // where status=building was set without any ACs. Status changes from any other
+  // value into 'building' are gated; non-status PATCHes pass through unchanged.
+  if (result.data.status === 'building' && existing.status !== 'building') {
+    const acRow = db.select({ n: count() }).from(schema.feature_acceptance_criteria)
+      .where(eq(schema.feature_acceptance_criteria.feature_id, id)).all();
+    const acCount = acRow[0]?.n ?? 0;
+    if (acCount < 1) {
+      return NextResponse.json({
+        error: `anti_gaslight_rule_3_violation`,
+        detail: `Cannot transition feature '${id}' to status='building' with 0 acceptance criteria. Add at least 1 via POST /api/projects/${slug}/features/${id}/acceptance-criteria, then retry.`,
+      }, { status: 422 });
+    }
+  }
+
   const updates = { ...result.data, updated_at: new Date() };
   db.update(schema.features).set(updates).where(eq(schema.features.id, id)).run();
   const updated = db.select().from(schema.features).where(eq(schema.features.id, id)).get();

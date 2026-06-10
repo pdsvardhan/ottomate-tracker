@@ -1,6 +1,6 @@
-# Ottomate — Web Project Tracker
+# Ottomate — Web Project Pipeline
 
-Companion website to the `/ottomate` skill. Tracks SO1/SO2/SO3 docs across all VAULT7A web projects.
+Companion website to the `/ottomate` skill. Manages SO1/SO2/SO3 docs across all VAULT7A web projects.
 
 ## Status
 
