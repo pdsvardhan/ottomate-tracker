@@ -1,6 +1,6 @@
 # API inventory (generated)
 
-> Generated 2026-06-10T17:02:28+05:30 by `scripts/generate-api-inventory.sh` from route code.
+> Generated 2026-06-10T17:38:10+05:30 by `scripts/generate-api-inventory.sh` from route code.
 > Path/method/auth existence here outranks any prose doc. Do not hand-edit.
 
 | route | methods | bearer-auth |
@@ -110,7 +110,8 @@
 | `/api/skill-events` | POST GET | yes |
 | `/api/test-runs` | GET POST | yes |
 | `/api/todos/[id]` | PATCH DELETE | yes |
+| `/api/verification-reports` | GET POST | yes |
 
-Total route files: 105. Mutating routes WITHOUT bearer auth: 1 (must be 0 or each one justified below).
+Total route files: 106. Mutating routes WITHOUT bearer auth: 1 (must be 0 or each one justified below).
 
 - UNAUTHENTICATED MUTATION: `/api/[...notfound]`
