@@ -1,7 +1,8 @@
 // DB client — Codex P0 #1 fix: migration-first bootstrap with promise mutex.
 // Don't copy tasks-dashboard's _sqlite-before-runBootstrap race.
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, readlinkSync } from 'node:fs';
+import { basename } from 'node:path';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
@@ -25,9 +26,16 @@ export async function getDb() {
 
   _bootstrap_promise = (async () => {
     const sqlite = new Database(DB_PATH);
-    sqlite.pragma('journal_mode = WAL');
+    // adr-018: rollback journal (TRUNCATE), not WAL. Both 2026-06 data-loss
+    // incidents were the WAL orphaned-shm cascade: the app's DMS lock lived on
+    // a deleted -shm inode, external clients saw a lockless DB and unlinked the
+    // -wal underneath us, and commits landed in a deleted file. With no -wal /
+    // -shm files, that class cannot exist. Single-user localhost load does not
+    // need WAL concurrency; synchronous=FULL because durability beats latency.
+    sqlite.pragma('journal_mode = TRUNCATE');
     sqlite.pragma('foreign_keys = ON');
-    sqlite.pragma('synchronous = NORMAL');
+    sqlite.pragma('synchronous = FULL');
+    sqlite.pragma('busy_timeout = 5000');
 
     const db = drizzle(sqlite, { schema });
 
@@ -57,6 +65,33 @@ export async function getRawSqlite(): Promise<Database.Database> {
   await getDb();
   if (!_sqlite) throw new Error('SQLite handle not initialised');
   return _sqlite;
+}
+
+// adr-018: deleted-fd self-check — the mid-session tripwire for the WAL-split
+// class. If any of this process's fds to the database files point at deleted
+// inodes, "successful" commits are going into a file nobody else can see.
+// Mutations refuse with 503 instead of faking 200s (see lib/api.ts), and
+// /api/health degrades. Cached 30s; /proc scan is cheap but not free.
+let _fdCheckCache: { at: number; deleted: string[] } | null = null;
+
+export function scanDeletedDbFds(): string[] {
+  if (_fdCheckCache && Date.now() - _fdCheckCache.at < 30_000) return _fdCheckCache.deleted;
+  const dbBase = basename(DB_PATH);
+  const deleted: string[] = [];
+  try {
+    for (const fd of readdirSync('/proc/self/fd')) {
+      try {
+        const target = readlinkSync(`/proc/self/fd/${fd}`);
+        if (target.includes(dbBase) && target.endsWith('(deleted)')) deleted.push(target);
+      } catch {
+        // fd closed mid-scan
+      }
+    }
+  } catch {
+    // non-linux dev environment — no /proc
+  }
+  _fdCheckCache = { at: Date.now(), deleted };
+  return deleted;
 }
 
 // Fresh-install catch-up (task #11, 2026-06-10). drizzle's journal only lists

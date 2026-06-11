@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import type { z } from 'zod';
 import { requireBearer } from './auth';
+import { scanDeletedDbFds } from './db/client';
 
 export type AuthBodyResult<T> =
   | { ok: true; data: T }
@@ -14,6 +15,20 @@ export async function readAuthBody<T>(
 ): Promise<AuthBodyResult<T>> {
   const authError = requireBearer(req);
   if (authError) return { ok: false, res: authError };
+
+  // adr-018: refuse mutations when our DB fds point at deleted inodes — a 503
+  // the skill can see beats a 201 whose data evaporates on restart.
+  const deletedFds = scanDeletedDbFds();
+  if (deletedFds.length > 0) {
+    return {
+      ok: false,
+      res: NextResponse.json({
+        error: 'db_write_path_unsafe',
+        detail: 'Database fds point at deleted inodes (WAL-split class, adr-018). Writes would be silently lost. Rescue per adr-015 BEFORE any restart.',
+        deleted_fds: deletedFds,
+      }, { status: 503 }),
+    };
+  }
 
   let body: unknown;
   try {

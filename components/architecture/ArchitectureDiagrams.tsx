@@ -28,6 +28,79 @@ export interface DecisionEntry {
   tags: string[];
 }
 
+// Curated decision categories (iter-17): only decisions carrying a cat: tag
+// render, grouped under recruiter-relevant headings. Untagged decisions stay
+// captured in the DB but off the showcase. Projects with no cat: tags at all
+// fall back to the flat list (back-compat for un-curated projects).
+const CATEGORY_META = [
+  { tag: 'cat:product', label: 'Product calls', accent: 'text-amber-300/90', border: 'border-amber-400/40' },
+  { tag: 'cat:system', label: 'System design', accent: 'text-purple-300/90', border: 'border-purple-400/40' },
+  { tag: 'cat:security', label: 'Security & privacy', accent: 'text-emerald-300/90', border: 'border-emerald-400/40' },
+  { tag: 'cat:reliability', label: 'Reliability & quality', accent: 'text-rose-300/90', border: 'border-rose-400/40' },
+] as const;
+
+function DecisionRow({ d }: { d: DecisionEntry }) {
+  const chips = d.tags.filter((t) => !t.startsWith('cat:') && t !== 'curated');
+  return (
+    <li className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-1.5">
+      <time className="font-mono text-[10px] text-zinc-600 shrink-0">{d.date}</time>
+      <span className="text-sm text-zinc-300">{d.title}</span>
+      {chips.map((t) => (
+        <span key={t} className="rounded-full border border-zinc-800/60 px-2 py-0.5 text-[10px] text-zinc-500">
+          {t}
+        </span>
+      ))}
+    </li>
+  );
+}
+
+function DecisionsBody({ decisions }: { decisions: DecisionEntry[] }) {
+  if (decisions.length === 0) {
+    return <p className="text-xs text-zinc-600">No recorded decisions yet.</p>;
+  }
+  const groups = CATEGORY_META
+    .map((c) => ({ ...c, items: decisions.filter((d) => d.tags.includes(c.tag)) }))
+    .filter((c) => c.items.length > 0);
+  // A project counts as curated once any decision carries the 'curated' marker
+  // (or a cat: tag) — even if nothing made the showcase cut.
+  const isCurated = groups.length > 0 || decisions.some((d) => d.tags.includes('curated'));
+  if (!isCurated) {
+    // Un-curated project: flat list, as before.
+    return (
+      <ol className="rounded-xl border border-zinc-800 bg-zinc-900/40 divide-y divide-zinc-900/60 [&>li]:px-4 [&>li]:py-1">
+        {decisions.map((d) => <DecisionRow key={d.id} d={d} />)}
+      </ol>
+    );
+  }
+  const shown = groups.reduce((n, c) => n + c.items.length, 0);
+  const hidden = decisions.length - shown;
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-4 space-y-5">
+      {groups.map((c) => (
+        <div key={c.tag}>
+          <p className={`text-[11px] font-medium uppercase tracking-wide mb-1.5 ${c.accent}`}>
+            {c.label}
+          </p>
+          <ol className={`border-l-2 pl-3 ${c.border}`}>
+            {c.items.map((d) => <DecisionRow key={d.id} d={d} />)}
+          </ol>
+        </div>
+      ))}
+      {shown === 0 && (
+        <p className="text-xs text-zinc-600">
+          No showcase-level decisions yet — the meaningful calls so far were build logistics.
+        </p>
+      )}
+      {hidden > 0 && (
+        <p className="border-t border-zinc-900/60 pt-3 text-[11px] text-zinc-600">
+          {hidden} internal {hidden === 1 ? 'decision' : 'decisions'} hidden — captured in the
+          build log, not part of the showcase story.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function SectionHeader({ index, label, desc, legacy }: {
   index: number;
   label: string;
@@ -108,26 +181,7 @@ export function ArchitectureView({ sections, details, decisions }: {
           label="Decisions"
           desc="Why it is built this way — the calls that shaped the system."
         />
-        {decisions.length === 0 ? (
-          <p className="text-xs text-zinc-600">No recorded decisions yet.</p>
-        ) : (
-          <ol className="rounded-xl border border-zinc-800 bg-zinc-900/40 divide-y divide-zinc-900/60">
-            {decisions.map((d) => (
-              <li key={d.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5">
-                <time className="font-mono text-[10px] text-zinc-600 shrink-0">{d.date}</time>
-                <span className="text-sm text-zinc-300">{d.title}</span>
-                {d.tags.map((t) => (
-                  <span
-                    key={t}
-                    className="rounded-full border border-zinc-800/60 px-2 py-0.5 text-[10px] text-zinc-500"
-                  >
-                    {t}
-                  </span>
-                ))}
-              </li>
-            ))}
-          </ol>
-        )}
+        <DecisionsBody decisions={decisions} />
       </section>
 
       {/* Secondary diagrams, collapsed — details beyond the 90-second read */}

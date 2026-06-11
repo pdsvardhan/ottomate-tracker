@@ -3,8 +3,9 @@
 // mirrors so the skill can write them into the project's repo.
 
 import { NextResponse } from 'next/server';
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { mkdirSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
+import Database from 'better-sqlite3';
 import { z } from 'zod';
 import { count, eq } from 'drizzle-orm';
 import { getDb, getRawSqlite, schema } from '@/lib/db/client';
@@ -45,15 +46,28 @@ export async function POST(req: Request) {
   };
 
   // Snapshot the SQLite DB before any sync would mutate (Codex P0 #2).
+  // adr-018 (closing an adr-015 miss): VACUUM INTO through the app's own
+  // connection, never a raw file copy of a live DB — raw copies tear and
+  // silently exclude journal pages. Integrity-checked before reporting ok.
   const dbPath = process.env.DATABASE_URL?.replace('file:', '') ?? './data/ottomate.db';
   const backupDir = path.join(path.dirname(dbPath), 'backups');
   mkdirSync(backupDir, { recursive: true });
   const backupPath = path.join(backupDir, `pack-up-${slug}-${Date.now()}.db`);
   let backup_ok = false;
   try {
-    copyFileSync(dbPath, backupPath);
-    backup_ok = true;
+    const raw = await getRawSqlite();
+    raw.prepare('VACUUM INTO ?').run(backupPath);
+    const check = new Database(backupPath, { readonly: true });
+    const integrity = check.prepare('PRAGMA integrity_check').get() as { integrity_check: string };
+    check.close();
+    if (integrity.integrity_check === 'ok') {
+      backup_ok = true;
+    } else {
+      try { unlinkSync(backupPath); } catch {}
+      console.error('[ottomate] pack-up backup integrity failed:', integrity);
+    }
   } catch (err) {
+    try { unlinkSync(backupPath); } catch {}
     console.error('[ottomate] pack-up backup failed:', err);
   }
 
