@@ -487,7 +487,7 @@ export const adr_index = sqliteTable('adr_index', {
   superseded_by: text('superseded_by'),
   // Added 2026-05-19 (ADR-010) — pairs the ADR card with a diagram_artifacts.kind region.
   // NULL → renders under the "General decisions" rail on the Architecture tab.
-  anchored_to: text('anchored_to', { enum: ['process', 'topology', 'data', 'ux', 'api'] }),
+  anchored_to: text('anchored_to', { enum: ['process', 'topology', 'platform', 'data', 'ux', 'api'] }),
 });
 
 export const adr_features = sqliteTable('adr_features', {
@@ -954,7 +954,7 @@ export const project_todos = sqliteTable('project_todos', {
 export const diagram_artifacts = sqliteTable('diagram_artifacts', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
-  kind: text('kind', { enum: ['process', 'topology', 'data', 'ux', 'api'] }).notNull(),
+  kind: text('kind', { enum: ['process', 'topology', 'platform', 'data', 'ux', 'api'] }).notNull(),
   mermaid_src: text('mermaid_src').notNull(),
   caption: text('caption'),
   position: integer('position').default(0),

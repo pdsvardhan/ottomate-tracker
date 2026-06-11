@@ -2,10 +2,11 @@
 // Column names mirror the table: mermaid_src / caption / position.
 // `title` has no column of its own — by seed convention (0006) it is folded
 // into the stored caption as "Title — caption" (title alone when no caption).
+// 'platform' added per Doc A File 6 (portfolio-level ecosystem view, iter-16).
 
 import { z } from 'zod';
 
-export const diagramKindEnum = z.enum(['process', 'topology', 'data', 'ux', 'api']);
+export const diagramKindEnum = z.enum(['process', 'topology', 'platform', 'data', 'ux', 'api']);
 export type DiagramKind = z.infer<typeof diagramKindEnum>;
 
 export const DiagramUpsertSchema = z.object({

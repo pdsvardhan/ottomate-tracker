@@ -1,38 +1,38 @@
-// Architecture tab — Spotlight Glass redesign + showcase overhaul.
-// Renders the available diagram kinds as named, zoom/pan/fullscreen tabs.
-// The ADR side-rail and the "General decisions" section were removed for the
-// showcase (owner doesn't want ADRs surfaced) — the diagram area is the focus.
+// Architecture tab — progressive-disclosure restructure (iter-16, Doc B 2026-06-11).
+// Reads top-to-bottom in documentation-layer order: Workflow (how value moves)
+// → System (how it is shaped) → Platform (how it connects to the ecosystem)
+// → Decisions (why it is built this way — curated adr_index entries, adr-017).
+// Secondary diagrams (data / ux / api / unknown kinds) collapse under "More detail".
 // Filesystem .mmd fallback retained for legacy projects.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { notFound } from 'next/navigation';
-import { ArchitectureDiagrams, type DiagramGroup } from '@/components/architecture/ArchitectureDiagrams';
+import {
+  ArchitectureView,
+  type DecisionEntry,
+  type DiagramSection,
+} from '@/components/architecture/ArchitectureDiagrams';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
 const REPOS_DIR = process.env.OTTOMATE_REPOS_DIR ?? '/repos';
 
-const KIND_ORDER = ['process', 'topology', 'data', 'ux', 'api'] as const;
-type Kind = (typeof KIND_ORDER)[number];
+// Primary layers, in documentation-layer order (Doc C L2 → L3 → L5).
+const LAYERS = [
+  { kind: 'process', label: 'Workflow', desc: 'How value moves through the project — trigger to output.' },
+  { kind: 'topology', label: 'System', desc: 'How the system is shaped — layers and relationships.' },
+  { kind: 'platform', label: 'Platform', desc: 'How this project connects to the wider ecosystem.' },
+] as const;
 
-const KIND_LABELS: Record<Kind, string> = {
-  process: 'Process flow',
-  topology: 'System topology',
-  data: 'Data model',
-  ux: 'User flow',
-  api: 'API map',
-};
-
-const KIND_DESC: Record<Kind, string> = {
-  process: 'How work moves through the pipeline.',
-  topology: 'How services and storage talk to each other.',
-  data: 'Core entities and their relationships.',
-  ux: 'Happy-path user journey through the app.',
-  api: 'API surface grouped by domain.',
+// Secondary kinds: real diagrams, but not part of the 90-second read.
+const DETAIL_META: Record<string, { label: string; desc: string }> = {
+  data: { label: 'Data model', desc: 'Core entities and their relationships.' },
+  ux: { label: 'User flow', desc: 'Happy-path user journey through the app.' },
+  api: { label: 'API map', desc: 'API surface grouped by domain.' },
 };
 
 interface ArchDiagram {
@@ -82,41 +82,63 @@ export default async function ArchitectureTab({ params }: { params: Promise<{ sl
     }
   }
 
-  if (byKind.size === 0) {
+  // Curated decisions (Doc B layer 3): accepted, not superseded, newest first.
+  const adrRows = db.select().from(schema.adr_index)
+    .where(and(
+      eq(schema.adr_index.project_slug, slug),
+      eq(schema.adr_index.status, 'accepted'),
+      isNull(schema.adr_index.superseded_by),
+    ))
+    .orderBy(desc(schema.adr_index.date))
+    .all();
+
+  const decisions: DecisionEntry[] = adrRows.map((d) => ({
+    id: d.id,
+    title: d.title,
+    date: d.date instanceof Date ? d.date.toISOString().slice(0, 7) : String(d.date).slice(0, 7),
+    tags: Array.isArray(d.tags) ? d.tags : [],
+  }));
+
+  if (byKind.size === 0 && decisions.length === 0) {
     return (
       <EmptyState
-        title="No architecture diagrams yet"
-        body="Seeds 5 starter diagrams (Process flow / System topology / Data model / User flow / API map) via INSERT INTO diagram_artifacts. Stage 2.8 skill pass populates these automatically."
+        title="No architecture content yet"
+        body="Diagrams land via POST /api/projects/<slug>/architecture — Workflow (process), System (topology), Platform, plus data / ux / api detail kinds. Decisions land via the adr-index endpoint."
       />
     );
   }
 
-  // Build named, ordered diagram groups for the client tab switcher.
-  // Known kinds first (in KIND_ORDER), then any unrecognised kinds the DB may hold.
-  const knownGroups: DiagramGroup[] = KIND_ORDER
-    .filter((kind) => (byKind.get(kind) ?? []).length > 0)
-    .map((kind) => {
-      const arr = byKind.get(kind)!;
-      return {
-        kind,
-        label: KIND_LABELS[kind],
-        desc: KIND_DESC[kind],
-        legacy: arr.some((d) => d.origin === 'filesystem'),
-        diagrams: arr.map((d) => ({ source: d.source, caption: d.caption })),
-      };
-    });
+  const toSection = (
+    kind: string,
+    label: string,
+    desc: string,
+    arr: ArchDiagram[],
+  ): DiagramSection => ({
+    kind,
+    label,
+    desc,
+    legacy: arr.some((d) => d.origin === 'filesystem'),
+    diagrams: arr.map((d) => ({ source: d.source, caption: d.caption })),
+  });
 
-  const extraGroups: DiagramGroup[] = Array.from(byKind.entries())
-    .filter(([kind]) => !(KIND_ORDER as readonly string[]).includes(kind))
-    .map(([kind, arr]) => ({
-      kind,
+  // Primary sections, in layer order.
+  const sections: DiagramSection[] = LAYERS
+    .filter((l) => (byKind.get(l.kind) ?? []).length > 0)
+    .map((l) => toSection(l.kind, l.label, l.desc, byKind.get(l.kind)!));
+
+  // Everything else collapses under "More detail" (known detail kinds first).
+  const layerKinds = LAYERS.map((l) => l.kind as string);
+  const detailKinds = [
+    ...Object.keys(DETAIL_META).filter((k) => byKind.has(k)),
+    ...Array.from(byKind.keys()).filter((k) => !layerKinds.includes(k) && !(k in DETAIL_META)),
+  ];
+  const details: DiagramSection[] = detailKinds.map((kind) => {
+    const meta = DETAIL_META[kind] ?? {
       label: kind.charAt(0).toUpperCase() + kind.slice(1),
       desc: 'Project-specific diagram.',
-      legacy: arr.some((d) => d.origin === 'filesystem'),
-      diagrams: arr.map((d) => ({ source: d.source, caption: d.caption })),
-    }));
+    };
+    return toSection(kind, meta.label, meta.desc, byKind.get(kind)!);
+  });
 
-  const groups = [...knownGroups, ...extraGroups];
-
-  return <ArchitectureDiagrams groups={groups} />;
+  return <ArchitectureView sections={sections} details={details} decisions={decisions} />;
 }

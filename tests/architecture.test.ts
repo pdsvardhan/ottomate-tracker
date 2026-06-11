@@ -82,4 +82,23 @@ describe('/api/projects/[slug]/architecture', () => {
     expect(topology[0].mermaid_src).toBe(MMD_V2);
     expect(topology[0].caption).toBe('Revised topology');
   });
+
+  it('accepts the platform kind (iter-16, Doc A portfolio-level ecosystem view)', async () => {
+    const res = await upsertDiagram(
+      makeReq('POST', `/api/projects/${SLUG}/architecture`, {
+        kind: 'platform',
+        title: 'Platform',
+        mermaid_src: MMD_V1,
+        caption: 'ecosystem in one view',
+      }, authHeaders()),
+      ctx({ slug: SLUG }),
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.diagram.kind).toBe('platform');
+    expect(body.diagram.caption).toBe('Platform — ecosystem in one view');
+
+    const platform = (await listDiagrams()).filter((d) => d.kind === 'platform');
+    expect(platform).toHaveLength(1);
+  });
 });
