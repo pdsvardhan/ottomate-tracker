@@ -14,7 +14,8 @@ export const InspirationCreateSchema = z.object({
   source_type: sourceTypeEnum,
   domain: z.string().max(80).nullish(),
   style_tags: z.array(z.string()).nullish(),
-  thumbnail_url: z.string().url().nullish(),
+  // Accepts an absolute URL or a relative serve path (e.g. /api/inspirations/<id>/thumbnail).
+  thumbnail_url: z.string().max(500).nullish(),
   notes: z.string().max(2000).nullish(),
   matched_master_component_ids: z.array(z.string()).nullish(),
   match_confidence: confidenceEnum.nullish(),
