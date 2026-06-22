@@ -127,7 +127,7 @@ export default async function ComponentDetailPage({ params }: Ctx) {
 
       {/* Live preview pane */}
       <section className="mb-8">
-        <LivePreview componentId={component.id} files={files} />
+        <LivePreview componentId={component.id} files={files} dependencies={(component.dependencies ?? []) as string[]} previewUrl={component.preview_url} />
       </section>
 
       {/* Metadata grid */}
