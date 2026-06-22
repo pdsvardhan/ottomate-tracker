@@ -83,28 +83,47 @@ function fnv1a(input: string): string {
   return hash.toString(16).padStart(8, '0');
 }
 
-const ALLOWED_DOC_NAMES = ['architecture-summary', 'feature-spec-public', 'adr-summary'] as const;
-type AllowedDocName = (typeof ALLOWED_DOC_NAMES)[number];
-
+// iter-7 (WS-F): public_docs/ uses a frontmatter convention. Any *.md with
+// `public: true` is mirrored; doc_name comes from the frontmatter `type` (or the
+// filename). The full body (frontmatter included) is sent — the UI parses metadata.
 interface PublicDocPayload {
-  doc_name: AllowedDocName;
+  doc_name: string;
   body: string;
+}
+
+function parsePublicFlag(raw: string): { isPublic: boolean; type: string | null } {
+  const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!m) return { isPublic: false, type: null };
+  let isPublic = false;
+  let type: string | null = null;
+  for (const line of m[1].split(/\r?\n/)) {
+    const kv = line.match(/^([A-Za-z_]+)\s*:\s*(.+?)\s*$/);
+    if (!kv) continue;
+    const key = kv[1].toLowerCase();
+    const val = kv[2].replace(/^["']|["']$/g, '').trim();
+    if (key === 'public') isPublic = /^true$/i.test(val);
+    if (key === 'type') type = val.toLowerCase();
+  }
+  return { isPublic, type };
 }
 
 function readPublicDocs(projectDir: string): PublicDocPayload[] {
   const dir = path.join(projectDir, 'public_docs');
   if (!existsSync(dir)) return [];
   const out: PublicDocPayload[] = [];
-  for (const name of ALLOWED_DOC_NAMES) {
-    const file = path.join(dir, `${name}.md`);
-    if (!existsSync(file)) continue;
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith('.md')) continue;
+    let body: string;
     try {
-      const body = readFileSync(file, 'utf8');
-      if (body.trim().length === 0) continue;
-      out.push({ doc_name: name, body });
+      body = readFileSync(path.join(dir, file), 'utf8');
     } catch {
-      // skip unreadable
+      continue;
     }
+    if (body.trim().length === 0) continue;
+    const { isPublic, type } = parsePublicFlag(body);
+    if (!isPublic) continue;
+    const doc_name = (type ?? file.replace(/\.md$/, '')).toLowerCase();
+    out.push({ doc_name, body });
   }
   return out;
 }
