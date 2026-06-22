@@ -12,12 +12,22 @@ import { getDb, schema } from '@/lib/db/client';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { LivePreview } from './LivePreview';
+import { EditComponentModal } from './EditComponentModal';
+import { ComponentAdminBar } from './ComponentAdminBar';
 import { FeedbackWidget } from '@/components/master-component/FeedbackWidget';
 
 export const dynamic = 'force-dynamic';
 
 const ASSET_ROOT = '/asset-library/components';
 const READABLE_EXT = new Set(['.tsx', '.ts', '.jsx', '.js', '.html', '.css', '.scss', '.md', '.json', '.pug']);
+
+// Mirrors the category enum in lib/validation/master-components.ts (18 categories).
+const CATEGORY_IDS = [
+  'input', 'selection', 'button-action', 'display', 'navigation', 'feedback',
+  'overlay', 'layout', 'animation', 'transition', 'dataviz', 'media',
+  'modern-specialty', 'interactive', 'forms-validation', 'auth-screens',
+  'dashboard-shells', 'ai-blocks',
+];
 
 interface SourceFile {
   name: string;
@@ -83,6 +93,15 @@ export default async function ComponentDetailPage({ params }: Ctx) {
     .where(eq(schema.component_feedback.mc_id, id))
     .orderBy(desc(schema.component_feedback.created_at))
     .all();
+
+  const libraries = (
+    db
+      .selectDistinct({ library: schema.master_components.library })
+      .from(schema.master_components)
+      .all()
+      .map((r) => r.library)
+      .filter(Boolean) as string[]
+  ).sort();
 
   const quality = (component.quality_grade ?? '') as 'A' | 'B' | 'C' | '';
 
@@ -162,12 +181,27 @@ export default async function ComponentDetailPage({ params }: Ctx) {
         />
       </section>
 
-      {/* Edit + Delete deferred per B.4 follow-up */}
-      <p className="mt-10 text-[11px] text-zinc-600">
-        Edit / delete UI lands with a follow-up — for now use{' '}
-        <code className="font-mono text-zinc-500">PATCH /api/master-components/{component.id}</code> or{' '}
-        <code className="font-mono text-zinc-500">DELETE</code> directly.
-      </p>
+      {/* Edit + Delete (iter-7 #55) */}
+      <ComponentAdminBar id={component.id} />
+
+      <EditComponentModal
+        component={{
+          id: component.id,
+          name: component.name,
+          category: component.category,
+          library: component.library,
+          quality_grade: component.quality_grade,
+          source_url: component.source_url,
+          preview_url: component.preview_url,
+          description: component.description,
+          primary_file: component.primary_file,
+          framework_tags: (component.framework_tags ?? []) as string[],
+          tags: (component.tags ?? []) as string[],
+          dependencies: (component.dependencies ?? []) as string[],
+        }}
+        categories={CATEGORY_IDS}
+        libraries={libraries}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
-// /inspirations — gallery of visual references (Dribbble + Figma community + ...).
-// Iteration #5 item 42.
+// /inspirations — gallery of visual references (Dribbble + Figma community + …).
+// iter-7 #63: trimmed to a clean visual board. The matched-component machinery was
+// dropped (it held github URLs, not catalog ids, and Stage 2 never routed through it).
 
 import { asc } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
@@ -15,23 +16,15 @@ interface SearchParamsShape {
   q?: string;
   domain?: string;
   source_type?: string;
-  match_confidence?: string;
   tag?: string;
 }
-
-const CONFIDENCE_TONE: Record<string, 'shipped' | 'open' | 'blocked' | 'neutral'> = {
-  high: 'shipped',
-  medium: 'open',
-  low: 'blocked',
-  unmatched: 'neutral',
-};
 
 export default async function InspirationsPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParamsShape>;
 }) {
-  const { q, domain, source_type, match_confidence, tag } = await searchParams;
+  const { q, domain, source_type, tag } = await searchParams;
   const db = await getDb();
   const all = db.select().from(schema.inspirations).orderBy(asc(schema.inspirations.id)).all();
 
@@ -45,7 +38,6 @@ export default async function InspirationsPage({
     }
     if (domain && i.domain !== domain) return false;
     if (source_type && i.source_type !== source_type) return false;
-    if (match_confidence && i.match_confidence !== match_confidence) return false;
     if (tag && !((i.style_tags ?? []) as string[]).includes(tag)) return false;
     return true;
   });
@@ -53,13 +45,7 @@ export default async function InspirationsPage({
   const domains = Array.from(new Set(all.map((i) => i.domain).filter(Boolean))).sort() as string[];
   const sourceTypes = Array.from(new Set(all.map((i) => i.source_type))).sort();
   const allTags = Array.from(new Set(all.flatMap((i) => (i.style_tags ?? []) as string[]))).sort();
-
-  const matchedCounts = {
-    high: all.filter((i) => i.match_confidence === 'high').length,
-    medium: all.filter((i) => i.match_confidence === 'medium').length,
-    low: all.filter((i) => i.match_confidence === 'low').length,
-    unmatched: all.filter((i) => i.match_confidence === 'unmatched' || !i.match_confidence).length,
-  };
+  const withThumb = all.filter((i) => (i.thumbnail_url ?? '').trim().length > 0).length;
 
   return (
     <div className="px-8 py-10 max-w-7xl mx-auto">
@@ -69,7 +55,7 @@ export default async function InspirationsPage({
         meta={
           <>
             <span className="text-zinc-200 font-medium">{filtered.length}</span> of {all.length} shown ·{' '}
-            {matchedCounts.high} high-confidence matches · {sourceTypes.length} sources · {domains.length} domains
+            {withThumb} with thumbnail · {sourceTypes.length} sources · {domains.length} domains
           </>
         }
       />
@@ -98,13 +84,6 @@ export default async function InspirationsPage({
             </option>
           ))}
         </select>
-        <select name="match_confidence" defaultValue={match_confidence ?? ''} className={FILTER_CONTROL_CLASSES}>
-          <option value="">— any confidence —</option>
-          <option value="high">high only</option>
-          <option value="medium">medium+</option>
-          <option value="low">low</option>
-          <option value="unmatched">unmatched</option>
-        </select>
         <select name="tag" defaultValue={tag ?? ''} className={FILTER_CONTROL_CLASSES}>
           <option value="">— any tag —</option>
           {allTags.map((t) => (
@@ -121,7 +100,7 @@ export default async function InspirationsPage({
       {filtered.length === 0 ? (
         <EmptyState
           title="No inspirations match"
-          body="Loosen the filters above, or seed new entries via SQL until the Add UI lands."
+          body="Loosen the filters above, or add a new reference via POST /api/inspirations."
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -135,12 +114,9 @@ export default async function InspirationsPage({
 }
 
 function InspirationCard({ insp }: { insp: typeof schema.inspirations.$inferSelect }) {
-  const matchedCount = ((insp.matched_master_component_ids ?? []) as string[]).length;
-  const tone = insp.match_confidence ? CONFIDENCE_TONE[insp.match_confidence] : 'neutral';
-
   return (
     <SpotlightCard href={`/inspirations/${insp.id}`}>
-      {/* Thumbnail placeholder area */}
+      {/* Thumbnail area */}
       <div className="mb-3 -mx-4 -mt-4 h-32 rounded-t-2xl overflow-hidden bg-gradient-to-br from-violet-500/10 via-zinc-900/40 to-cyan-500/10 border-b border-zinc-800/60 relative">
         {insp.thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -157,14 +133,7 @@ function InspirationCard({ insp }: { insp: typeof schema.inspirations.$inferSele
         )}
       </div>
 
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <code className="text-[11px] font-mono text-zinc-500 truncate">{insp.id}</code>
-        {insp.match_confidence ? (
-          <Badge variant="status" tone={tone} title={`Match confidence: ${insp.match_confidence}`}>
-            {insp.match_confidence}
-          </Badge>
-        ) : null}
-      </div>
+      <code className="text-[11px] font-mono text-zinc-500 truncate block mb-2">{insp.id}</code>
 
       <h3 className="text-base font-semibold text-zinc-100 group-hover:text-cyan-200 transition-colors line-clamp-2">
         {insp.title}
@@ -182,10 +151,6 @@ function InspirationCard({ insp }: { insp: typeof schema.inspirations.$inferSele
             {t}
           </Badge>
         ))}
-      </div>
-
-      <div className="mt-3 text-[10px] uppercase tracking-wider text-zinc-500">
-        {matchedCount > 0 ? `${matchedCount} matched components` : 'no matches yet'}
       </div>
     </SpotlightCard>
   );
