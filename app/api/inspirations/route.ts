@@ -1,10 +1,12 @@
 // /api/inspirations — visual inspirations catalog (Dribbble, Figma community, etc.).
 // GET: list with optional ?domain= / ?source_type= / ?q= / ?match_confidence= / ?tag= filters.
-// (Mutation routes added when the UI grows beyond browse — currently READ-only.)
+// POST: create a new inspiration (bearer). iter-7 #63 added the write side.
 
 import { NextResponse } from 'next/server';
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
+import { conflict, readAuthBody } from '@/lib/api';
+import { InspirationCreateSchema } from '@/lib/validation/inspirations';
 
 export const runtime = 'nodejs';
 
@@ -34,4 +36,21 @@ export async function GET(req: Request) {
   if (tag) filtered = filtered.filter((i) => Array.isArray(i.style_tags) && i.style_tags.includes(tag));
 
   return NextResponse.json({ count: filtered.length, inspirations: filtered });
+}
+
+export async function POST(req: Request) {
+  const result = await readAuthBody(req, InspirationCreateSchema);
+  if (!result.ok) return result.res;
+  const db = await getDb();
+
+  const existing = db.select({ id: schema.inspirations.id })
+    .from(schema.inspirations)
+    .where(eq(schema.inspirations.id, result.data.id))
+    .get();
+  if (existing) return conflict(`Inspiration '${result.data.id}' already exists`);
+
+  db.insert(schema.inspirations).values(result.data as typeof schema.inspirations.$inferInsert).run();
+  const created = db.select().from(schema.inspirations)
+    .where(eq(schema.inspirations.id, result.data.id)).get();
+  return NextResponse.json({ inspiration: created }, { status: 201 });
 }
