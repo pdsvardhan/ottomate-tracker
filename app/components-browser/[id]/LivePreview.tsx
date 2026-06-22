@@ -130,9 +130,10 @@ export function LivePreview({ componentId, files, dependencies = [], previewUrl 
   const sandpackFiles = useMemo(() => {
     if (!tsxOrJsx) return null;
     const cssBlob = css.map((f) => f.content).join('\n\n');
-    const cssFile = cssBlob.trim().length > 0
-      ? cssBlob
-      : '/* Tailwind via CDN; component-specific styles go here. */';
+    // Baseline so component content is visible (dark bg, centered) even when the
+    // component ships no CSS of its own; component CSS (if any) follows and can override.
+    const baseline = ':root{color-scheme:dark}body{margin:0;min-height:100vh;background:#0a0a0f;color:#e4e4e7;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}#root{width:100%}';
+    const cssFile = baseline + '\n' + (cssBlob.trim().length > 0 ? cssBlob : '');
     // Wrap component source in a minimal App that imports it via default export.
     // If the source already exports a default React component, we just mount it.
     // Otherwise we render a placeholder.
@@ -144,10 +145,13 @@ export function LivePreview({ componentId, files, dependencies = [], previewUrl 
         `import React from 'react';`,
         `import { createRoot } from 'react-dom/client';`,
         `import './styles.css';`,
-        `import App from './App';`,
+        `import * as Mod from './App';`,
         ``,
+        `// Mount the default export, or the first exported React component (named`,
+        `// exports are common in the catalog, e.g. \`export const Sparkline\`).`,
+        `const Cmp = (Mod as any).default ?? Object.values(Mod).find((v) => typeof v === 'function');`,
         `const root = createRoot(document.getElementById('root')!);`,
-        `root.render(<App />);`,
+        `root.render(Cmp ? React.createElement(Cmp as any) : React.createElement('pre', { style: { color: '#e4e4e7', padding: 16 } }, 'No default or named React component export found — see the Source tab.'));`,
       ].join('\n'),
       '/public/index.html': [
         `<!doctype html>`,
