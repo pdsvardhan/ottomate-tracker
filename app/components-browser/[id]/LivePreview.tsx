@@ -13,19 +13,57 @@ interface SourceFile {
 interface LivePreviewProps {
   componentId: string;
   files: SourceFile[];
+  /** Catalog-declared npm dependencies for this component (master_components.dependencies). */
+  dependencies?: string[];
+}
+
+// Packages the Sandpack react-ts template already provides — never re-declare these.
+const SANDPACK_BUILTIN = new Set(['react', 'react-dom', 'react/jsx-runtime']);
+
+/** Reduce an import specifier to its installable package name (null for relative imports). */
+function packageName(spec: string): string | null {
+  if (!spec || spec.startsWith('.') || spec.startsWith('/')) return null;
+  const parts = spec.split('/');
+  if (spec.startsWith('@')) return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : parts[0];
+  return parts[0];
+}
+
+/**
+ * Derive the Sandpack dependency map from (a) the catalog's declared dependencies and
+ * (b) bare import specifiers scanned from the source. This is the fix for the
+ * "Could not find dependency: 'motion'" error — e.g. `import { motion } from 'motion/react'`
+ * resolves to the `motion` package. Versions pin to "latest"; Sandpack resolves from the CDN.
+ */
+function deriveDependencies(sources: string[], declared: string[]): Record<string, string> {
+  const deps: Record<string, string> = {};
+  for (const d of declared) {
+    const p = packageName(d);
+    if (p && !SANDPACK_BUILTIN.has(p)) deps[p] = 'latest';
+  }
+  const importRe = /(?:from\s*|import\s*|require\(\s*)['"]([^'"]+)['"]/g;
+  for (const src of sources) {
+    let m: RegExpExecArray | null;
+    while ((m = importRe.exec(src)) !== null) {
+      const p = packageName(m[1]);
+      if (p && !SANDPACK_BUILTIN.has(p) && !(p in deps)) deps[p] = 'latest';
+    }
+  }
+  return deps;
 }
 
 /**
  * Live preview for a master_component's source files.
  *
  * Strategy:
- * - HTML bundle (index.html + sibling .css + .js) → iframe with srcdoc.
- * - TSX/JSX → Sandpack provider (react-ts template) with the source mounted at /App.tsx
- *   and any sibling .css concatenated into /styles.css. Iteration #6 item 49.
+ * - HTML bundle (index.html + sibling .css + .js) -> iframe with srcdoc.
+ * - TSX/JSX -> Sandpack provider (react-ts template) with the source mounted at /App.tsx
+ *   and any sibling .css concatenated into /styles.css. Iteration #6 item 257: the
+ *   component's npm dependencies are now forwarded to Sandpack customSetup so third-party
+ *   imports (motion, framer-motion, etc.) resolve instead of erroring.
  * - PUG: source only; rendering would need a transformer (deferred).
  * - No source: empty state.
  */
-export function LivePreview({ componentId, files }: LivePreviewProps) {
+export function LivePreview({ componentId, files, dependencies = [] }: LivePreviewProps) {
   const [tab, setTab] = useState<'preview' | 'code'>('preview');
   const [activeFile, setActiveFile] = useState<string>(files[0]?.name ?? '');
 
@@ -78,7 +116,7 @@ export function LivePreview({ componentId, files }: LivePreviewProps) {
     // Wrap component source in a minimal App that imports it via default export.
     // If the source already exports a default React component, we just mount it.
     // Otherwise we render a placeholder.
-    const wrapped = `${tsxOrJsx.content}\n\n// — Sandpack mount —\n// (Default export is rendered automatically when /App.tsx exports it.)\n`;
+    const wrapped = `${tsxOrJsx.content}\n\n// - Sandpack mount -\n// (Default export is rendered automatically when /App.tsx exports it.)\n`;
     return {
       '/App.tsx': wrapped,
       '/styles.css': cssFile,
@@ -102,6 +140,16 @@ export function LivePreview({ componentId, files }: LivePreviewProps) {
       ].join('\n'),
     };
   }, [tsxOrJsx, css]);
+
+  // Iteration #6 item 257: forward declared + scanned dependencies to Sandpack.
+  const customSetup = useMemo(() => {
+    if (!tsxOrJsx) return undefined;
+    const sources = files
+      .filter((f) => f.ext === '.tsx' || f.ext === '.ts' || f.ext === '.jsx' || f.ext === '.js')
+      .map((f) => f.content);
+    const deps = deriveDependencies(sources, dependencies);
+    return Object.keys(deps).length > 0 ? { dependencies: deps } : undefined;
+  }, [tsxOrJsx, files, dependencies]);
 
   if (files.length === 0) {
     return (
@@ -182,6 +230,7 @@ export function LivePreview({ componentId, files }: LivePreviewProps) {
             <Sandpack
               template="react-ts"
               files={sandpackFiles}
+              customSetup={customSetup}
               theme="dark"
               options={{
                 showNavigator: false,
