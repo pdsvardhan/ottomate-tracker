@@ -80,3 +80,7 @@ export async function DELETE(req: Request, { params }: Ctx) {
   db.delete(schema.master_components).where(eq(schema.master_components.id, id)).run();
   return NextResponse.json({ deleted: id });
 }
+
+// iter-6 item 260: PATCH is the conventional partial-update verb (the detail page docs
+// and skill calls use PATCH). PUT already applies partial updates, so alias them.
+export const PATCH = PUT;

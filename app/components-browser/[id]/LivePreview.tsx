@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Sandpack } from '@codesandbox/sandpack-react';
+import { ComponentPreview } from '@/components/master-component/ComponentPreview';
 
 interface SourceFile {
   name: string;
@@ -15,10 +16,20 @@ interface LivePreviewProps {
   files: SourceFile[];
   /** Catalog-declared npm dependencies for this component (master_components.dependencies). */
   dependencies?: string[];
+  /** Curated screenshot / live-demo URL (master_components.preview_url). */
+  previewUrl?: string | null;
 }
 
 // Packages the Sandpack react-ts template already provides — never re-declare these.
 const SANDPACK_BUILTIN = new Set(['react', 'react-dom', 'react/jsx-runtime']);
+
+// Packages / module families that need real app context (providers, server runtime,
+// API keys) and therefore cannot render standalone in a Sandpack sandbox. Components
+// importing these get a graceful "renders in context" panel instead of a hard error.
+const NEEDS_CONTEXT_PKG = new Set([
+  '@assistant-ui/react', '@ai-sdk/react', 'ai', 'server-only', 'next-auth',
+]);
+const NEEDS_CONTEXT_IMPORT_RE = /from\s+['"](?:next\/(?:navigation|headers|server|cache)|next-auth|server-only)['"]/;
 
 /** Reduce an import specifier to its installable package name (null for relative imports). */
 function packageName(spec: string): string | null {
@@ -51,20 +62,29 @@ function deriveDependencies(sources: string[], declared: string[]): Record<strin
   return deps;
 }
 
+/** True if the component imports anything that needs real app context (won't render standalone). */
+function needsAppContext(deps: Record<string, string>, sources: string[]): boolean {
+  for (const p of Object.keys(deps)) if (NEEDS_CONTEXT_PKG.has(p)) return true;
+  return sources.some((s) => NEEDS_CONTEXT_IMPORT_RE.test(s));
+}
+
 /**
  * Live preview for a master_component's source files.
  *
- * Strategy:
+ * Strategy (preview pane priority):
+ * - A curated preview_url (screenshot or live-demo) -> render it (item 258).
  * - HTML bundle (index.html + sibling .css + .js) -> iframe with srcdoc.
- * - TSX/JSX -> Sandpack provider (react-ts template) with the source mounted at /App.tsx
- *   and any sibling .css concatenated into /styles.css. Iteration #6 item 257: the
- *   component's npm dependencies are now forwarded to Sandpack customSetup so third-party
- *   imports (motion, framer-motion, etc.) resolve instead of erroring.
- * - PUG: source only; rendering would need a transformer (deferred).
+ * - TSX/JSX self-contained -> Sandpack provider (react-ts template); the component's npm
+ *   dependencies are forwarded to Sandpack customSetup so third-party imports (motion,
+ *   framer-motion, etc.) resolve instead of erroring (item 257).
+ * - TSX/JSX needing app context (providers / server / auth) -> graceful "renders in
+ *   context" panel routing to source + upstream, instead of a hard Sandpack error (item 258).
+ * - PUG / unknown: source only.
  * - No source: empty state.
  */
-export function LivePreview({ componentId, files, dependencies = [] }: LivePreviewProps) {
+export function LivePreview({ componentId, files, dependencies = [], previewUrl = null }: LivePreviewProps) {
   const [tab, setTab] = useState<'preview' | 'code'>('preview');
+  const [forceLive, setForceLive] = useState(false);
   const [activeFile, setActiveFile] = useState<string>(files[0]?.name ?? '');
 
   const html = useMemo(() => files.find((f) => f.ext === '.html'), [files]);
@@ -151,7 +171,17 @@ export function LivePreview({ componentId, files, dependencies = [] }: LivePrevi
     return Object.keys(deps).length > 0 ? { dependencies: deps } : undefined;
   }, [tsxOrJsx, files, dependencies]);
 
-  if (files.length === 0) {
+  // Iteration #6 item 258: components that need app context won't render in Sandpack.
+  const needsContext = useMemo(() => {
+    if (!tsxOrJsx) return false;
+    const sources = files
+      .filter((f) => f.ext === '.tsx' || f.ext === '.ts' || f.ext === '.jsx' || f.ext === '.js')
+      .map((f) => f.content);
+    const deps = deriveDependencies(sources, dependencies);
+    return needsAppContext(deps, sources);
+  }, [tsxOrJsx, files, dependencies]);
+
+  if (files.length === 0 && !previewUrl) {
     return (
       <div className="rounded-2xl border border-dashed border-zinc-900/60 bg-zinc-950/30 backdrop-blur p-12 text-center">
         <p className="text-sm text-zinc-400">No source files on disk yet for this component.</p>
@@ -161,6 +191,90 @@ export function LivePreview({ componentId, files, dependencies = [] }: LivePrevi
       </div>
     );
   }
+
+  // Decide what the preview pane shows. A curated preview_url wins unless the user
+  // explicitly asks to run the live sandbox (forceLive) on a self-contained component.
+  const canRunLive = previewableTsx && !needsContext && Boolean(sandpackFiles);
+  const showImage = Boolean(previewUrl) && !(forceLive && canRunLive);
+
+  function renderPreview() {
+    if (showImage) {
+      return (
+        <div className="p-3 bg-zinc-950/40">
+          <ComponentPreview previewUrl={previewUrl ?? null} />
+          {canRunLive && (
+            <button
+              type="button"
+              onClick={() => setForceLive(true)}
+              className="mt-2 text-[11px] text-cyan-300 hover:text-cyan-100 transition-colors"
+            >
+              ▷ Run live preview instead
+            </button>
+          )}
+        </div>
+      );
+    }
+    if (previewableHtml && srcdoc) {
+      return (
+        <iframe
+          srcDoc={srcdoc}
+          title={`${componentId} live preview`}
+          className="w-full h-[520px] bg-white"
+          sandbox="allow-scripts"
+        />
+      );
+    }
+    if (canRunLive && sandpackFiles) {
+      return (
+        <div className="bg-zinc-950/80">
+          <Sandpack
+            template="react-ts"
+            files={sandpackFiles}
+            customSetup={customSetup}
+            theme="dark"
+            options={{
+              showNavigator: false,
+              showTabs: false,
+              showLineNumbers: false,
+              showInlineErrors: true,
+              editorHeight: 520,
+              editorWidthPercentage: 0,
+              wrapContent: false,
+            }}
+          />
+        </div>
+      );
+    }
+    if (previewableTsx && needsContext) {
+      return (
+        <div className="p-10 text-center bg-zinc-950/40">
+          <p className="text-sm text-zinc-300">Renders inside the app, not in an isolated sandbox.</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            This component needs app context (providers, server runtime, or auth), so a standalone
+            live preview would fail. View the full implementation in the Source tab.
+          </p>
+          <button
+            type="button"
+            onClick={() => setTab('code')}
+            className="mt-3 text-xs text-cyan-300 hover:text-cyan-100 transition-colors"
+          >
+            View source →
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div className="p-10 text-center bg-zinc-950/40">
+        <p className="text-sm text-zinc-300">Live preview not available for this file type.</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          {files.map((f) => f.ext).filter((v, i, a) => a.indexOf(v) === i).join(', ')} — only .html or .tsx/.jsx bundles render live.
+        </p>
+        <p className="mt-3 text-xs text-zinc-600">Use the Source tab.</p>
+      </div>
+    );
+  }
+
+  const previewableAtAll = showImage || previewableHtml || previewableTsx;
 
   return (
     <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl overflow-hidden">
@@ -178,7 +292,7 @@ export function LivePreview({ componentId, files, dependencies = [] }: LivePrevi
             }
           >
             Preview{' '}
-            {!previewableHtml && !previewableTsx && (
+            {!previewableAtAll && (
               <span className="ml-1 text-[10px] text-zinc-600">(deferred)</span>
             )}
           </button>
@@ -218,40 +332,7 @@ export function LivePreview({ componentId, files, dependencies = [] }: LivePrevi
 
       {/* Content area */}
       {tab === 'preview' ? (
-        previewableHtml && srcdoc ? (
-          <iframe
-            srcDoc={srcdoc}
-            title={`${componentId} live preview`}
-            className="w-full h-[520px] bg-white"
-            sandbox="allow-scripts"
-          />
-        ) : previewableTsx && sandpackFiles ? (
-          <div className="bg-zinc-950/80">
-            <Sandpack
-              template="react-ts"
-              files={sandpackFiles}
-              customSetup={customSetup}
-              theme="dark"
-              options={{
-                showNavigator: false,
-                showTabs: false,
-                showLineNumbers: false,
-                showInlineErrors: true,
-                editorHeight: 520,
-                editorWidthPercentage: 0,
-                wrapContent: false,
-              }}
-            />
-          </div>
-        ) : (
-          <div className="p-10 text-center bg-zinc-950/40">
-            <p className="text-sm text-zinc-300">Live preview not available for this file type.</p>
-            <p className="mt-1 text-xs text-zinc-500">
-              {files.map((f) => f.ext).filter((v, i, a) => a.indexOf(v) === i).join(', ')} — only .html or .tsx/.jsx bundles render live.
-            </p>
-            <p className="mt-3 text-xs text-zinc-600">Use the Source tab.</p>
-          </div>
-        )
+        renderPreview()
       ) : (
         <pre className="p-4 text-[11px] font-mono text-zinc-300 overflow-x-auto max-h-[520px] overflow-y-auto leading-relaxed bg-zinc-950/60">
           {files.find((f) => f.name === activeFile)?.content ?? files[0]?.content ?? ''}
