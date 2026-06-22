@@ -931,9 +931,7 @@ export const skill_events = sqliteTable('skill_events', {
 // Public docs ingested by mirror:write from each repo's public_docs/ subdir (ADR-011).
 export const project_docs = sqliteTable('project_docs', {
   project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
-  doc_name: text('doc_name', {
-    enum: ['architecture-summary', 'feature-spec-public', 'adr-summary'],
-  }).notNull(),
+  doc_name: text('doc_name').notNull(),
   body: text('body').notNull(),
   source_hash: text('source_hash'),
   mirrored_at: integer('mirrored_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),

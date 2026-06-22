@@ -14,7 +14,7 @@ import { notFound, readAuthBody } from '@/lib/api';
 export const runtime = 'nodejs';
 
 const DocSchema = z.object({
-  doc_name: z.enum(['architecture-summary', 'feature-spec-public', 'adr-summary']),
+  doc_name: z.string().regex(/^[a-z][a-z0-9-]+$/, 'kebab-case doc type').max(60),
   body: z.string().min(1).max(1_000_000),
 });
 const BodySchema = z.object({
