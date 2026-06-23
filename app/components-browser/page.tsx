@@ -4,6 +4,7 @@
 import { asc } from 'drizzle-orm';
 import Link from 'next/link';
 import { getDb, schema } from '@/lib/db/client';
+import { getPreviewManifest } from '@/lib/previews';
 import { SpotlightCard } from '@/components/ui/SpotlightCard';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -49,6 +50,12 @@ export default async function ComponentsBrowser({
   const { q, tag, only, lib, quality } = await searchParams;
   const db = await getDb();
   const all = db.select().from(schema.master_components).orderBy(asc(schema.master_components.id)).all();
+
+  // Inline-preview screenshots (iter-77): which components have a poster thumbnail.
+  const manifest = await getPreviewManifest();
+  const shotIds = new Set(
+    Object.entries(manifest?.components ?? {}).filter(([, v]) => v.shot).map(([k]) => k),
+  );
 
   // Filter
   const queryNorm = q?.toLowerCase().trim();
@@ -189,7 +196,7 @@ export default async function ComponentsBrowser({
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {items.map((c) => (
-                    <ComponentCard key={c.id} component={c} />
+                    <ComponentCard key={c.id} component={c} hasShot={shotIds.has(c.id)} />
                   ))}
                 </div>
               )}
@@ -207,12 +214,29 @@ export default async function ComponentsBrowser({
   );
 }
 
-function ComponentCard({ component }: { component: typeof schema.master_components.$inferSelect }) {
+function ComponentCard({ component, hasShot }: { component: typeof schema.master_components.$inferSelect; hasShot?: boolean }) {
   const hasSource = Boolean(component.source_paths?.[0] && component.source_paths[0].trim().length > 0);
   const quality = (component.quality_grade ?? '') as QualityGrade | '';
 
   return (
     <SpotlightCard href={`/components-browser/${component.id}`}>
+      {/* Inline-preview poster thumbnail (iter-77) */}
+      <div className="mb-3 -mt-1 overflow-hidden rounded-lg border border-zinc-800/80 bg-[#0a0a0f] h-32">
+        {hasShot ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`/api/previews/${component.id}/shot.png`}
+            alt={`${component.name} preview`}
+            loading="lazy"
+            className="h-full w-full object-cover object-top"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-wider text-zinc-700">
+            no preview
+          </div>
+        )}
+      </div>
+
       <div className="flex items-start justify-between gap-2 mb-3">
         <code className="text-[11px] font-mono text-zinc-500 truncate">{component.id}</code>
         <div className="flex items-center gap-1.5 shrink-0">
