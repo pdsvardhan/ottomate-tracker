@@ -1,7 +1,7 @@
 // /components-browser/[id] — single component detail.
-// Spotlight Glass redesign (iteration #5 item 38). Reads source files from disk
-// at /asset-library/components/<id>/, passes them to <LivePreview> which renders
-// either an iframe (HTML bundle) or a code-only view (TSX/JSX, sandpack TBD).
+// Reads source files from /asset-library/components/<id>/ and the inline-preview
+// manifest entry (iter-77), passing both to <LivePreview>, which serves the
+// prebuilt esbuild iframe, an HTML srcdoc, or a graceful reason-panel.
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { asc, desc, eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { getDb, schema } from '@/lib/db/client';
+import { getPreviewEntry } from '@/lib/previews';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { LivePreview } from './LivePreview';
@@ -80,6 +81,7 @@ export default async function ComponentDetailPage({ params }: Ctx) {
   if (!component) notFound();
 
   const files = await readComponentFiles(id, component.primary_file);
+  const preview = await getPreviewEntry(id);
 
   const projects = db
     .select({ slug: schema.projects.slug, display_name: schema.projects.display_name })
@@ -146,7 +148,7 @@ export default async function ComponentDetailPage({ params }: Ctx) {
 
       {/* Live preview pane */}
       <section className="mb-8">
-        <LivePreview componentId={component.id} files={files} dependencies={(component.dependencies ?? []) as string[]} previewUrl={component.preview_url} />
+        <LivePreview componentId={component.id} files={files} preview={preview} />
       </section>
 
       {/* Metadata grid */}
