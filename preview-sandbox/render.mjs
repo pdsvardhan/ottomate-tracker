@@ -3,11 +3,12 @@
 // writes render-results.json. Invoked by scripts/build-previews.mjs via docker.
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 const BUILD = process.env.BUILD_DIR || '/work/build';
 const bundle = JSON.parse(await fs.readFile(path.join(BUILD, 'bundle-results.json'), 'utf8'));
-const targets = bundle.filter((b) => b.status === 'bundled');
+const targets = bundle.filter((b) => (b.status === 'bundled' || b.status === 'html') && existsSync(path.join(BUILD, b.id, 'index.html')));
 
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
 const ctx = await browser.newContext({ viewport: { width: 900, height: 600 }, deviceScaleFactor: 1 });
@@ -25,7 +26,7 @@ for (const b of targets) {
     await page.goto('file://' + path.join(BUILD, b.id, 'index.html'), { waitUntil: 'load', timeout: 15000 });
     await page.waitForTimeout(900);
     const m = await page.evaluate(() => {
-      const root = document.getElementById('root');
+      const root = document.getElementById('root') || document.body;
       function painted(e) {
         if (!e || e === root || e === document.body || e === document.documentElement) return false;
         if (!root || !root.contains(e)) return false;

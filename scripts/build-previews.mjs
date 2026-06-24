@@ -120,6 +120,40 @@ function htmlFor(js) {
 </head><body><div id="root"></div><script>${js}</script></body></html>`;
 }
 
+
+// iter-36 #277 — render html/codepen components: inline local css/js + inject the
+// CDN libs the JS pane assumes (codepen "external resources" aren't in the export).
+function htmlCdnFor(js) {
+  const c = [];
+  if (/\bgsap\b|TweenMax|gsap\./.test(js)) c.push('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js');
+  if (/ScrollTrigger/.test(js)) c.push('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js');
+  if (/\bTHREE\b|three\./.test(js)) c.push('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
+  if (/Splitting\b/.test(js)) { c.push('https://unpkg.com/splitting/dist/splitting.min.js'); }
+  if (/jQuery|\$\(/.test(js)) c.push('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js');
+  return c.map((u) => `<script src="${u}" crossorigin></script>`).join('\n');
+}
+async function buildHtmlPreview(dir, dirFiles) {
+  const htmlFile = dirFiles.find((f) => f.toLowerCase().endsWith('.html'));
+  let body = await fs.readFile(path.join(dir, htmlFile), 'utf8');
+  let css = '';
+  for (const f of dirFiles.filter((f) => /\.css$/i.test(f))) css += '\n' + (await fs.readFile(path.join(dir, f), 'utf8'));
+  let js = '';
+  for (const f of dirFiles.filter((f) => /\.js$/i.test(f) && !/\.min\.js$/i.test(f))) js += '\n;' + (await fs.readFile(path.join(dir, f), 'utf8'));
+  const cdns = htmlCdnFor(js);
+  // drop local (non-http) <link>/<script src> refs — they will not resolve standalone
+  body = body.replace(/<link\b[^>]*href=["'](?!https?:|\/\/)[^"']+["'][^>]*>/gi, '')
+             .replace(/<script\b[^>]*src=["'](?!https?:|\/\/)[^"']+["'][^>]*><\/script>/gi, '');
+  const headInject = `${cdns}\n<style>html,body{margin:0}\n${css}</style>`;
+  const jsInject = `<script>window.addEventListener('load',function(){try{\n${js}\n}catch(e){console.error(e)}});</script>`;
+  if (/<html[\s>]/i.test(body)) {
+    let doc = body;
+    doc = doc.includes('</head>') ? doc.replace('</head>', headInject + '</head>') : doc.replace(/<html[^>]*>/i, (mm) => mm + '<head>' + headInject + '</head>');
+    doc = doc.includes('</body>') ? doc.replace('</body>', jsInject + '</body>') : doc + jsInject;
+    return doc;
+  }
+  return `<!doctype html><html><head><meta charset="utf-8">${headInject}</head><body>${body}${jsInject}</body></html>`;
+}
+
 function pickPrimary(dir, declared) {
   if (declared && existsSync(path.join(dir, declared))) return declared;
   let files = [];
@@ -149,7 +183,17 @@ for (const c of components) {
   const dirFiles = (await fs.readdir(dir)).filter((f) => !f.startsWith('.'));
   const hasHtml = dirFiles.some((f) => f.toLowerCase().endsWith('.html'));
   const primary = pickPrimary(dir, c.primary_file);
-  if (!primary) { entry.status = hasHtml ? 'html' : 'no-source'; entry.detail = hasHtml ? 'renders via srcdoc' : 'no code/html'; results.push(entry); continue; }
+  if (!primary) {
+    if (hasHtml) {
+      try {
+        const doc = await buildHtmlPreview(dir, dirFiles);
+        await fs.mkdir(path.join(BUILD, c.id), { recursive: true });
+        await fs.writeFile(path.join(BUILD, c.id, 'index.html'), doc);
+        entry.status = 'html'; entry.detail = 'html inlined';
+      } catch (e) { entry.status = 'html'; entry.detail = 'html inline failed: ' + String((e && e.message) || e).slice(0, 80); }
+    } else { entry.status = 'no-source'; entry.detail = 'no code/html'; }
+    results.push(entry); continue;
+  }
 
   const primaryPath = path.join(dir, primary).split(path.sep).join('/');
   const src = await fs.readFile(primaryPath, 'utf8');
@@ -223,6 +267,7 @@ let live = 0;
 for (const r of results) {
   let status = r.status, detail = r.detail;
   if (r.status === 'bundled') { const rr = render[r.id] || { status: 'error' }; status = rr.status; detail = rr.detail; }
+  else if (r.status === 'html') { const rr = render[r.id]; if (rr) { status = rr.status; detail = rr.detail; } }
   if (status === 'live' || status === 'html') live++;
   const hasShot = existsSync(path.join(BUILD, r.id, 'shot.png'));
   manifest[r.id] = {
