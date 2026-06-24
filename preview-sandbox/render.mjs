@@ -44,20 +44,21 @@ for (const b of targets) {
       for (let a = 1; a < cols; a++) for (let c = 1; c < rows; c++) { total++; if (painted(document.elementFromPoint((W * a) / cols, (H * c) / rows))) hits++; }
       // Grid sampling misses small controls (checkbox/switch) that fall between
       // sample points — also measure the largest painted element's area directly.
-      let maxArea = 0, sumArea = 0;
+      let maxArea = 0, sumArea = 0, paintedCount = 0;
       if (root) root.querySelectorAll('*').forEach((e) => {
         if (!painted(e)) return;
         const r = e.getBoundingClientRect();
         if (r.width < 6 || r.height < 6) return;
         const area = Math.min(r.width, W) * Math.min(r.height, H);
-        maxArea = Math.max(maxArea, area); sumArea += area;
+        maxArea = Math.max(maxArea, area); sumArea += area; paintedCount++;
       });
       const txt = (root?.innerText || '').trim();
-      return { coverage: total ? hits / total : 0, textLen: txt.length, maxArea, sumArea, renderError: window.__renderError ?? document.body.getAttribute('data-render-error'), noexport: window.__noexport === true };
+      return { coverage: total ? hits / total : 0, textLen: txt.length, maxArea, sumArea, paintedCount, renderError: window.__renderError ?? document.body.getAttribute('data-render-error'), noexport: window.__noexport === true };
     });
     const hadError = errors.some((e) => /TypeError|ReferenceError|is not|undefined|Cannot read|not a function/.test(e));
-    const meaningful = m.coverage >= 0.012 || m.textLen >= 14 || m.maxArea >= 1200 || m.sumArea >= 2500;
-    res.detail = `cov=${(m.coverage * 100).toFixed(1)}% txt=${m.textLen} maxA=${Math.round(m.maxArea)}`;
+    // iter-36 #278 honest render-check: live = painted ANY real visible DOM (small controls incl.), not a coverage threshold.
+    const meaningful = m.textLen >= 1 || m.maxArea >= 144 || m.paintedCount >= 1 || m.coverage >= 0.004;
+    res.detail = `cov=${(m.coverage * 100).toFixed(1)}% txt=${m.textLen} maxA=${Math.round(m.maxArea)} n=${m.paintedCount || 0}`;
     if (m.renderError) { res.status = 'error'; res.detail = String(m.renderError).slice(0, 200); }
     else if (m.noexport) { res.status = 'no-export'; }
     else if (meaningful) { res.status = 'live'; }
