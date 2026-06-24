@@ -130,3 +130,23 @@ Deleted 25 (DB row + source dir): all 23 Bucket B app-internals (18 via API now 
 Kept: 28 recovered Bucket C codepens (render live).
 Catalog 178 -> 158 total; honest live 125/158 (79%).
 REMAINING in iter-36: 19 "review" (salvage fixture-able shadcn/filter/form, drop media-dashboard app-glue) -> 275 hero-state -> 276 providers -> 279 CRUD automation -> verifier + integrate.
+
+---
+## 19 REVIEW SALVAGED — 2026-06-24 (commit 619ad67). 15/19 live, 0 deleted.
+Live (15): input, textarea, ai-code-block, auth-oauth-github, filter-date-range/faceted/slider, cast-carousel, hero-backdrop, quality-badge, form-wrapper, transition-list-reorder/modal-slide, validation-message, stateofus-v4.
+Still blank -> item 276 (provider/context): tooltip-shadcn, sidebar-shadcn (useSidebar), command-palette, form-autosave (useFormContext).
+Wins: icon-shim Proxy (camelCase->Pascal) unblocked the kiranism filter/auth set; export-pick prefers PascalCase export (ai-code-block).
+CATALOG NOW: 158 total, 140 live (89%).
+REMAINING iter-36: 275 hero-state (meteors/border-beam/animated-beam + 276 overlap), 276 providers (sidebar/form/tooltip/command-palette/elastic-slider), 279 CRUD auto-rebuild, then independent verifier + integrate.
+
+---
+## #275/#276 DONE — all 11 duds live (commit). Catalog 150/158 (95%).
+Mechanism: fixture `element` escape hatch + per-component providers isolation (providers.tsx bundled only into the 11 ids, not shared) + window.process/global shim in htmlFor.
+Live now: tooltip, sidebar, form-autosave, elastic-slider, file-tree, meteors, border-beam, glowing-effect, animated-beam, scroll-progress, command-palette.
+NEXT: 279 CRUD auto-rebuild, then independent verifier + integrate.
+
+---
+## #279 DONE (auto-rebuild) — nightly host cron
+Added crontab: 30 4 * * * node scripts/build-previews.mjs (full rebuild+publish). New/edited components render by next nightly run -> closes todo #79 intent.
+App runs in-container (no docker socket) so a per-edit instant trigger isn't feasible from the route; per-edit `--changed` incremental mode noted as a future optimization.
+NEXT: independent verifier (Stage 4.7) + integrate (4.8).
