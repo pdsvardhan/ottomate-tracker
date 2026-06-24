@@ -48,9 +48,39 @@ const FEATURES = [
   { icon: Star, title: 'Polished', description: 'Real renders, not red boxes.' },
 ];
 
-type Fixture = { props?: Record<string, unknown>; children?: React.ReactNode; wrap?: boolean };
+// --- magicui AnimatedList demo (ported upstream, light theme) ---
+const NOTIFS = [
+  { name: 'Payment received', description: 'Magic UI', time: '15m ago', icon: '💸', color: '#00C9A7' },
+  { name: 'User signed up', description: 'Magic UI', time: '10m ago', icon: '👤', color: '#FFB800' },
+  { name: 'New message', description: 'Magic UI', time: '5m ago', icon: '💬', color: '#FF3D71' },
+  { name: 'New event', description: 'Magic UI', time: '2m ago', icon: '🗞️', color: '#1E86FF' },
+];
+function Notification({ name, description, icon, color, time }: { name: string; description: string; icon: string; color: string; time: string }) {
+  return (
+    <figure className="relative mx-auto min-h-fit w-full max-w-[400px] cursor-pointer overflow-hidden rounded-2xl p-4 bg-white [box-shadow:0_0_0_1px_rgba(0,0,0,.03),0_2px_4px_rgba(0,0,0,.05),0_12px_24px_rgba(0,0,0,.05)]">
+      <div className="flex flex-row items-center gap-3">
+        <div className="flex size-10 items-center justify-center rounded-2xl" style={{ backgroundColor: color }}>
+          <span className="text-lg">{icon}</span>
+        </div>
+        <div className="flex flex-col overflow-hidden">
+          <figcaption className="flex flex-row items-center text-lg font-medium whitespace-pre">
+            <span className="text-sm sm:text-lg">{name}</span>
+            <span className="mx-1">·</span>
+            <span className="text-xs text-gray-500">{time}</span>
+          </figcaption>
+          <p className="text-sm font-normal text-gray-600">{description}</p>
+        </div>
+      </div>
+    </figure>
+  );
+}
+const animatedListChildren = Array.from({ length: 2 }, () => NOTIFS).flat().map((n, i) => <Notification key={i} {...n} />);
+
+type Fixture = { props?: Record<string, unknown>; children?: React.ReactNode; wrap?: boolean; theme?: 'light' | 'dark' };
 
 export const overrides: Record<string, Fixture> = {
+  // magicui demos (ported upstream)
+  'mc-animated-list': { props: { delay: 500 }, children: animatedListChildren, theme: 'light' },
   // dataviz
   'mc-sparkline': { props: { values: SERIES }, children: null, wrap: true },
   'mc-ai-token-counter': { props: { used: 740, limit: 1000 }, children: null },
@@ -91,8 +121,8 @@ export const overrides: Record<string, Fixture> = {
   'mc-glowing-effect': { wrap: true, children: box('Hover me', 0, { padding: '32px 40px' }) },
 };
 
-export function fixtureFor(id: string): { props: Record<string, unknown>; children: React.ReactNode; wrap: boolean } {
+export function fixtureFor(id: string): { props: Record<string, unknown>; children: React.ReactNode; wrap: boolean; theme: 'light' | 'dark' } {
   const o = overrides[id];
-  if (!o) return { props: {}, children: genericChildren(), wrap: false };
-  return { props: o.props ?? {}, children: 'children' in o ? (o.children ?? null) : genericChildren(), wrap: o.wrap ?? false };
+  if (!o) return { props: {}, children: genericChildren(), wrap: false, theme: 'dark' };
+  return { props: o.props ?? {}, children: 'children' in o ? (o.children ?? null) : genericChildren(), wrap: o.wrap ?? false, theme: o.theme ?? 'dark' };
 }
