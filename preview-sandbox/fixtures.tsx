@@ -135,8 +135,8 @@ export const overrides: Record<string, Fixture> = {
   ...fxMagicui, ...fxReactbits, ...fxAceternity, ...fxKibo, ...fxOriginui, ...fxTremor, ...fxCustom, ...fxHorizon, ...fxReview,
 };
 
-export function fixtureFor(id: string): { props: Record<string, unknown>; children: React.ReactNode; wrap: boolean; theme: 'light' | 'dark' } {
+export function fixtureFor(id: string): { props: Record<string, unknown>; children: React.ReactNode; wrap: boolean; theme: 'light' | 'dark'; element: any } {
   const o = overrides[id];
-  if (!o) return { props: {}, children: genericChildren(), wrap: false, theme: 'dark' };
-  return { props: o.props ?? {}, children: 'children' in o ? (o.children ?? null) : genericChildren(), wrap: o.wrap ?? false, theme: o.theme ?? 'dark' };
+  if (!o) return { props: {}, children: genericChildren(), wrap: false, theme: 'dark', element: null };
+  return { props: o.props ?? {}, children: 'children' in o ? (o.children ?? null) : genericChildren(), wrap: o.wrap ?? false, theme: o.theme ?? 'dark', element: o.element ?? null };
 }

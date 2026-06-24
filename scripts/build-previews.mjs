@@ -22,6 +22,8 @@ const BUILD = path.join(SANDBOX, 'build');
 const SHIMS = path.join(SANDBOX, 'shims');
 const NM = path.join(SANDBOX, 'node_modules');
 const FIXTURES = path.join(SANDBOX, 'fixtures.tsx');
+const PROVIDERS = path.join(SANDBOX, 'fixtures', 'providers.tsx');
+const PROVIDER_IDS = new Set(['mc-tooltip-shadcn','mc-sidebar-shadcn','mc-form-autosave','mc-elastic-slider','mc-file-tree','mc-meteors','mc-border-beam','mc-glowing-effect','mc-animated-beam','mc-scroll-progress','mc-command-palette']);
 
 const COMP_ROOT = process.env.COMP_ROOT || '/mnt/storage/ottomate/assets/components';
 const PUBLISH = process.env.PREVIEW_PUBLISH || '/mnt/storage/ottomate/assets/previews';
@@ -115,7 +117,7 @@ const LOADER = { '.svg': 'dataurl', '.png': 'dataurl', '.jpg': 'dataurl', '.jpeg
 
 function htmlFor(js) {
   return `<!doctype html><html class="dark"><head><meta charset="utf-8">
-<script src="https://cdn.tailwindcss.com"></script>
+<script>window.process={env:{NODE_ENV:'production'}};window.global=window;</script><script src="https://cdn.tailwindcss.com"></script>
 <style>html,body{margin:0;background:#0a0a0f;color:#e4e4e7;font-family:system-ui,sans-serif}#root{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}#root>*{max-width:100%}</style>
 </head><body><div id="root"></div><script>${js}</script></body></html>`;
 }
@@ -205,16 +207,16 @@ for (const c of components) {
     `import React from 'react';`,
     `import { createRoot } from 'react-dom/client';`,
     `import * as Mod from ${JSON.stringify(primaryPath)};`,
-    `import { fixtureFor } from ${JSON.stringify(FIXTURES)};`,
+    PROVIDER_IDS.has(c.id) ? `import { overrides as __PROV } from ${JSON.stringify(PROVIDERS)};` : `import { fixtureFor } from ${JSON.stringify(FIXTURES)};`,
     // A component is a plain function OR a forwardRef/memo object (has $$typeof).
     `const isComp = (v) => typeof v === 'function' || (v && typeof v === 'object' && (v.$$typeof || typeof v.render === 'function'));`,
     `const Cmp = (Mod.default && isComp(Mod.default)) ? Mod.default : ((Object.entries(Mod).find(([k,v]) => /^[A-Z]/.test(k) && isComp(v)) || [])[1] || Object.values(Mod).find(isComp));`,
     `const el = document.getElementById('root');`,
     `if (!Cmp) { window.__noexport = true; }`,
     `else { try {`,
-    `  const { props, children, wrap, theme } = fixtureFor(${JSON.stringify(c.id)});`,
+    PROVIDER_IDS.has(c.id) ? `  const __f = (__PROV[${JSON.stringify(c.id)}] || {}); const props = __f.props || {}; const children = ('children' in __f) ? __f.children : null; const wrap = !!__f.wrap; const theme = __f.theme || 'dark'; const element = (__f.element != null) ? __f.element : null;` : `  const { props, children, wrap, theme, element } = fixtureFor(${JSON.stringify(c.id)});`,
     `  if (theme === 'light') { document.documentElement.classList.remove('dark'); document.body.style.background = '#ffffff'; document.body.style.color = '#0a0a0f'; }`,
-    `  const node = React.createElement(Cmp, props, children);`,
+    `  const node = (element !== null && element !== undefined) ? element : React.createElement(Cmp, props, children);`,
     `  const tree = wrap ? React.createElement('div', { style: { position: 'relative', width: 600, height: 320, overflow: 'hidden', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, node) : node;`,
     `  createRoot(el).render(tree); }`,
     `  catch (e) { window.__renderError = String((e && e.message) || e); document.body.setAttribute('data-render-error', window.__renderError); } }`,
