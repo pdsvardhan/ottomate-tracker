@@ -5,7 +5,7 @@
 // Overlay primitives (dialog/sheet/drawer) render their content INLINE so the
 // preview shows something instead of a closed-by-default void.
 
-const ICONS = `export * from 'lucide-react';\nimport * as L from 'lucide-react';\nexport const Icons = L;\nexport default L;\n`;
+const ICONS = `export * from 'lucide-react';\nimport * as L from 'lucide-react';\nexport const Icons = (() => { const base = Object.assign({}, L); const Noop = () => null; return new Proxy(base, { get(t, p) { if (typeof p !== 'string') return t[p]; if (p in t) return t[p]; const pascal = p.charAt(0).toUpperCase() + p.slice(1); if (pascal in t) return t[pascal]; const alias = { google: 'Chrome', spinner: 'Loader2', logo: 'Box', post: 'FileText', page: 'File' }; if (alias[p] && alias[p] in t) return t[alias[p]]; return t.HelpCircle || Noop; } }); })();\nexport default L;\n`;
 const USE_ON_RESIZE = `export function useOnWindowResize(_cb){}\nexport default useOnWindowResize;\n`;
 const USE_MOBILE = `export function useIsMobile(){ return false; }\nexport function useMobile(){ return false; }\nexport default useIsMobile;\n`;
 const TYPES = `export {};\n`;

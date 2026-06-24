@@ -3,11 +3,12 @@
 // writes render-results.json. Invoked by scripts/build-previews.mjs via docker.
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 const BUILD = process.env.BUILD_DIR || '/work/build';
 const bundle = JSON.parse(await fs.readFile(path.join(BUILD, 'bundle-results.json'), 'utf8'));
-const targets = bundle.filter((b) => b.status === 'bundled');
+const targets = bundle.filter((b) => (b.status === 'bundled' || b.status === 'html') && existsSync(path.join(BUILD, b.id, 'index.html')));
 
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
 const ctx = await browser.newContext({ viewport: { width: 900, height: 600 }, deviceScaleFactor: 1 });
@@ -25,7 +26,7 @@ for (const b of targets) {
     await page.goto('file://' + path.join(BUILD, b.id, 'index.html'), { waitUntil: 'load', timeout: 15000 });
     await page.waitForTimeout(900);
     const m = await page.evaluate(() => {
-      const root = document.getElementById('root');
+      const root = document.getElementById('root') || document.body;
       function painted(e) {
         if (!e || e === root || e === document.body || e === document.documentElement) return false;
         if (!root || !root.contains(e)) return false;
@@ -44,20 +45,21 @@ for (const b of targets) {
       for (let a = 1; a < cols; a++) for (let c = 1; c < rows; c++) { total++; if (painted(document.elementFromPoint((W * a) / cols, (H * c) / rows))) hits++; }
       // Grid sampling misses small controls (checkbox/switch) that fall between
       // sample points — also measure the largest painted element's area directly.
-      let maxArea = 0, sumArea = 0;
+      let maxArea = 0, sumArea = 0, paintedCount = 0;
       if (root) root.querySelectorAll('*').forEach((e) => {
         if (!painted(e)) return;
         const r = e.getBoundingClientRect();
         if (r.width < 6 || r.height < 6) return;
         const area = Math.min(r.width, W) * Math.min(r.height, H);
-        maxArea = Math.max(maxArea, area); sumArea += area;
+        maxArea = Math.max(maxArea, area); sumArea += area; paintedCount++;
       });
       const txt = (root?.innerText || '').trim();
-      return { coverage: total ? hits / total : 0, textLen: txt.length, maxArea, sumArea, renderError: window.__renderError ?? document.body.getAttribute('data-render-error'), noexport: window.__noexport === true };
+      return { coverage: total ? hits / total : 0, textLen: txt.length, maxArea, sumArea, paintedCount, renderError: window.__renderError ?? document.body.getAttribute('data-render-error'), noexport: window.__noexport === true };
     });
     const hadError = errors.some((e) => /TypeError|ReferenceError|is not|undefined|Cannot read|not a function/.test(e));
-    const meaningful = m.coverage >= 0.012 || m.textLen >= 14 || m.maxArea >= 1200 || m.sumArea >= 2500;
-    res.detail = `cov=${(m.coverage * 100).toFixed(1)}% txt=${m.textLen} maxA=${Math.round(m.maxArea)}`;
+    // iter-36 #278 honest render-check: live = painted ANY real visible DOM (small controls incl.), not a coverage threshold.
+    const meaningful = m.textLen >= 1 || m.maxArea >= 144 || m.paintedCount >= 1 || m.coverage >= 0.004;
+    res.detail = `cov=${(m.coverage * 100).toFixed(1)}% txt=${m.textLen} maxA=${Math.round(m.maxArea)} n=${m.paintedCount || 0}`;
     if (m.renderError) { res.status = 'error'; res.detail = String(m.renderError).slice(0, 200); }
     else if (m.noexport) { res.status = 'no-export'; }
     else if (meaningful) { res.status = 'live'; }
