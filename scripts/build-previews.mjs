@@ -89,11 +89,26 @@ const aliasPlugin = {
     });
   },
 };
-const cssStub = {
-  name: 'css-stub',
+const cssInject = {
+  name: 'css-inject',
   setup(build) {
-    build.onResolve({ filter: /\.(css|scss|sass|less)$/ }, (args) => ({ path: args.path, namespace: 'css-stub' }));
-    build.onLoad({ filter: /.*/, namespace: 'css-stub' }, () => ({ contents: '', loader: 'js' }));
+    build.onResolve({ filter: /\.(css|scss|sass|less)$/ }, (args) => {
+      let fp = null;
+      if (args.path.startsWith('.') || args.path.startsWith('/')) {
+        const cand = path.resolve(args.resolveDir, args.path);
+        if (existsSync(cand)) fp = cand;
+      } else {
+        const cand = path.join(NM, args.path);
+        if (existsSync(cand)) fp = cand;
+      }
+      return fp ? { path: fp, namespace: 'css-inject' } : { path: args.path, namespace: 'css-missing' };
+    });
+    build.onLoad({ filter: /.*/, namespace: 'css-inject' }, async (args) => {
+      const css = await fs.readFile(args.path, 'utf8');
+      const js = 'var s=document.createElement("style");s.textContent=' + JSON.stringify(css) + ';document.head.appendChild(s);';
+      return { contents: js, loader: 'js' };
+    });
+    build.onLoad({ filter: /.*/, namespace: 'css-missing' }, () => ({ contents: '', loader: 'js' }));
   },
 };
 const LOADER = { '.svg': 'dataurl', '.png': 'dataurl', '.jpg': 'dataurl', '.jpeg': 'dataurl', '.gif': 'dataurl', '.webp': 'dataurl', '.json': 'json' };
@@ -116,8 +131,10 @@ function pickPrimary(dir, declared) {
 
 // --- 2. component list -------------------------------------------------------
 const apiRes = await fetch(`${API}/api/master-components?limit=1000`);
-const components = (await apiRes.json()).components.map((c) => ({ id: c.id, primary_file: c.primary_file, library: c.library, preview_url: c.preview_url }));
-console.log('components:', components.length);
+const allComponents = (await apiRes.json()).components.map((c) => ({ id: c.id, primary_file: c.primary_file, library: c.library, preview_url: c.preview_url }));
+const ONLY = process.env.COMP_ONLY ? new Set(process.env.COMP_ONLY.split(',').map((x) => x.trim())) : null;
+const components = ONLY ? allComponents.filter((c) => ONLY.has(c.id)) : allComponents;
+console.log('components:', components.length, ONLY ? '(COMP_ONLY filtered)' : '');
 
 await fs.rm(BUILD, { recursive: true, force: true });
 await fs.mkdir(BUILD, { recursive: true });
@@ -163,7 +180,7 @@ for (const c of components) {
       stdin: { contents: entrySource, resolveDir: SANDBOX, loader: 'ts', sourcefile: 'entry.ts' },
       bundle: true, format: 'iife', platform: 'browser', target: 'es2020',
       jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"' },
-      nodePaths: [NM], loader: LOADER, plugins: [cssStub, aliasPlugin], write: false, logLevel: 'silent',
+      nodePaths: [NM], loader: LOADER, plugins: [cssInject, aliasPlugin], write: false, logLevel: 'silent',
     });
     await fs.mkdir(path.join(BUILD, c.id), { recursive: true });
     await fs.writeFile(path.join(BUILD, c.id, 'index.html'), htmlFor(r.outputFiles[0].text));
@@ -218,6 +235,7 @@ for (const r of results) {
 await fs.writeFile(path.join(BUILD, 'previews-manifest.json'), JSON.stringify({ built_at: new Date().toISOString(), live, total: results.length, components: manifest }, null, 2));
 
 // --- 6. publish to the asset-library volume ----------------------------------
+if (!ONLY) {
 await fs.rm(PUBLISH, { recursive: true, force: true });
 await fs.mkdir(PUBLISH, { recursive: true });
 for (const r of results) {
@@ -229,5 +247,6 @@ for (const r of results) {
   }
 }
 await fs.copyFile(path.join(BUILD, 'previews-manifest.json'), path.join(PUBLISH, 'previews-manifest.json'));
+}
 
 console.log(`\nDONE — ${live}/${results.length} live. Published to ${PUBLISH}`);
