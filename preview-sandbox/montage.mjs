@@ -7,8 +7,9 @@ const PREV = process.env.PREVIEW_PUBLISH || '/work/previews';
 const want = process.argv[2] || 'live';
 const out = process.argv[3] || 'montage.png';
 const m = JSON.parse(await fs.readFile(path.join(PREV, 'previews-manifest.json'), 'utf8')).components;
-const ids = Object.entries(m).filter(([id, v]) => v.status === want && existsSync(path.join(PREV, id, 'shot.png'))).map(([id]) => id);
-const sample = ids.slice(0, 28);
+const idsEnv = process.env.IDS ? process.env.IDS.split(',').map((x)=>x.trim()) : null;
+const ids = idsEnv ? idsEnv.filter((id) => existsSync(path.join(PREV, id, 'shot.png'))) : Object.entries(m).filter(([id, v]) => v.status === want && existsSync(path.join(PREV, id, 'shot.png'))).map(([id]) => id);
+const sample = ids.slice(0, 30);
 const cells = await Promise.all(sample.map(async (id) => {
   const b64 = (await fs.readFile(path.join(PREV, id, 'shot.png'))).toString('base64');
   return `<figure><img src="data:image/png;base64,${b64}"/><figcaption>${id}</figcaption></figure>`;

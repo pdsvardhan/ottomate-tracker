@@ -208,7 +208,7 @@ for (const c of components) {
     `import { fixtureFor } from ${JSON.stringify(FIXTURES)};`,
     // A component is a plain function OR a forwardRef/memo object (has $$typeof).
     `const isComp = (v) => typeof v === 'function' || (v && typeof v === 'object' && (v.$$typeof || typeof v.render === 'function'));`,
-    `const Cmp = (Mod.default && isComp(Mod.default)) ? Mod.default : Object.values(Mod).find(isComp);`,
+    `const Cmp = (Mod.default && isComp(Mod.default)) ? Mod.default : ((Object.entries(Mod).find(([k,v]) => /^[A-Z]/.test(k) && isComp(v)) || [])[1] || Object.values(Mod).find(isComp));`,
     `const el = document.getElementById('root');`,
     `if (!Cmp) { window.__noexport = true; }`,
     `else { try {`,

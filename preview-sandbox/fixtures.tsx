@@ -8,6 +8,7 @@ import { overrides as fxOriginui } from './fixtures/originui';
 import { overrides as fxTremor } from './fixtures/tremor';
 import { overrides as fxCustom } from './fixtures/custom';
 import { overrides as fxHorizon } from './fixtures/horizon';
+import { overrides as fxReview } from './fixtures/review';
 
 // Demo-fixture system (iter-77 item 269).
 //
@@ -131,7 +132,7 @@ const inlineOverrides: Record<string, Fixture> = {
 
 export const overrides: Record<string, Fixture> = {
   ...inlineOverrides,
-  ...fxMagicui, ...fxReactbits, ...fxAceternity, ...fxKibo, ...fxOriginui, ...fxTremor, ...fxCustom, ...fxHorizon,
+  ...fxMagicui, ...fxReactbits, ...fxAceternity, ...fxKibo, ...fxOriginui, ...fxTremor, ...fxCustom, ...fxHorizon, ...fxReview,
 };
 
 export function fixtureFor(id: string): { props: Record<string, unknown>; children: React.ReactNode; wrap: boolean; theme: 'light' | 'dark' } {
