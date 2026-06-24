@@ -1,5 +1,13 @@
 import React from 'react';
 import { Zap, Shield, Rocket, Star, Home, Search, Bell, Settings } from 'lucide-react';
+import { overrides as fxMagicui } from './fixtures/magicui';
+import { overrides as fxReactbits } from './fixtures/reactbits';
+import { overrides as fxAceternity } from './fixtures/aceternity';
+import { overrides as fxKibo } from './fixtures/kibo';
+import { overrides as fxOriginui } from './fixtures/originui';
+import { overrides as fxTremor } from './fixtures/tremor';
+import { overrides as fxCustom } from './fixtures/custom';
+import { overrides as fxHorizon } from './fixtures/horizon';
 
 // Demo-fixture system (iter-77 item 269).
 //
@@ -78,7 +86,7 @@ const animatedListChildren = Array.from({ length: 2 }, () => NOTIFS).flat().map(
 
 type Fixture = { props?: Record<string, unknown>; children?: React.ReactNode; wrap?: boolean; theme?: 'light' | 'dark' };
 
-export const overrides: Record<string, Fixture> = {
+const inlineOverrides: Record<string, Fixture> = {
   // magicui demos (ported upstream)
   'mc-animated-list': { props: { delay: 500 }, children: animatedListChildren, theme: 'light' },
   // dataviz
@@ -119,6 +127,11 @@ export const overrides: Record<string, Fixture> = {
   'mc-grid-pattern': { wrap: true, children: null },
   'mc-ripple': { wrap: true, children: null },
   'mc-glowing-effect': { wrap: true, children: box('Hover me', 0, { padding: '32px 40px' }) },
+};
+
+export const overrides: Record<string, Fixture> = {
+  ...inlineOverrides,
+  ...fxMagicui, ...fxReactbits, ...fxAceternity, ...fxKibo, ...fxOriginui, ...fxTremor, ...fxCustom, ...fxHorizon,
 };
 
 export function fixtureFor(id: string): { props: Record<string, unknown>; children: React.ReactNode; wrap: boolean; theme: 'light' | 'dark' } {
