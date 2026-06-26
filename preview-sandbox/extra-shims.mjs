@@ -122,6 +122,29 @@ export function RadioGroupItem({ className }: any){ return React.createElement('
 `;
 const INPUT_GROUP = pass(['InputGroup', 'InputGroupAddon', 'InputGroupInput', 'InputGroupText', 'InputGroupButton'], 'div', 'flex items-center gap-2');
 
+// iter-11: plausible stand-in for Aceternity's three.js CanvasRevealEffect
+// (mc-card-spotlight). Renders an animated dot-matrix tinted by the colors prop
+// instead of the shader — enough to make the spotlight card preview alive.
+const CANVAS_REVEAL = `import * as React from 'react';
+export const CanvasRevealEffect = ({ colors, containerClassName, dotSize, ...rest }) => {
+  const rgb = (colors && colors[0]) || [0, 255, 255];
+  const c = 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
+  const d = dotSize || 3;
+  const style = {
+    position: 'absolute', inset: 0, width: '100%', height: '100%',
+    backgroundImage: 'radial-gradient(' + c + ' ' + d + 'px, transparent ' + (d + 1) + 'px)',
+    backgroundSize: '16px 16px', opacity: 0.4,
+    WebkitMaskImage: 'radial-gradient(ellipse at center, black 30%, transparent 75%)',
+    maskImage: 'radial-gradient(ellipse at center, black 30%, transparent 75%)',
+    animation: 'cre-pulse 3s ease-in-out infinite',
+  };
+  return React.createElement(React.Fragment, null,
+    React.createElement('style', null, '@keyframes cre-pulse{0%,100%{opacity:.2}50%{opacity:.5}}'),
+    React.createElement('div', { className: containerClassName, style }));
+};
+export default CanvasRevealEffect;
+`;
+
 export const EXTRA_SHIMS = {
   '/components/icons.tsx': ICONS,
   '/lib/useOnWindowResize.ts': USE_ON_RESIZE,
@@ -148,4 +171,5 @@ export const EXTRA_SHIMS = {
   '/components/ui/switch.tsx': SWITCH,
   '/components/ui/radio-group.tsx': RADIO,
   '/components/ui/input-group.tsx': INPUT_GROUP,
+  '/components/ui/canvas-reveal-effect.tsx': CANVAS_REVEAL,
 };

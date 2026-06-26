@@ -89,6 +89,14 @@ const aliasPlugin = {
       const fp = resolveShimPath(args.path);
       return fp ? { path: fp } : { errors: [{ text: `unshimmed-alias:${args.path}` }] };
     });
+    // iter-11: three's exports map blocks bare examples/jsm/* subpaths even though
+    // the files exist in node_modules — resolve them directly so OBJ/GLTF/FBX
+    // loaders (e.g. mc-model-viewer) bundle instead of failing 'missing-dep'.
+    build.onResolve({ filter: /^three\/examples\/jsm\// }, (args) => {
+      const base = path.join(NM, args.path);
+      for (const e of ['', '.js']) if (existsSync(base + e)) return { path: base + e };
+      return undefined;
+    });
   },
 };
 const cssInject = {
@@ -134,6 +142,19 @@ function htmlCdnFor(js) {
   if (/jQuery|\$\(/.test(js)) c.push('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js');
   return c.map((u) => `<script src="${u}" crossorigin></script>`).join('\n');
 }
+// iter-11: bundle a codepen's local images as data: URIs so the preview is
+// self-contained (external pen assets often 404 / force-download / hotlink-block).
+const IMG_MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.avif': 'image/avif' };
+async function inlineLocalImages(doc, dir, dirFiles) {
+  for (const f of dirFiles.filter((f) => IMG_MIME[path.extname(f).toLowerCase()])) {
+    const buf = await fs.readFile(path.join(dir, f));
+    const uri = `data:${IMG_MIME[path.extname(f).toLowerCase()]};base64,${buf.toString('base64')}`;
+    const esc = f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // match src/href/url(...) refs ending in this filename (with or without a path prefix)
+    doc = doc.replace(new RegExp(`(["'(])(?:[^"')]*\\/)?${esc}(["')])`, 'g'), `$1${uri}$2`);
+  }
+  return doc;
+}
 async function buildHtmlPreview(dir, dirFiles) {
   const htmlFile = dirFiles.find((f) => f.toLowerCase().endsWith('.html'));
   let body = await fs.readFile(path.join(dir, htmlFile), 'utf8');
@@ -141,7 +162,10 @@ async function buildHtmlPreview(dir, dirFiles) {
   for (const f of dirFiles.filter((f) => /\.css$/i.test(f))) css += '\n' + (await fs.readFile(path.join(dir, f), 'utf8'));
   let js = '';
   for (const f of dirFiles.filter((f) => /\.js$/i.test(f) && !/\.min\.js$/i.test(f))) js += '\n;' + (await fs.readFile(path.join(dir, f), 'utf8'));
-  const cdns = htmlCdnFor(js);
+  let cdns = htmlCdnFor(js);
+  // iter-11: codepens using the <model-viewer> web component need its script
+  // (the pen's "external resources" aren't in the export).
+  if (/<model-viewer[\s>]/i.test(body)) cdns += '\n<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>';
   // drop local (non-http) <link>/<script src> refs — they will not resolve standalone
   body = body.replace(/<link\b[^>]*href=["'](?!https?:|\/\/)[^"']+["'][^>]*>/gi, '')
              .replace(/<script\b[^>]*src=["'](?!https?:|\/\/)[^"']+["'][^>]*><\/script>/gi, '');
@@ -150,17 +174,22 @@ async function buildHtmlPreview(dir, dirFiles) {
   // so a component that sets its own body background still overrides it.
   const headInject = `${cdns}\n<style>html,body{margin:0;background:#0a0a0f;color:#e4e4e7}\n${css}</style>`;
   const jsInject = `<script>window.addEventListener('load',function(){try{\n${js}\n}catch(e){console.error(e)}});</script>`;
+  let doc;
   if (/<html[\s>]/i.test(body)) {
-    let doc = body;
+    doc = body;
     doc = doc.includes('</head>') ? doc.replace('</head>', headInject + '</head>') : doc.replace(/<html[^>]*>/i, (mm) => mm + '<head>' + headInject + '</head>');
     doc = doc.includes('</body>') ? doc.replace('</body>', jsInject + '</body>') : doc + jsInject;
-    return doc;
+  } else {
+    doc = `<!doctype html><html><head><meta charset="utf-8">${headInject}</head><body>${body}${jsInject}</body></html>`;
   }
-  return `<!doctype html><html><head><meta charset="utf-8">${headInject}</head><body>${body}${jsInject}</body></html>`;
+  return inlineLocalImages(doc, dir, dirFiles);
 }
 
 function pickPrimary(dir, declared) {
-  if (declared && existsSync(path.join(dir, declared))) return declared;
+  // iter-11: only honor a declared primary if it's a code file — an html component
+  // may legitimately declare primary_file='index.html', which must take the html
+  // path (esbuild has no .html loader), not the bundle path.
+  if (declared && CODE_PRIMARY_EXTS.includes(path.extname(declared).toLowerCase()) && existsSync(path.join(dir, declared))) return declared;
   let files = [];
   try { files = readdirSync(dir); } catch { return null; }
   const code = files.filter((f) => CODE_PRIMARY_EXTS.includes(path.extname(f).toLowerCase()) && !/\.(test|spec|stories)\./.test(f));
