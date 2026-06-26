@@ -114,6 +114,8 @@ const inlineOverrides: Record<string, Fixture> = {
   'mc-card-nav': { props: { items: NAV.map((n) => ({ ...n, links: [{ label: 'Link A', href: '#' }, { label: 'Link B', href: '#' }] })) }, children: null },
   // text effects
   'mc-word-rotate': { props: { words: ['Inline', 'Live', 'Real', 'Rendered'] }, children: null },
+  // iter-11: 3D model viewer needs a model url + a sized canvas parent.
+  'mc-model-viewer': { props: { url: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb', autoRotate: true }, children: null, wrap: true },
   'mc-text-generate-effect': { props: { words: 'Components rendered inline by a real bundler.' }, children: null },
   'mc-text-reveal': { children: 'Scroll-revealed text rendered inline in the preview sandbox.' },
   // background effects — wrap in a sized relative container so they fill it

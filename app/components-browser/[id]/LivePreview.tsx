@@ -34,6 +34,9 @@ interface LivePreviewProps {
 export function LivePreview({ componentId, files, preview }: LivePreviewProps) {
   const [tab, setTab] = useState<'preview' | 'code'>('preview');
   const [activeFile, setActiveFile] = useState<string>(files[0]?.name ?? '');
+  // iter-11 — remount key for the "Replay" button: bumping it re-mounts the
+  // iframe so on-load / one-shot animations fire again without a full page reload.
+  const [reloadKey, setReloadKey] = useState(0);
 
   const html = useMemo(() => files.find((f) => f.ext === '.html'), [files]);
   const css = useMemo(() => files.filter((f) => f.ext === '.css' || f.ext === '.scss'), [files]);
@@ -47,12 +50,27 @@ export function LivePreview({ componentId, files, preview }: LivePreviewProps) {
   const srcdoc = useMemo(() => {
     if (!html) return null;
     let bundled = html.content;
-    const cssBlocks = css.filter((f) => !bundled.includes(`href="${f.name}"`)).map((f) => `<style>\n${f.content}\n</style>`);
+    // Only inline real CSS — raw .scss/.less can't run in the browser, so those
+    // are compiled to .css at the source level before they reach here. iter-11.
+    const cssBlocks = css
+      .filter((f) => f.ext === '.css' && !bundled.includes(`href="${f.name}"`))
+      .map((f) => `<style>\n${f.content}\n</style>`);
+    const jsText = js.map((f) => f.content).join('\n;');
     const jsBlocks = js.filter((f) => !bundled.includes(`src="${f.name}"`)).map((f) => `<script>\n${f.content}\n</script>`);
-    if (cssBlocks.length > 0) {
-      const head = bundled.indexOf('</head>');
-      bundled = head !== -1 ? bundled.slice(0, head) + cssBlocks.join('\n') + bundled.slice(head) : cssBlocks.join('\n') + bundled;
-    }
+    // Inject the external CDN libs the codepen "external resources" assumed but
+    // which aren't in the export (gsap/three/etc.) — mirrors build-previews.mjs.
+    const cdns: string[] = [];
+    if (/\bgsap\b|TweenMax|gsap\./.test(jsText)) cdns.push('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js');
+    if (/ScrollTrigger/.test(jsText)) cdns.push('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js');
+    if (/\bTHREE\b|three\./.test(jsText)) cdns.push('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
+    if (/Splitting\b/.test(jsText)) cdns.push('https://unpkg.com/splitting/dist/splitting.min.js');
+    if (/jQuery|\$\(/.test(jsText)) cdns.push('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js');
+    const headInject =
+      cdns.map((u) => `<script src="${u}" crossorigin></script>`).join('\n') +
+      `\n<style>html,body{margin:0;background:#0a0a0f;color:#e4e4e7}</style>\n` +
+      cssBlocks.join('\n');
+    const head = bundled.indexOf('</head>');
+    bundled = head !== -1 ? bundled.slice(0, head) + headInject + bundled.slice(head) : headInject + bundled;
     if (jsBlocks.length > 0) {
       const body = bundled.indexOf('</body>');
       bundled = body !== -1 ? bundled.slice(0, body) + jsBlocks.join('\n') + bundled.slice(body) : bundled + jsBlocks.join('\n');
@@ -75,6 +93,7 @@ export function LivePreview({ componentId, files, preview }: LivePreviewProps) {
     if (live) {
       return (
         <iframe
+          key={reloadKey}
           src={`/api/previews/${componentId}/index.html`}
           title={`${componentId} preview`}
           className="w-full h-[520px] bg-[#0a0a0f]"
@@ -86,9 +105,10 @@ export function LivePreview({ componentId, files, preview }: LivePreviewProps) {
     if (isHtml && srcdoc) {
       return (
         <iframe
+          key={reloadKey}
           srcDoc={srcdoc}
           title={`${componentId} preview`}
-          className="w-full h-[520px] bg-white"
+          className="w-full h-[520px] bg-[#0a0a0f]"
           sandbox="allow-scripts"
         />
       );
@@ -128,6 +148,16 @@ export function LivePreview({ componentId, files, preview }: LivePreviewProps) {
               </button>
             ))}
           </div>
+        )}
+        {tab === 'preview' && previewable && (
+          <button
+            type="button"
+            onClick={() => setReloadKey((k) => k + 1)}
+            title="Replay preview — re-runs on-load / one-shot animations"
+            className="rounded-lg px-2.5 py-1.5 text-xs text-zinc-400 hover:text-cyan-200 border border-zinc-800/60 hover:border-cyan-500/30 transition-colors"
+          >
+            ↻ Replay
+          </button>
         )}
       </div>
 
