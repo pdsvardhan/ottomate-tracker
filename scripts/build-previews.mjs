@@ -145,7 +145,10 @@ async function buildHtmlPreview(dir, dirFiles) {
   // drop local (non-http) <link>/<script src> refs — they will not resolve standalone
   body = body.replace(/<link\b[^>]*href=["'](?!https?:|\/\/)[^"']+["'][^>]*>/gi, '')
              .replace(/<script\b[^>]*src=["'](?!https?:|\/\/)[^"']+["'][^>]*><\/script>/gi, '');
-  const headInject = `${cdns}\n<style>html,body{margin:0}\n${css}</style>`;
+  // Base dark bg (iter-11): catalog is dark-themed; codepen exports assume the
+  // pen's own background which isn't in the export. Placed BEFORE component css
+  // so a component that sets its own body background still overrides it.
+  const headInject = `${cdns}\n<style>html,body{margin:0;background:#0a0a0f;color:#e4e4e7}\n${css}</style>`;
   const jsInject = `<script>window.addEventListener('load',function(){try{\n${js}\n}catch(e){console.error(e)}});</script>`;
   if (/<html[\s>]/i.test(body)) {
     let doc = body;
