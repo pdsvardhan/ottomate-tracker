@@ -126,7 +126,11 @@ const LOADER = { '.svg': 'dataurl', '.png': 'dataurl', '.jpg': 'dataurl', '.jpeg
 function htmlFor(js) {
   return `<!doctype html><html class="dark"><head><meta charset="utf-8">
 <script>window.process={env:{NODE_ENV:'production'}};window.global=window;</script><script src="https://cdn.tailwindcss.com"></script>
-<style>html,body{margin:0;background:#0a0a0f;color:#e4e4e7;font-family:system-ui,sans-serif}#root{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}#root>*{max-width:100%}</style>
+<style>html,body{margin:0;background:#0a0a0f;color:#e4e4e7;font-family:system-ui,sans-serif}#root{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}#root>*{max-width:100%}
+/* iter-11 follow-up: shadcn design-token utilities. cdn.tailwindcss.com has no
+   shadcn config, so bg-background/bg-primary/etc. are otherwise undefined and
+   such components (e.g. mc-mini-calendar) render light. Fill them with dark values. */
+.bg-background{background-color:#0a0a0f}.bg-card,.bg-popover{background-color:#18181b}.bg-primary{background-color:#6366f1}.bg-secondary,.bg-accent{background-color:#27272a}.bg-muted{background-color:#1f1f23}.text-foreground{color:#e4e4e7}.text-muted-foreground{color:#a1a1aa}.text-primary-foreground{color:#fff}.text-accent-foreground{color:#e4e4e7}.border-border{border-color:#27272a}</style>
 </head><body><div id="root"></div><script>${js}</script></body></html>`;
 }
 
