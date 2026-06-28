@@ -70,6 +70,7 @@ import {
   ReelOverlay as KReelOverlay,
   ReelHeader as KReelHeader,
   ReelControls as KReelControls,
+  ReelProgress as KReelProgress,
   ReelPreviousButton as KReelPrev,
   ReelNextButton as KReelNext,
   ReelPlayButton as KReelPlay,
@@ -387,9 +388,12 @@ export const overrides: Record<string, Fixture> = {
     theme: 'light',
   },
 
-  // Reel -- a vertical image reel with overlay header + controls.
+  // Reel -- a vertical story reel (TikTok / Instagram-style): autoplaying
+  // segmented progress bars at the top, image items that auto-advance, tap
+  // zones for prev/next, and play/mute controls. autoPlay drives the visible
+  // animation (progress fill + slide change); ReelProgress renders the bars.
   'mc-reel': {
-    props: { data: kbReelData, autoPlay: false, className: 'h-[440px] rounded-xl' },
+    props: { data: kbReelData, autoPlay: true, className: 'h-[440px] rounded-xl' },
     children: (
       <>
         <KReelContent>
@@ -399,8 +403,14 @@ export const overrides: Record<string, Fixture> = {
             </KReelItem>
           )}
         </KReelContent>
+        <KReelProgress />
         <KReelOverlay>
-          <KReelHeader />
+          <KReelHeader>
+            <div className="flex items-center gap-2 text-white">
+              <span className="flex size-8 items-center justify-center rounded-full bg-white/25 text-xs font-semibold backdrop-blur">SR</span>
+              <span className="text-sm font-semibold drop-shadow">storyreel</span>
+            </div>
+          </KReelHeader>
           <KReelNavigation>
             <KReelPrev />
             <KReelNext />
