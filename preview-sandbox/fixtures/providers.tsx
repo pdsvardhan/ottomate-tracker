@@ -41,9 +41,6 @@ import {
 /* ── mc-form-autosave — calls useFormContext(); needs a FormProvider ── */
 import { AutosaveForm } from '/mnt/storage/ottomate/assets/components/mc-form-autosave/AutosaveForm';
 
-/* ── mc-command-palette — force open; empty query shows actions (no fetch) ── */
-import { CommandPalette } from '/mnt/storage/ottomate/assets/components/mc-command-palette/CommandPalette';
-
 /* ── mc-elastic-slider — chakra <Icon> throws (needs ChakraProvider); pass plain icons ── */
 import ElasticSlider from '/mnt/storage/ottomate/assets/components/mc-elastic-slider/ElasticSlider';
 
@@ -222,16 +219,6 @@ export const overrides: Record<string, any> = {
     element: <FormAutosaveDemo />,
   },
 
-  'mc-command-palette': {
-    theme: 'dark',
-    // Force open. With an empty query the component renders its ACTIONS list and
-    // never hits /api (the fetch only fires for a non-empty debounced query).
-    element: (
-      <div className="relative h-[520px] w-full">
-        <CommandPalette open onOpenChange={() => {}} initialQuery="" />
-      </div>
-    ),
-  },
 
   'mc-elastic-slider': {
     theme: 'dark',

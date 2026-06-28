@@ -23,7 +23,7 @@ const SHIMS = path.join(SANDBOX, 'shims');
 const NM = path.join(SANDBOX, 'node_modules');
 const FIXTURES = path.join(SANDBOX, 'fixtures.tsx');
 const PROVIDERS = path.join(SANDBOX, 'fixtures', 'providers.tsx');
-const PROVIDER_IDS = new Set(['mc-tooltip-shadcn','mc-sidebar-shadcn','mc-form-autosave','mc-elastic-slider','mc-file-tree','mc-meteors','mc-border-beam','mc-glowing-effect','mc-animated-beam','mc-scroll-progress','mc-command-palette']);
+const PROVIDER_IDS = new Set(['mc-tooltip-shadcn','mc-sidebar-shadcn','mc-form-autosave','mc-elastic-slider','mc-file-tree','mc-meteors','mc-border-beam','mc-glowing-effect','mc-animated-beam','mc-scroll-progress']);
 
 const COMP_ROOT = process.env.COMP_ROOT || '/mnt/storage/ottomate/assets/components';
 const PUBLISH = process.env.PREVIEW_PUBLISH || '/mnt/storage/ottomate/assets/previews';
