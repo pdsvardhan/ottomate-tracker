@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { COMPONENT_CATEGORIES } from '@/lib/categories';
 
 type Component = {
   id: string;
@@ -21,11 +22,8 @@ type Component = {
   responsive: boolean | null;
 };
 
-const CATEGORY_OPTIONS = [
-  'input', 'display', 'navigation', 'feedback', 'layout', 'overlay',
-  'selection', 'button-action', 'animation', 'transition',
-  'dataviz', 'media', 'modern-specialty', 'interactive', 'forms-validation',
-] as const;
+// Single source of truth: lib/categories.ts (taxonomy-refine 2026-06-29).
+const CATEGORY_OPTIONS = COMPONENT_CATEGORIES;
 
 function arrInput(arr: string[] | null | undefined): string {
   return (arr ?? []).join(', ');
@@ -134,7 +132,7 @@ export function ComponentEditor({ initial }: { initial: Component }) {
             className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1.5 text-sm"
           >
             <option value="">—</option>
-            {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+            {CATEGORY_OPTIONS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
           </select>
         </Field>
       </div>

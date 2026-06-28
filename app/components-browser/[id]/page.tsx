@@ -16,19 +16,12 @@ import { LivePreview } from './LivePreview';
 import { EditComponentModal } from './EditComponentModal';
 import { ComponentAdminBar } from './ComponentAdminBar';
 import { FeedbackWidget } from '@/components/master-component/FeedbackWidget';
+import { CATEGORY_IDS } from '@/lib/categories';
 
 export const dynamic = 'force-dynamic';
 
 const ASSET_ROOT = '/asset-library/components';
 const READABLE_EXT = new Set(['.tsx', '.ts', '.jsx', '.js', '.html', '.css', '.scss', '.md', '.json', '.pug']);
-
-// Mirrors the category enum in lib/validation/master-components.ts (18 categories).
-const CATEGORY_IDS = [
-  'input', 'selection', 'button-action', 'display', 'navigation', 'feedback',
-  'overlay', 'layout', 'animation', 'transition', 'dataviz', 'media',
-  'modern-specialty', 'interactive', 'forms-validation', 'auth-screens',
-  'dashboard-shells', 'ai-blocks',
-];
 
 interface SourceFile {
   name: string;

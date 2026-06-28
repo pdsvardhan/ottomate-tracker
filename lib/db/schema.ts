@@ -16,6 +16,7 @@ import {
   uniqueIndex,
   index,
 } from 'drizzle-orm/sqlite-core';
+import { CATEGORY_ID_TUPLE } from '../categories';
 
 // ═══════════════════════════════════════════════════════════════════
 // CROSS-PROJECT TABLES (shared across all projects)
@@ -38,15 +39,11 @@ export const risks_catalog = sqliteTable('risks_catalog', {
 export const master_components = sqliteTable('master_components', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
-  // Extended category enum — covers the 18-category taxonomy (post-2026-05-19) in
-  // references/component-taxonomy.md. Original 6 retained for back-compat.
+  // Category taxonomy — single source of truth in lib/categories.ts
+  // (taxonomy-refine 2026-06-29). The enum is TS/zod-only (no SQL CHECK), so
+  // editing the list is a code change, not a DB migration.
   category: text('category', {
-    enum: [
-      'input', 'display', 'navigation', 'feedback', 'layout', 'overlay',
-      'selection', 'button-action', 'animation', 'transition',
-      'dataviz', 'media', 'modern-specialty', 'interactive', 'forms-validation',
-      'auth-screens', 'dashboard-shells', 'ai-blocks',
-    ],
+    enum: CATEGORY_ID_TUPLE,
   }),
   description: text('description'),
   source_paths: text('source_paths', { mode: 'json' }).$type<string[]>(),
@@ -289,15 +286,10 @@ export const components = sqliteTable('components', {
   project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   purpose_on_page: text('purpose_on_page'),
-  category: text('category', {
-    // Loose category — sync'd with master_components category enum for cross-link;
-    // older rows may use the original 6-cat list (input/display/...). Storing as TEXT
-    // here keeps backwards compat without an exhaustive enum.
-    enum: ['input', 'display', 'navigation', 'feedback', 'layout', 'overlay',
-           'selection', 'button-action', 'animation', 'transition',
-           'dataviz', 'media', 'modern-specialty', 'interactive', 'forms-validation',
-           'auth-screens', 'dashboard-shells', 'ai-blocks'],
-  }),
+  // Loose, free-text category for page-level components — cross-links to
+  // master_components but tolerates historical values (the old 18-cat list and
+  // the new lib/categories.ts slugs alike), so it is intentionally un-enumed.
+  category: text('category'),
   data_consumed: text('data_consumed'),
   data_produced: text('data_produced'),
   picked: integer('picked', { mode: 'boolean' }).default(false),

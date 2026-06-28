@@ -15,29 +15,13 @@ import {
 } from '@/components/ui/FilterBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AddComponentModal } from '@/components/master-component/AddComponentModal';
+import { COMPONENT_CATEGORIES } from '@/lib/categories';
 
 export const dynamic = 'force-dynamic';
 
-// 18 categories total after the 2026-05-19 expansion. Order tracks taxonomy doc.
+// Single source of truth: lib/categories.ts (taxonomy-refine 2026-06-29).
 const CATEGORY_ORDER: Array<{ id: string; label: string; description: string }> = [
-  { id: 'input', label: 'Inputs', description: 'Text / number / picker single-value' },
-  { id: 'selection', label: 'Selection', description: 'Boolean / discrete-set' },
-  { id: 'button-action', label: 'Buttons & Actions', description: 'Click targets — animated bias' },
-  { id: 'display', label: 'Display', description: 'Cards, badges, avatars, tooltips' },
-  { id: 'navigation', label: 'Navigation', description: 'Top-level wayfinding' },
-  { id: 'feedback', label: 'Feedback', description: 'Loading / empty / error / success' },
-  { id: 'overlay', label: 'Overlay', description: 'Modal / drawer / popover / sheet' },
-  { id: 'layout', label: 'Layout', description: 'Page composition primitives' },
-  { id: 'animation', label: 'Animation primitives', description: 'Reusable motion building blocks' },
-  { id: 'transition', label: 'Transitions', description: 'Connecting two states' },
-  { id: 'dataviz', label: 'Data visualisation', description: 'Charts and viz primitives' },
-  { id: 'media', label: 'Media', description: 'Image / video / audio / carousel' },
-  { id: 'modern-specialty', label: 'Modern / Specialty', description: 'Glassmorphism, neon, aurora, holographic' },
-  { id: 'interactive', label: 'Interactive Behaviours', description: 'Drag, sort, swipe, virtualised' },
-  { id: 'forms-validation', label: 'Forms & Validation', description: 'Form-level patterns' },
-  { id: 'auth-screens', label: 'Auth screens', description: 'Sign-in / sign-up / reset' },
-  { id: 'dashboard-shells', label: 'Dashboard shells', description: 'Full-page layouts: sidebar + topbar + content' },
-  { id: 'ai-blocks', label: 'AI blocks', description: 'Chat, suggestions, citations, streaming UIs' },
+  ...COMPONENT_CATEGORIES,
 ];
 
 type QualityGrade = 'A' | 'B' | 'C';

@@ -1,14 +1,10 @@
 // zod schemas for master_components extended fields (Task 4 — Stage 4 component-pick).
 
 import { z } from 'zod';
+import { CATEGORY_ID_TUPLE } from '@/lib/categories';
 
-const categoryEnum = z.enum([
-  'input', 'display', 'navigation', 'feedback', 'layout', 'overlay',
-  'selection', 'button-action', 'animation', 'transition',
-  'dataviz', 'media', 'modern-specialty', 'interactive', 'forms-validation',
-  // Added 2026-05-19 for iteration #5 — must mirror schema.ts category enum.
-  'auth-screens', 'dashboard-shells', 'ai-blocks',
-]);
+// Single source of truth: lib/categories.ts (taxonomy-refine 2026-06-29).
+const categoryEnum = z.enum(CATEGORY_ID_TUPLE);
 
 const qualityEnum = z.enum(['A', 'B', 'C']);
 

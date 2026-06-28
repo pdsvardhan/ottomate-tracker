@@ -5,11 +5,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { COMPONENT_CATEGORIES } from '@/lib/categories';
 
-const CATEGORY_OPTIONS = [
-  '', 'input', 'display', 'navigation', 'feedback', 'layout', 'overlay',
-  'selection', 'button-action', 'animation', 'transition',
-  'dataviz', 'media', 'modern-specialty', 'interactive', 'forms-validation',
+// Single source of truth: lib/categories.ts. Leading '' = "— any —" filter.
+const CATEGORY_OPTIONS: Array<{ id: string; label: string }> = [
+  { id: '', label: '— any —' },
+  ...COMPONENT_CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
 ];
 
 interface ComponentOption {
@@ -120,7 +121,7 @@ export function PickComponentClient({ iterationId, itemId, itemTitle }: Props) {
               onChange={(e) => { setCategory(e.target.value); void load(e.target.value, tags); }}
               className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1.5 text-sm"
             >
-              {CATEGORY_OPTIONS.map((c) => <option key={c || 'any'} value={c}>{c || '— any —'}</option>)}
+              {CATEGORY_OPTIONS.map((c) => <option key={c.id || 'any'} value={c.id}>{c.label}</option>)}
             </select>
           </div>
           <div className="flex-[2] min-w-[200px]">

@@ -1,6 +1,11 @@
 #!/usr/bin/env tsx
 // Seed the master components asset library from cross-project scan.
 // Source content: 06-tracker-v3-design/master-components-seed.md (15 entries from 6 projects)
+//
+// STALE (2026-06-29): this is the original 2026-04-26 scaffold seed. The 15
+// entries below were long ago replaced/pruned and do NOT reflect the live
+// catalog — do not re-run. Kept only for history; categories were remapped to
+// the taxonomy-refine slugs (lib/categories.ts) so the project keeps compiling.
 
 import { getDb, schema } from '../lib/db/client';
 
@@ -8,7 +13,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-stat-card-gradient',
     name: 'GradientStatCard',
-    category: 'display' as const,
+    category: 'cards' as const,
     description: 'Stat tile with gradient background, label + value + optional change indicator',
     source_paths: ['/repos/balls-of-the-bull/components/shared/StatCard.tsx', '/repos/media-dashboard/components/shared/StatCard.tsx'],
     variants: ['gradient', 'glass', 'minimal'],
@@ -17,7 +22,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-animated-number',
     name: 'AnimatedNumber',
-    category: 'feedback' as const,
+    category: 'feedback-progress' as const,
     description: 'Number with count-up animation; supports currency, percent, raw number',
     source_paths: ['/repos/balls-of-the-bull/components/shared/AnimatedCurrency.tsx', '/repos/media-dashboard/components/shared/AnimatedNumber.tsx', '/repos/tasks/components/fx/FlipNumber.tsx'],
     variants: ['count-up', 'flip-digits', 'currency'],
@@ -26,7 +31,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-command-palette',
     name: 'CommandPalette',
-    category: 'overlay' as const,
+    category: 'overlays' as const,
     description: 'cmdk-based command palette with keyboard nav, grouped results, hotkey trigger',
     source_paths: ['/repos/media-dashboard/components/shared/CommandPalette.tsx', '/repos/tasks/components/CommandPalette.tsx'],
     variants: ['standard', 'with-search-results'],
@@ -44,7 +49,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-poster-tile',
     name: 'PosterTile',
-    category: 'display' as const,
+    category: 'cards' as const,
     description: 'Movie/album poster with title, year, status badge, hover lift',
     source_paths: ['/repos/media-dashboard/components/shared/PosterTile.tsx'],
     variants: ['movie', 'tv', 'album', 'compact'],
@@ -53,7 +58,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-hero-backdrop',
     name: 'HeroBackdrop',
-    category: 'display' as const,
+    category: 'cards' as const,
     description: 'Full-bleed hero image with gradient overlay, text-readable',
     source_paths: ['/repos/media-dashboard/components/detail/HeroBackdrop.tsx'],
     variants: ['gradient-down', 'gradient-up', 'full-fade', 'tonal-shift'],
@@ -62,7 +67,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-search-bar',
     name: 'SearchBar',
-    category: 'input' as const,
+    category: 'forms-inputs' as const,
     description: 'Text input with debounced search, results panel, fuzzy match',
     source_paths: ['/repos/cap-a/src/components/Search/SearchBar.jsx'],
     variants: ['inline', 'modal', 'autocomplete', 'with-fuse'],
@@ -71,7 +76,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-error-boundary',
     name: 'ErrorBoundary',
-    category: 'feedback' as const,
+    category: 'feedback-progress' as const,
     description: 'React error boundary with fallback UI',
     source_paths: ['/repos/cap-a/src/components/ErrorBoundary.jsx'],
     variants: ['minimal', 'with-reset', 'with-report'],
@@ -80,7 +85,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-loading-screen',
     name: 'LoadingScreen',
-    category: 'feedback' as const,
+    category: 'feedback-progress' as const,
     description: 'Full-screen loader with branding',
     source_paths: ['/repos/cap-a/src/components/LoadingScreen.jsx'],
     variants: ['minimal', 'branded', 'with-progress'],
@@ -89,7 +94,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-radial-donut',
     name: 'RadialDonut',
-    category: 'feedback' as const,
+    category: 'feedback-progress' as const,
     description: 'Circular progress indicator (percent, count)',
     source_paths: ['/repos/tasks/components/fx/RadialDonut.tsx'],
     variants: ['simple', 'animated', 'with-label'],
@@ -98,7 +103,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-sparkline',
     name: 'Sparkline',
-    category: 'display' as const,
+    category: 'cards' as const,
     description: 'Tiny inline line/bar chart',
     source_paths: ['/repos/tasks/components/fx/Sparkline.tsx'],
     variants: ['line', 'bar', 'area'],
@@ -107,7 +112,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-quality-badge',
     name: 'QualityBadge',
-    category: 'display' as const,
+    category: 'cards' as const,
     description: 'Media quality badge (4K/HDR/Atmos/etc)',
     source_paths: ['/repos/media-dashboard/components/shared/QualityBadge.tsx'],
     variants: ['compact', 'full', 'inline'],
@@ -116,7 +121,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-cast-carousel',
     name: 'CastCarousel',
-    category: 'display' as const,
+    category: 'cards' as const,
     description: 'Horizontal scrollable cast/crew grid with snap',
     source_paths: ['/repos/media-dashboard/components/detail/CastCarousel.tsx'],
     variants: ['cast', 'crew', 'photos'],
@@ -125,7 +130,7 @@ const SEED_COMPONENTS = [
   {
     id: 'mc-task-drawer',
     name: 'TaskDrawer',
-    category: 'overlay' as const,
+    category: 'overlays' as const,
     description: 'Slide-in side drawer for detail editing (markdown body + day-picker + timeline)',
     source_paths: ['/repos/tasks/components/CardDetail/Drawer.tsx'],
     variants: ['detail-only', 'with-editor', 'with-timeline'],

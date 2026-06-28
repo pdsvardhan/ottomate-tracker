@@ -8,27 +8,7 @@ import {
   PRIMARY_BUTTON_CLASSES,
   SECONDARY_BUTTON_CLASSES,
 } from '@/components/ui/FilterBar';
-
-const CATEGORY_LABELS: Record<string, string> = {
-  input: 'Inputs',
-  selection: 'Selection',
-  'button-action': 'Buttons & Actions',
-  display: 'Display',
-  navigation: 'Navigation',
-  feedback: 'Feedback',
-  overlay: 'Overlay',
-  layout: 'Layout',
-  animation: 'Animation primitives',
-  transition: 'Transitions',
-  dataviz: 'Data visualisation',
-  media: 'Media',
-  'modern-specialty': 'Modern / Specialty',
-  interactive: 'Interactive Behaviours',
-  'forms-validation': 'Forms & Validation',
-  'auth-screens': 'Auth screens',
-  'dashboard-shells': 'Dashboard shells',
-  'ai-blocks': 'AI blocks',
-};
+import { CATEGORY_LABELS } from '@/lib/categories';
 
 export interface EditableComponent {
   id: string;
