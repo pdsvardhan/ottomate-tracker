@@ -1,5 +1,5 @@
 // /api/iterations/[id]/integrate — POST: finalize the iteration with a trace report.
-// All items must be verified or rejected. Locks the trace and stamps integrated_at.
+// All items must be verified, rejected, or deferred. Locks the trace and stamps integrated_at.
 
 import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
@@ -25,7 +25,9 @@ export async function POST(req: Request, { params }: Ctx) {
   }
   const items = db.select().from(schema.iteration_items)
     .where(eq(schema.iteration_items.iteration_id, idNum)).all();
-  const open = items.filter((i) => !['verified', 'rejected', 'integrated'].includes(i.status ?? ''));
+  // Closed states that satisfy integrate. 'deferred' = explicit drop-with-reason (bedrock rule 7).
+  const closed = ['verified', 'rejected', 'integrated', 'deferred'];
+  const open = items.filter((i) => !closed.includes(i.status ?? ''));
   if (open.length > 0) {
     return badRequest(
       `Cannot integrate; items still open: ` +

@@ -48,6 +48,11 @@ export const ItemPatchSchema = z.object({
   notes: z.string().nullish(),
 });
 
+// Defer-with-reason (post-lock drop): reason is mandatory — enforces bedrock rule 7.
+export const DeferItemSchema = z.object({
+  reason: z.string().min(1).max(2000),
+});
+
 export const UserAuthoredItemSchema = ClassifiedItemSchema.extend({
   // Override: user-authored is always max-confidence + already user_edited.
   confidence: z.literal(1).optional(),

@@ -589,7 +589,7 @@ export const iteration_items = sqliteTable('iteration_items', {
   confidence: real('confidence'),
   user_edited: integer('user_edited', { mode: 'boolean' }).default(false),
   status: text('status', {
-    enum: ['pending-review', 'locked', 'building', 'verified', 'integrated', 'rejected'],
+    enum: ['pending-review', 'locked', 'building', 'verified', 'integrated', 'rejected', 'deferred'],
   }).default('pending-review'),
   verifier_result: text('verifier_result', { mode: 'json' }),
   user_test_completed_at: integer('user_test_completed_at', { mode: 'timestamp' }),
