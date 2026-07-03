@@ -6,6 +6,7 @@
 // server-side in page.tsx); empty sections hide gracefully.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { accentStyle } from '@/lib/project-accent';
 
 export interface ShowcaseData {
   slug: string; name: string; accent: string; tagline: string; hook: string; tags: string[];
@@ -32,7 +33,7 @@ export interface ShowcaseData {
   challenges: { problem: string; solved: string }[];
   risks: { name: string; category: string; severity: string; status: string }[];
   docs: { name: string }[];
-  downloads: string[];
+  downloads: { label: string; href: string }[];
 }
 
 const DONE = 'var(--color-done)';
@@ -114,7 +115,7 @@ export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSl
   const d = data;
 
   return (
-    <div style={{ '--accent': d.accent } as React.CSSProperties}>
+    <div style={accentStyle(d.accent)}>
       {/* ── HERO ── */}
       <div className="grid gap-5 lg:grid-cols-[0.95fr_1.15fr] items-stretch">
         <div className="a-fade-up flex flex-col rounded-2xl border border-[var(--color-border-2)] bg-gradient-to-b from-[#151b29] to-[#0d1017] p-6"
@@ -523,7 +524,8 @@ function ResourcesPanel({ d }: { d: ShowcaseData }) {
             <Label>DOWNLOADS</Label>
             <div className="flex flex-wrap gap-2">
               {d.downloads.map((dl, i) => (
-                <span key={i} className="mono text-[10.5px] text-zinc-300 rounded-lg border border-[var(--color-border)] bg-[var(--color-card-2)] px-3 py-2">↓ {dl}</span>
+                <a key={i} href={dl.href} target="_blank" rel="noopener"
+                   className="mono text-[10.5px] text-zinc-300 rounded-lg border border-[var(--color-border)] bg-[var(--color-card-2)] px-3 py-2 transition-colors hover:border-[var(--color-border-2)] hover:text-zinc-100">↓ {dl.label}</a>
               ))}
             </div>
           </Tile>

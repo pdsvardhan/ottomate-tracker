@@ -7,6 +7,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { accentStyle } from '@/lib/project-accent';
 
 export interface RegisterRow {
   slug: string;
@@ -45,7 +46,7 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
   return (
     <li
       className="a-fade-up relative border-t border-[var(--color-border)] last:border-b transition-colors hover:bg-white/[0.02]"
-      style={{ '--accent': row.accent, animationDelay: `${Math.min(index, 10) * 45}ms` } as React.CSSProperties}
+      style={{ ...accentStyle(row.accent), animationDelay: `${Math.min(index, 10) * 45}ms` }}
     >
       {/* full-row overlay link — the block click target (no nested anchors) */}
       <Link

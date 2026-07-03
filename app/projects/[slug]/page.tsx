@@ -53,7 +53,6 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     .orderBy(asc(schema.features.priority)).all();
   const flows = db.select().from(schema.flows).where(eq(schema.flows.project_slug, slug)).all();
   const flowSteps = db.select().from(schema.flow_steps).all();
-  const pages = db.select().from(schema.pages).where(eq(schema.pages.project_slug, slug)).all();
   const nonGoals = db.select().from(schema.project_non_goals)
     .where(eq(schema.project_non_goals.project_slug, slug)).orderBy(asc(schema.project_non_goals.sort_order)).all();
   const success = db.select().from(schema.project_success_criteria)
@@ -235,7 +234,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     })),
     // resources
     docs: docs.map((d) => ({ name: d.doc_name })),
-    downloads: ['Project spec (YAML)', ...(dataContract?.database_engine === 'sqlite' ? ['DB schema (SQL)'] : [])],
+    downloads: [{ label: 'Project spec (YAML)', href: `/api/projects/${slug}/yaml-mirror` }],
   };
 
   return <ProjectShowcase data={data} archSlot={archSlot} />;

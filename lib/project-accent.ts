@@ -28,9 +28,16 @@ export function projectAccent(slug: string): string {
   return ACCENTS[slug] ?? `hsl(${hashHue(slug)} 70% 66%)`;
 }
 
-/** Inline style object that sets the accent CSS vars on a wrapper element.
- *  Everything below it can then use var(--accent) / text-accent / bg-accent. */
-export function accentVars(slug: string): React.CSSProperties {
-  const accent = projectAccent(slug);
-  return { '--accent': accent } as React.CSSProperties;
+/** Inline style setting the accent + its derived tints on a wrapper element.
+ *  The derived vars MUST be computed here (not on :root) — a `color-mix` that
+ *  references var(--accent) on :root freezes to the default accent and never
+ *  re-resolves against a per-project override. Computing them from the concrete
+ *  color makes every project's identity surfaces (glow, tints, borders) correct. */
+export function accentStyle(accent: string): React.CSSProperties {
+  return {
+    '--accent': accent,
+    '--accent-bg': `color-mix(in srgb, ${accent} 12%, transparent)`,
+    '--accent-bd': `color-mix(in srgb, ${accent} 40%, transparent)`,
+    '--accent-glow': `color-mix(in srgb, ${accent} 55%, transparent)`,
+  } as React.CSSProperties;
 }
