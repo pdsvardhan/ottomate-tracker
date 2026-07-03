@@ -1,45 +1,87 @@
 @import "tailwindcss";
 
+/* ── Ottomate design tokens (prototype adoption, ui-overhaul) ──
+   Type: Archivo (display) · Instrument Sans (body) · JetBrains Mono (data/labels).
+   Loaded via next/font in app/layout.tsx, exposed as --font-* vars.            */
 @theme {
-  --font-display: "Outfit", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-display: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  --font-body: var(--font-instrument), "Instrument Sans", system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
 
-  --color-bg-deep: #050507;
-  --color-bg: #0a0a0f;
-  --color-card: #11111c;
-  --color-border: #222233;
+  /* surfaces */
+  --color-bg-deep: #08090c;
+  --color-bg: #0b0c10;
+  --color-card: #14171f;
+  --color-card-2: #0e1015;
+  --color-border: #1f2430;
+  --color-border-2: #2c313c;
+
+  /* text */
+  --color-ink: #eef0f6;
+  --color-muted: #9ba2b2;
+  --color-faint: #5a6270;
+
+  /* structural secondary — kept so existing (non-overhauled) pages don't break */
   --color-cyan: #00d4aa;
   --color-violet: #a855f7;
+
+  /* semantic status — the ONLY colors that encode state (never the accent) */
+  --color-done: #34d399;
+  --color-wip: #e8b24a;
+  --color-todo: #6b7280;
+  --color-risk: #e8654a;
   --color-amber: #f59e0b;
   --color-rose: #f43f5e;
   --color-emerald: #10b981;
+
+  /* per-project accent — a runtime var (see lib/project-accent.ts).
+     Exposed as `accent` utilities (text-accent / bg-accent / border-accent). */
+  --color-accent: var(--accent);
+}
+
+/* default accent (overridden per project via inline --accent on a wrapper) */
+:root {
+  --accent: #5b8cff;
+  --accent-bg: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-bd: color-mix(in srgb, var(--accent) 40%, transparent);
+  --accent-glow: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 html, body {
   background: var(--color-bg);
-  color: #e4e4e7;
-  font-family: var(--font-display);
+  color: var(--color-ink);
+  font-family: var(--font-body);
 }
+h1, h2, h3, h4, h5 { font-family: var(--font-display); }
+code, pre, kbd, .mono { font-family: var(--font-mono); }
 
-code, pre, kbd {
-  font-family: var(--font-mono);
-}
+::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
 
 /* Subtle scrollbar in dark mode */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.16);
-}
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.16); }
 
 /* Search snippet highlight */
-mark {
-  background: rgba(0, 212, 170, 0.18);
-  color: var(--color-cyan);
-  padding: 0 2px;
-  border-radius: 2px;
+mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0 2px; border-radius: 2px; }
+
+/* ── Motion primitives (used across the overhaul) ── */
+@keyframes ottoFadeUp { from { opacity: 0; transform: translateY(14px); } }
+@keyframes ottoFadeIn { from { opacity: 0; } }
+@keyframes ottoPopIn  { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+@keyframes ottoPulseDot {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+  60% { box-shadow: 0 0 0 6px transparent; }
+}
+@keyframes ottoFlowMarch { to { background-position: 24px 0; } }
+
+.a-fade-up { animation: ottoFadeUp .5s cubic-bezier(.2,.7,.2,1) backwards; }
+.a-fade-in { animation: ottoFadeIn .4s ease backwards; }
+.a-pop-in  { animation: ottoPopIn .35s cubic-bezier(.2,.8,.2,1) backwards; }
+.a-pulse-dot { animation: ottoPulseDot 2.2s ease infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .a-fade-up, .a-fade-in, .a-pop-in, .a-pulse-dot { animation: none !important; }
+  * { scroll-behavior: auto !important; }
 }
