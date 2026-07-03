@@ -6,11 +6,13 @@
 // browser ordered a different set. iter "taxonomy-refine" collapses all of
 // them onto THIS list. Add or rename a category here and nowhere else.
 //
-// The list is intentionally a curated, website-building-oriented taxonomy for a
-// SHOWCASE of distinctive/animated components — not an exhaustive primitive
-// library. (Older utilitarian categories — auth-screens, dashboard-shells,
-// ai-blocks, selection, transition, forms-validation — were retired when the
-// catalog was pruned to its distinctive core.)
+// The list is a curated, website-building-oriented taxonomy for a SHOWCASE of
+// distinctive/animated components. 2026-07-04 (sourcing sprint): the library's
+// remit widened toward reusable building blocks, so three previously-retired
+// utilitarian categories were REOPENED (auth-screens, dashboard-shells,
+// ai-blocks) and 'tables' was added — these are heavily reused across projects
+// and were the biggest real gaps. (selection, transition, forms-validation
+// remain retired — folded into forms-inputs / scroll-motion / overlays.)
 
 export const COMPONENT_CATEGORIES = [
   { id: 'buttons-actions', label: 'Buttons & Actions', description: 'Click targets with personality — animated, playful, micro-interactive' },
@@ -20,12 +22,16 @@ export const COMPONENT_CATEGORIES = [
   { id: 'navigation', label: 'Navigation', description: 'Docks, nav bars, steppers, menus — wayfinding' },
   { id: 'media-galleries', label: 'Media & Galleries', description: 'Carousels, galleries, reels, 3D model viewers' },
   { id: 'data-charts', label: 'Data & Charts', description: 'Charts, heatmaps, counters — visualising numbers and series' },
-  { id: 'feedback-progress', label: 'Feedback & Progress', description: 'Progress rings, loaders, confetti, status states' },
+  { id: 'tables', label: 'Tables & Data Grids', description: 'Sortable, filterable, paginated data tables and grids' },
+  { id: 'feedback-progress', label: 'Feedback & Progress', description: 'Progress rings, loaders, skeletons, confetti, empty/error/status states' },
   { id: 'scroll-motion', label: 'Scroll & Motion', description: 'Scroll-driven reveals, marquees, reusable motion primitives' },
   { id: 'layout', label: 'Layout', description: 'Grids, bento, comparators, structural primitives' },
   { id: 'forms-inputs', label: 'Forms & Inputs', description: 'Inputs, sliders, pickers, form patterns' },
   { id: 'overlays', label: 'Overlays', description: 'Modals, drawers, toasts, command palettes, popovers' },
   { id: 'sections', label: 'Sections', description: 'Hero, pricing, footer, feature blocks — full page sections' },
+  { id: 'auth-screens', label: 'Auth Screens', description: 'Login, signup, forgot-password, OTP, magic-link flows' },
+  { id: 'dashboard-shells', label: 'Dashboard Shells', description: 'Sidebar layouts, admin frames, collapsible app navigation' },
+  { id: 'ai-blocks', label: 'AI Blocks', description: 'Chat bubbles, prompt inputs, streaming responses, tool-call cards' },
 ] as const;
 
 export type CategoryId = (typeof COMPONENT_CATEGORIES)[number]['id'];
