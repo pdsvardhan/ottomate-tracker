@@ -45,7 +45,8 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
   const [open, setOpen] = useState(false);
   return (
     <li
-      className="a-fade-up relative border-t border-[var(--color-border)] last:border-b transition-colors hover:bg-white/[0.02]"
+      className="a-fade-up reg-row group border-t border-[var(--color-border)] last:border-b transition-colors hover:bg-white/[0.02]"
+      data-open={open ? 'true' : 'false'}
       style={{ ...accentStyle(row.accent), animationDelay: `${Math.min(index, 10) * 45}ms` }}
     >
       {/* full-row overlay link — the block click target (no nested anchors) */}
@@ -136,52 +137,59 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           onClick={() => setOpen((v) => !v)}
           className="pointer-events-auto relative z-10 justify-self-end grid place-items-center size-6 rounded-md text-zinc-500 transition-colors hover:text-zinc-200 hover:bg-white/5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
-          <span className={`transition-transform duration-300 ${open ? 'rotate-90' : ''}`} style={{ color: 'var(--accent)' }}>▸</span>
+          <span className={`reg-chev inline-block transition-transform duration-300 ${open ? 'rotate-90' : ''}`} style={{ color: 'var(--accent)' }}>▸</span>
         </button>
       </div>
 
-      {/* PREVIEW — click/keyboard driven, in-flow (no hover jank) */}
-      <div
-        className="grid transition-[grid-template-rows] duration-300 ease-out"
-        style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
-      >
-        <div className="overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr_1fr] gap-5 px-4 pb-5 pt-1">
-            <div>
-              <div className="mono text-[9px] font-semibold tracking-widest text-zinc-600 mb-2">OVERVIEW</div>
-              <p className="text-[12.5px] leading-relaxed text-zinc-400">{row.blurb || 'No summary yet.'}</p>
-              {row.tags.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {row.tags.map((t) => (
-                    <span key={t} className="mono text-[9px] text-zinc-400 rounded border border-[var(--color-border)] bg-black/20 px-2 py-0.5">{t}</span>
-                  ))}
-                </div>
-              )}
+      {/* PREVIEW — absolute overlay; opens on hover (desktop) / focus / click (touch).
+          Matches the prototype's 4-column panel: reel · overview · to-do · last change. */}
+      <div className="reg-more">
+        <div className="grid grid-cols-1 md:grid-cols-[280px_1.05fr_1fr_1fr] gap-5 px-4 py-4">
+          <div
+            className="hidden md:block rounded-lg border border-[var(--color-border)] min-h-[150px]"
+            style={{ background: 'radial-gradient(120% 120% at 30% 0%, var(--accent-bg), #0c0f16 62%)' }}
+          >
+            <div className="h-full grid place-items-center">
+              <span className="mono text-[9px] tracking-widest text-zinc-600">{row.name} REEL</span>
             </div>
-            <div>
-              <div className="mono text-[9px] font-semibold tracking-widest text-zinc-600 mb-2">
-                TO DO{row.todoCount > 0 ? ` · ${row.todoCount}` : ''}
+          </div>
+          <div>
+            <div className="mono text-[9px] font-semibold tracking-widest text-zinc-600 mb-2">OVERVIEW</div>
+            <p className="text-[12.5px] leading-relaxed text-zinc-400">{row.blurb || 'No summary yet.'}</p>
+            {row.tags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {row.tags.map((t) => (
+                  <span key={t} className="mono text-[9px] text-zinc-400 rounded border border-[var(--color-border)] bg-black/20 px-2 py-0.5">{t}</span>
+                ))}
               </div>
-              {row.todos.length > 0 ? (
-                <ul className="flex flex-col gap-2">
-                  {row.todos.map((t, i) => (
-                    <li key={i} className="flex items-start gap-2 text-[12px] leading-snug text-zinc-400">
-                      <span className="mt-[3px] size-2.5 shrink-0 rounded-[3px] border" style={{ borderColor: 'var(--accent-bd)' }} />
-                      {t}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-[12px] text-zinc-600">Nothing open.</p>
-              )}
+            )}
+          </div>
+          <div>
+            <div className="mono text-[9px] font-semibold tracking-widest text-zinc-600 mb-2">
+              TO DO{row.todoCount > 0 ? ` · ${row.todoCount}` : ''}
             </div>
-            <div>
-              <div className="mono text-[9px] font-semibold tracking-widest text-zinc-600 mb-2">LAST CHANGE · {row.age}</div>
-              <p className="text-[12.5px] font-medium leading-snug text-zinc-300">{row.lastChange ?? 'No recorded activity.'}</p>
-            </div>
+            {row.todos.length > 0 ? (
+              <ul className="flex flex-col gap-2">
+                {row.todos.map((t, i) => (
+                  <li key={i} className="flex items-start gap-2 text-[12px] leading-snug text-zinc-400">
+                    <span className="mt-[3px] size-2.5 shrink-0 rounded-[3px] border" style={{ borderColor: 'var(--accent-bd)' }} />
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[12px] text-zinc-600">Nothing open.</p>
+            )}
+          </div>
+          <div>
+            <div className="mono text-[9px] font-semibold tracking-widest text-zinc-600 mb-2">LAST CHANGE · {row.age}</div>
+            <p className="text-[12.5px] font-medium leading-snug text-zinc-300">{row.lastChange ?? 'No recorded activity.'}</p>
           </div>
         </div>
       </div>
+
+      {/* accent bar sweeps in along the bottom on hover/open */}
+      <span className="reg-bar absolute left-0 bottom-0 h-[2px] w-full" style={{ background: 'var(--accent)' }} aria-hidden />
     </li>
   );
 }
@@ -263,7 +271,7 @@ export function ProjectRegister({
         <span />
       </div>
 
-      <ul className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-2)]/40 overflow-hidden">
+      <ul>
         {filtered.map((row, i) => (
           <Row key={row.slug} row={row} index={i} />
         ))}

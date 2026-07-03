@@ -22,7 +22,7 @@ export default async function ProjectLayout({
   if (!project) notFound();
 
   return (
-    <div className="px-6 md:px-10 py-6 max-w-[1200px] mx-auto">
+    <div className="px-6 md:px-10 py-6">
       <a href="/" className="mono text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors">← all projects</a>
       <div className="mt-3">
         <DriftBanner slug={slug} />

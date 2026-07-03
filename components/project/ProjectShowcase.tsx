@@ -60,10 +60,13 @@ function sevTone(s: string) {
 }
 
 // ── little primitives ──
-function Tile({ children, className = '', delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
+function Tile({ children, className = '', delay = 0, hover = true }: { children: ReactNode; className?: string; delay?: number; hover?: boolean }) {
+  const hoverCls = hover
+    ? 'transition-all duration-300 hover:-translate-y-[3px] hover:border-[var(--color-border-2)] hover:shadow-[0_18px_40px_rgba(0,0,0,0.42)]'
+    : '';
   return (
     <div
-      className={`a-fade-up rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 ${className}`}
+      className={`a-fade-up rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 ${hoverCls} ${className}`}
       style={{ animationDelay: `${delay}ms` }}
     >
       {children}
@@ -345,7 +348,7 @@ function OverviewPanel({ d }: { d: ShowcaseData }) {
 function EngineeringPanel({ d, archSlot }: { d: ShowcaseData; archSlot: ReactNode }) {
   return (
     <div className="space-y-3.5">
-      {archSlot && <Tile>{archSlot}</Tile>}
+      {archSlot && <Tile hover={false}>{archSlot}</Tile>}
       {d.stack.length > 0 && (
         <Tile>
           <Label>TECH STACK</Label>

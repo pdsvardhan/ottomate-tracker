@@ -125,7 +125,7 @@ export default async function HomePage() {
   const liveCount = rows.filter((r) => r.liveUrl).length;
 
   return (
-    <div className="px-6 md:px-10 py-8 max-w-[1200px] mx-auto">
+    <div className="px-6 md:px-10 py-8">
       <ProjectRegister
         rows={rows}
         stats={{ projects: rows.length, featuresShipped, live: liveCount }}

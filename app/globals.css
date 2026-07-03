@@ -85,3 +85,31 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
   .a-fade-up, .a-fade-in, .a-pop-in, .a-pulse-dot { animation: none !important; }
   * { scroll-behavior: auto !important; }
 }
+
+/* ── Home register row: hover-expand preview (prototype fidelity) ──
+   Absolute overlay so expanding never pushes sibling rows (no jank). Opens on
+   hover (desktop), keyboard focus-within, OR click (data-open, for touch). */
+.reg-row { position: relative; }
+.reg-more {
+  position: absolute; left: 0; right: 0; top: 100%; z-index: 5; pointer-events: none;
+  background: linear-gradient(180deg, #12151d, #0c0f16);
+  border: 1px solid var(--color-border-2); border-top: none;
+  border-radius: 0 0 14px 14px; box-shadow: 0 26px 44px rgba(0, 0, 0, .55);
+  max-height: 0; opacity: 0; overflow: hidden;
+  transition: max-height .42s cubic-bezier(.22, .7, .2, 1), opacity .26s ease;
+}
+.reg-row:hover, .reg-row:focus-within, .reg-row[data-open="true"] { z-index: 10; }
+.reg-row:hover .reg-more,
+.reg-row:focus-within .reg-more,
+.reg-row[data-open="true"] .reg-more { max-height: 420px; opacity: 1; }
+/* accent bar sweeps in along the row bottom on hover/open */
+.reg-bar { transform: scaleX(0); transform-origin: left; transition: transform .5s cubic-bezier(.2, .8, .2, 1); }
+.reg-row:hover .reg-bar, .reg-row:focus-within .reg-bar, .reg-row[data-open="true"] .reg-bar { transform: scaleX(1); }
+/* chevron brightens on hover/open (opacity only — rotate is applied separately) */
+.reg-chev { opacity: .5; transition: opacity .22s ease; }
+.reg-row:hover .reg-chev, .reg-row:focus-within .reg-chev, .reg-row[data-open="true"] .reg-chev { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reg-more { transition: none; }
+  .reg-bar { transition: none; }
+}
