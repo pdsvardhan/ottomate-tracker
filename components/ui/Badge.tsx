@@ -47,7 +47,7 @@ export function Badge({ variant, tone, grade, children, className = '', title }:
           title={title}
           className={
             'inline-flex items-center rounded-md bg-violet-500/10 border border-violet-500/20 ' +
-            'text-violet-300 text-[10px] font-mono px-1.5 py-0.5 ' +
+            'text-violet-300 text-[11px] font-mono px-1.5 py-0.5 ' +
             className
           }
         >
@@ -62,7 +62,7 @@ export function Badge({ variant, tone, grade, children, className = '', title }:
           title={title ?? `Quality grade ${g}`}
           className={
             'inline-flex items-center gap-1 rounded-full bg-zinc-900/60 border border-zinc-800 ' +
-            'px-1.5 py-0.5 text-[9px] font-mono text-zinc-300 ' +
+            'px-1.5 py-0.5 text-[10px] font-mono text-zinc-300 ' +
             className
           }
         >
@@ -77,7 +77,7 @@ export function Badge({ variant, tone, grade, children, className = '', title }:
         <span
           title={title}
           className={
-            'text-[10px] uppercase tracking-wider rounded-full bg-zinc-900/60 ' +
+            'text-[11px] uppercase tracking-wider rounded-full bg-zinc-900/60 ' +
             'border border-zinc-800/60 text-zinc-500 px-1.5 py-0.5 ' +
             className
           }
@@ -92,7 +92,7 @@ export function Badge({ variant, tone, grade, children, className = '', title }:
         <span
           title={title}
           className={
-            'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ' +
+            'inline-flex items-center rounded-full border px-2 py-0.5 text-[12px] font-medium ' +
             TONE_STYLES[t] + ' ' +
             className
           }
@@ -108,7 +108,7 @@ export function Badge({ variant, tone, grade, children, className = '', title }:
           title={title}
           className={
             'rounded-full bg-zinc-900/60 backdrop-blur border border-zinc-800 ' +
-            'px-2.5 py-0.5 text-[11px] font-mono text-zinc-400 ' +
+            'px-2.5 py-0.5 text-[12px] font-mono text-zinc-400 ' +
             className
           }
         >

@@ -48,7 +48,7 @@ export default async function InspirationsPage({
   const withThumb = all.filter((i) => (i.thumbnail_url ?? '').trim().length > 0).length;
 
   return (
-    <div className="px-8 py-10 max-w-7xl mx-auto">
+    <div className="px-6 md:px-10 py-8">
       <PageHeader
         title="Inspirations"
         tagline="visual references that shape Stage 2.2 UI master plans"
@@ -133,14 +133,14 @@ function InspirationCard({ insp }: { insp: typeof schema.inspirations.$inferSele
         )}
       </div>
 
-      <code className="text-[11px] font-mono text-zinc-500 truncate block mb-2">{insp.id}</code>
+      <code className="text-[12.5px] font-mono text-zinc-500 truncate block mb-2">{insp.id}</code>
 
-      <h3 className="text-base font-semibold text-zinc-100 group-hover:text-cyan-200 transition-colors line-clamp-2">
+      <h3 className="text-[17px] font-semibold text-zinc-100 group-hover:text-cyan-200 transition-colors line-clamp-2">
         {insp.title}
       </h3>
 
       {insp.notes ? (
-        <p className="mt-1.5 text-xs text-zinc-400 line-clamp-2 leading-relaxed">{insp.notes}</p>
+        <p className="mt-1.5 text-[13.5px] text-zinc-400 line-clamp-2 leading-relaxed">{insp.notes}</p>
       ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">

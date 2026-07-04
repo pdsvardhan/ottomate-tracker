@@ -64,8 +64,8 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
             style={{ background: 'var(--accent)', boxShadow: '0 0 9px var(--accent-glow)' }}
           />
           <div className="min-w-0">
-            <div className="font-display text-[15px] font-bold text-zinc-100 truncate">{row.name}</div>
-            <div className="mono text-[10px] text-zinc-500 truncate">{row.sub}</div>
+            <div className="font-display text-[16.5px] font-bold text-zinc-100 truncate">{row.name}</div>
+            <div className="mono text-[11.5px] text-zinc-500 truncate">{row.sub}</div>
           </div>
         </div>
 
@@ -231,7 +231,7 @@ export function ProjectRegister({
           {statCards.map((s) => (
             <div key={s.l} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3.5 py-2">
               <div className="mono text-[19px] font-bold leading-none text-zinc-100 tabular-nums">{s.n}</div>
-              <div className="mono text-[8px] tracking-widest text-zinc-500 mt-1.5">{s.l}</div>
+              <div className="mono text-[9.5px] tracking-widest text-zinc-500 mt-1.5">{s.l}</div>
             </div>
           ))}
         </div>
@@ -260,7 +260,7 @@ export function ProjectRegister({
       </div>
 
       {/* Column header (desktop only) */}
-      <div className={`hidden ${COLS} gap-x-4 px-4 pb-2.5 mono text-[9px] font-semibold tracking-widest text-zinc-600`}>
+      <div className={`hidden ${COLS} gap-x-4 px-4 pb-2.5 mono text-[10.5px] font-semibold tracking-widest text-zinc-600`}>
         <span>PROJECT</span>
         <span>STAGE</span>
         <span>PROGRESS</span>

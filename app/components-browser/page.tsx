@@ -73,7 +73,7 @@ export default async function ComponentsBrowser({
   const allTags = Array.from(new Set(all.flatMap((c) => (c.tags ?? []) as string[]))).sort();
 
   return (
-    <div className="px-8 py-10 max-w-7xl mx-auto">
+    <div className="px-6 md:px-10 py-8">
       <PageHeader
         title="Components"
         tagline="central asset library"
@@ -143,7 +143,7 @@ export default async function ComponentsBrowser({
               key={cat.id}
               href={`#cat-${cat.id}`}
               className={
-                'rounded-full border px-3 py-1.5 text-xs backdrop-blur-sm transition-all ' +
+                'rounded-full border px-3.5 py-1.5 text-[13px] backdrop-blur-sm transition-all ' +
                 (isEmpty
                   ? 'border-zinc-900/80 bg-zinc-950/40 text-zinc-700 cursor-default'
                   : 'border-zinc-700/60 bg-zinc-900/40 text-zinc-300 hover:border-cyan-600/60 hover:bg-zinc-800/60 hover:text-cyan-200 hover:shadow-[0_0_15px_-5px_rgba(0,212,170,0.4)]')
@@ -169,7 +169,7 @@ export default async function ComponentsBrowser({
                     </h2>
                     <Badge variant="count">{items.length}</Badge>
                   </div>
-                  <p className="text-xs text-zinc-500 mt-1">{cat.description}</p>
+                  <p className="text-sm text-zinc-500 mt-1">{cat.description}</p>
                 </div>
               </header>
               {items.length === 0 ? (
@@ -215,14 +215,14 @@ function ComponentCard({ component, hasShot }: { component: typeof schema.master
             className="h-full w-full object-cover object-top"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-wider text-zinc-700">
+          <div className="flex h-full w-full items-center justify-center text-[11px] uppercase tracking-wider text-zinc-700">
             no preview
           </div>
         )}
       </div>
 
       <div className="flex items-start justify-between gap-2 mb-3">
-        <code className="text-[11px] font-mono text-zinc-500 truncate">{component.id}</code>
+        <code className="text-[12.5px] font-mono text-zinc-500 truncate">{component.id}</code>
         <div className="flex items-center gap-1.5 shrink-0">
           {quality ? <Badge variant="quality" grade={quality} /> : null}
           {hasSource ? (
@@ -236,12 +236,12 @@ function ComponentCard({ component, hasShot }: { component: typeof schema.master
         </div>
       </div>
 
-      <h3 className="text-base font-semibold text-zinc-100 group-hover:text-cyan-200 transition-colors">
+      <h3 className="text-[17px] font-semibold text-zinc-100 group-hover:text-cyan-200 transition-colors">
         {component.name}
       </h3>
 
       {component.description ? (
-        <p className="mt-1.5 text-xs text-zinc-400 line-clamp-2 leading-relaxed">{component.description}</p>
+        <p className="mt-1.5 text-[13.5px] text-zinc-400 line-clamp-2 leading-relaxed">{component.description}</p>
       ) : null}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">

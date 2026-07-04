@@ -28,7 +28,7 @@ export function NavLinks() {
             key={n.href}
             href={n.href}
             className={
-              'mono text-[11px] font-semibold tracking-wide rounded-lg px-3 py-1.5 transition-colors border ' +
+              'mono text-[12.5px] font-semibold tracking-wide rounded-lg px-3 py-1.5 transition-colors border ' +
               (active
                 ? 'text-zinc-100 bg-white/[0.07] border-white/10'
                 : 'text-zinc-500 hover:text-zinc-200 border-transparent')
