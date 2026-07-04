@@ -110,7 +110,7 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
 .reg-row:hover, .reg-row:focus-within, .reg-row[data-open="true"] { z-index: 10; }
 .reg-row:hover .reg-more,
 .reg-row:focus-within .reg-more,
-.reg-row[data-open="true"] .reg-more { max-height: 420px; opacity: 1; }
+.reg-row[data-open="true"] .reg-more { max-height: 420px; opacity: 1; pointer-events: auto; }
 /* accent bar sweeps in along the row bottom on hover/open */
 .reg-bar { transform: scaleX(0); transform-origin: left; transition: transform .5s cubic-bezier(.2, .8, .2, 1); }
 .reg-row:hover .reg-bar, .reg-row:focus-within .reg-bar, .reg-row[data-open="true"] .reg-bar { transform: scaleX(1); }

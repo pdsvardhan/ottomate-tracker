@@ -151,8 +151,10 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           )) : <span className="text-zinc-700">—</span>}
         </div>
 
-        {/* LINKS */}
-        <div className="flex items-center gap-2 justify-self-end md:justify-self-auto pointer-events-auto relative z-10">
+        {/* LINKS — desktop only inline; on mobile they intercepted the row's tap
+            center (E2E flow-projects-click-card mobile fail) so they live in the
+            expandable preview there instead */}
+        <div className="hidden md:flex items-center gap-2 pointer-events-auto relative z-10">
           {row.liveUrl && (
             <a
               href={href(row.liveUrl)}
@@ -235,6 +237,22 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           <div>
             <div className="mono text-[length:var(--t-cap)] font-semibold tracking-widest text-zinc-500 mb-2.5">LAST CHANGE · {row.age}</div>
             <p className="text-[length:var(--t-label)] font-medium leading-snug text-zinc-200">{row.lastChange ?? 'No recorded activity.'}</p>
+            {(row.liveUrl || row.repoUrl) && (
+              <div className="mt-3.5 flex items-center gap-2 md:hidden">
+                {row.liveUrl && (
+                  <a href={href(row.liveUrl)} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()}
+                    className="mono text-[length:var(--t-cap)] font-bold text-black rounded-md px-3 py-1.5" style={{ background: 'var(--accent)' }}>
+                    live ↗
+                  </a>
+                )}
+                {row.repoUrl && (
+                  <a href={href(row.repoUrl)} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()}
+                    className="mono text-[length:var(--t-cap)] font-semibold text-zinc-300 rounded-md border border-white/15 px-3 py-1.5">
+                    repo
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
