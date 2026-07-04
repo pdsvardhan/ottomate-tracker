@@ -77,8 +77,14 @@ export async function DELETE(req: Request, { params }: Ctx) {
     .from(schema.master_components)
     .where(eq(schema.master_components.id, id)).get();
   if (!existing) return notFound(`Component '${id}' not found`);
+  // Unlink any project component-picks that reference this master component first,
+  // else the FK (components.asset_library_ref) blocks the delete (iter-15). The
+  // slot keeps its place; it just loses the now-deleted chosen component.
+  const unlinked = db.update(schema.components)
+    .set({ asset_library_ref: null, picked: false })
+    .where(eq(schema.components.asset_library_ref, id)).run();
   db.delete(schema.master_components).where(eq(schema.master_components.id, id)).run();
-  return NextResponse.json({ deleted: id });
+  return NextResponse.json({ deleted: id, unlinked_picks: unlinked.changes ?? 0 });
 }
 
 // iter-6 item 260: PATCH is the conventional partial-update verb (the detail page docs
