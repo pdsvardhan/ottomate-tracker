@@ -166,7 +166,12 @@ async function buildHtmlPreview(dir, dirFiles) {
   for (const f of dirFiles.filter((f) => /\.css$/i.test(f))) css += '\n' + (await fs.readFile(path.join(dir, f), 'utf8'));
   let js = '';
   for (const f of dirFiles.filter((f) => /\.js$/i.test(f) && !/\.min\.js$/i.test(f))) js += '\n;' + (await fs.readFile(path.join(dir, f), 'utf8'));
-  let cdns = htmlCdnFor(js);
+  // iter-15: codepen JS using ES-module syntax (e.g. `import * as THREE from
+  // unpkg`) throws a SyntaxError inside a classic <script> and renders blank
+  // (mc-water-droplets etc.). Emit those as a real <script type="module"> and
+  // skip the CDN globals (a module imports its own deps).
+  const isModuleJs = /\bimport\s+[\w{*][^;\n]*\bfrom\b/.test(js) || /\bexport\s+(default|const|function|class|\{)/.test(js);
+  let cdns = isModuleJs ? '' : htmlCdnFor(js);
   // iter-11: codepens using the <model-viewer> web component need its script
   // (the pen's "external resources" aren't in the export).
   if (/<model-viewer[\s>]/i.test(body)) cdns += '\n<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>';
@@ -177,7 +182,9 @@ async function buildHtmlPreview(dir, dirFiles) {
   // pen's own background which isn't in the export. Placed BEFORE component css
   // so a component that sets its own body background still overrides it.
   const headInject = `${cdns}\n<style>html,body{margin:0;background:#0a0a0f;color:#e4e4e7}\n${css}</style>`;
-  const jsInject = `<script>window.addEventListener('load',function(){try{\n${js}\n}catch(e){console.error(e)}});</script>`;
+  const jsInject = isModuleJs
+    ? `<script type="module">\n${js}\n</script>`
+    : `<script>window.addEventListener('load',function(){try{\n${js}\n}catch(e){console.error(e)}});</script>`;
   let doc;
   if (/<html[\s>]/i.test(body)) {
     doc = body;
@@ -319,8 +326,14 @@ for (const r of results) {
 await fs.writeFile(path.join(BUILD, 'previews-manifest.json'), JSON.stringify({ built_at: new Date().toISOString(), live, total: results.length, components: manifest }, null, 2));
 
 // --- 6. publish to the asset-library volume ----------------------------------
+// Full run wipes + republishes everything; a COMP_ONLY run publishes JUST the
+// rebuilt components (copies their index.html/shot.png and merges their manifest
+// entries into the existing published manifest) so single-component fixes reach
+// the live app without a full rebuild (iter-15 — COMP_ONLY previously skipped
+// publish entirely, so single fixes never went live).
 if (!ONLY) {
-await fs.rm(PUBLISH, { recursive: true, force: true });
+  await fs.rm(PUBLISH, { recursive: true, force: true });
+}
 await fs.mkdir(PUBLISH, { recursive: true });
 for (const r of results) {
   const idDir = path.join(BUILD, r.id);
@@ -330,7 +343,17 @@ for (const r of results) {
     if (existsSync(path.join(idDir, f))) await fs.copyFile(path.join(idDir, f), path.join(PUBLISH, r.id, f));
   }
 }
-await fs.copyFile(path.join(BUILD, 'previews-manifest.json'), path.join(PUBLISH, 'previews-manifest.json'));
+if (!ONLY) {
+  await fs.copyFile(path.join(BUILD, 'previews-manifest.json'), path.join(PUBLISH, 'previews-manifest.json'));
+} else {
+  // Merge the rebuilt entries into the live manifest without clobbering the rest.
+  try {
+    const pubPath = path.join(PUBLISH, 'previews-manifest.json');
+    const pub = JSON.parse(await fs.readFile(pubPath, 'utf8'));
+    for (const id of Object.keys(manifest)) pub.components[id] = manifest[id];
+    pub.built_at = new Date().toISOString();
+    await fs.writeFile(pubPath, JSON.stringify(pub, null, 2));
+  } catch { /* no existing manifest — full run will create it */ }
 }
 
 console.log(`\nDONE — ${live}/${results.length} live. Published to ${PUBLISH}`);
