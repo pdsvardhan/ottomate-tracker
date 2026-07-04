@@ -79,7 +79,21 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     .orderBy(asc(schema.project_todos.sort_order)).all();
   const events = db.select().from(schema.skill_events).where(eq(schema.skill_events.project_slug, slug))
     .orderBy(desc(schema.skill_events.event_at)).limit(8).all();
-  const tech = db.select().from(schema.tech_stacks).where(eq(schema.tech_stacks.project_slug, slug)).get();
+  // Defensive: ottomate's own tech_stacks row carries malformed testing_libs
+  // JSON ("vitest 2.1…") which a full-row select would JSON.parse → 500 (found
+  // iter-13, 2026-07-04). Fall back to the parse-safe columns; no write
+  // endpoint exists yet to repair the row (see project to-do).
+  let tech: { framework: string | null; database: string | null; state_management: string | null; styling: string | null; testing_libs?: string[] | null } | undefined;
+  try {
+    tech = db.select().from(schema.tech_stacks).where(eq(schema.tech_stacks.project_slug, slug)).get();
+  } catch {
+    tech = db.select({
+      framework: schema.tech_stacks.framework,
+      database: schema.tech_stacks.database,
+      state_management: schema.tech_stacks.state_management,
+      styling: schema.tech_stacks.styling,
+    }).from(schema.tech_stacks).where(eq(schema.tech_stacks.project_slug, slug)).get();
+  }
   const services = db.select().from(schema.third_party_services).where(eq(schema.third_party_services.project_slug, slug)).all();
   const authCfg = db.select().from(schema.auth_config).where(eq(schema.auth_config.project_slug, slug)).get();
   const policy = db.select().from(schema.policies).where(eq(schema.policies.project_slug, slug)).get();
