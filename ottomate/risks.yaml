@@ -5,7 +5,12 @@ risks:
     status: open
     hidden_by_default: false
     severity_override: high
-    notes: No vitest or playwright tests written yet for tracker code
+    notes: "UPDATED 2026-06-11: 35 vitest contract tests now green
+      (projects/features/architecture/anti-gaslight/verification-reports/infra).
+      STILL OPEN: zero Playwright E2E — all 55 flows remain
+      test_status=not-tested; no browser-level regression net. Next: wire
+      critical-flow E2Es (deploy gate blocks public / warns internal per
+      adr-014)."
     created_at: 2026-04-26T13:44:40.000Z
   - id: 2
     project_slug: ottomate
@@ -28,16 +33,53 @@ risks:
     status: open
     hidden_by_default: false
     severity_override: medium
-    notes: npm audit reports 13 vulnerabilities after mermaid + reactflow install
+    notes: "UPDATED 2026-06-11 (iter-17): npm audit fix applied — uuid, mermaid,
+      next(high DoS) cleared. REMAINING prod-path: drizzle-orm high (SQLi via
+      identifiers — needs breaking 0.45.2 major bump; non-exploitable
+      single-user localhost+Authentik) + 2 moderates whose only fix is a next
+      downgrade. Full cleanup scheduled for publish-time per owner decision."
     created_at: 2026-04-26T13:45:08.000Z
   - id: 5
     project_slug: ottomate
     risk_type_id: no-backup
-    status: open
+    status: resolved
     hidden_by_default: false
     severity_override: medium
     notes: DB backup at pack-up time but no automated cron — add BorgBackup nightly
     created_at: 2026-04-26T13:45:08.000Z
+  - id: 59
+    project_slug: ottomate
+    risk_type_id: no-auth
+    status: accepted
+    hidden_by_default: false
+    severity_override: medium
+    notes: "FINAL 2026-06-10: internet path gated by Authentik (verified from CF
+      edge). LAN path intentionally open — user decision: home WiFi is trusted
+      (single-user household). Permanent acceptance; revisit only if LAN trust
+      model changes (guests/IoT segmentation). Original world-readable claim was
+      a split-horizon DNS measurement artifact."
+    created_at: 2026-06-10T10:35:11.000Z
+  - id: 60
+    project_slug: ottomate
+    risk_type_id: no-backup
+    status: resolved
+    sunset_date: 2026-06-25T00:00:00.000Z
+    hidden_by_default: false
+    notes: "WAL-split RECURRENCE 2026-06-11 (mid-session): ALL mutations served by
+      the pre-rebuild container between ~11:47Z and its 12:08Z recreate returned
+      201 but never reached data/ottomate.db (sqlite_sequence untouched) —
+      report 19, iteration 16 + 5 items + lock, 3 diagram upserts, adr-017. Last
+      surviving write: sanity run 24 at 11:46:59Z; a pack-up backup (VACUUM
+      INTO, 11:44:55Z) and a WAL checkpoint (main-db mtime 11:53Z) immediately
+      precede the split window — likely trigger. Bootstrap wal-integrity passed
+      at 11:46Z; a bootstrap-time deleted-fd scan cannot catch a mid-session
+      split. Earlier interleaved-survival reading was wrong (LIKE adr-017%%
+      matched an old media-dashboard row). All lost rows re-created from local
+      payloads on the new container; durability proven across graceful restart
+      (0 deleted fds). FIX IDEAS: post-write read-back canary after milestone
+      mutations via host sqlite3; fd re-scan inside /api/backup after VACUUM
+      INTO; checkpoint-on-write for milestone tables."
+    created_at: 2026-06-11T12:19:39.000Z
 policy:
   project_slug: ottomate
   exposure: intranet-only

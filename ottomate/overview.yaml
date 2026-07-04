@@ -1,12 +1,12 @@
 slug: ottomate
 display_name: Ottomate
 summary:
-  tagline: Web project tracker companion to /ottomate skill
-  core_idea: "A tracker website + skill pair that orchestrates web-project work
-    across 4 stages (idea → design → build → iterate) on a home server.
-    Anti-gaslighting bedrock: every iteration goes through a lock-in gate where
-    the user confirms what got extracted from their request before code is
-    written."
+  tagline: Web project pipeline companion to /ottomate skill
+  core_idea: "Ottomate is a website + skill pair that orchestrates web-project
+    work across 5 stages (idea -> design -> build -> iterate -> mini-pipeline)
+    on a home server. Anti-gaslighting bedrock: every iteration goes through a
+    lock-in gate where the user confirms what got extracted from their request
+    before code is written."
 current_status: building
 lifecycle_phase: building
 scope_size: large

@@ -1,260 +1,665 @@
 flows:
-  - id: flow-browse-projects
-    title: Browse all projects
+  - id: flow-projects-grid
+    title: View projects grid
     type: ui
     priority: important
-    test_status: not-tested
-    trigger: User opens / (home)
-    expected_outcome: Sees project cards sorted by recent activity, click jumps to detail
+    test_status: passing
+    trigger: Open /
+    expected_outcome: Project cards render with name + tagline + status badge + tags.
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
-  - id: flow-project-detail
-    title: View project detail tabs
+  - id: flow-projects-status-strip
+    title: Read status breakdown strip
     type: ui
     priority: important
     test_status: not-tested
-    trigger: User clicks a project card
-    expected_outcome: Sees 11 tabs (Overview, Flows, Features, Pages, Data, Risks,
-      Decisions, Master Plan, Architecture, Graph, Iterations); each tab
-      populated from DB
+    trigger: Scan top of /
+    expected_outcome: Pill row shows count per lifecycle (building / shipped /
+      ideating / maintained / archived).
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
-  - id: flow-lock-in-gate
-    title: Review and lock iteration items
+  - id: flow-projects-activity-strip
+    title: Read recent activity strip
     type: ui
     priority: important
     test_status: not-tested
-    trigger: User opens /iterations/[id] in awaiting-lock state
-    expected_outcome: Sees raw report on left, extracted items as cards on right;
-      can edit/split/reject; Lock & Build button enables once all items pass
-      confidence floor
-    pre_conditions: []
-    steps: []
-    edge_cases: []
-    linked_features:
-      - feat-anti-gaslighting
-    linked_pages: []
-  - id: flow-build-progress
-    title: Watch iteration build
-    type: ui
-    priority: important
-    test_status: not-tested
-    trigger: User stays on iteration page after locking
-    expected_outcome: BuildProgress view shows per-item status pills updating from
-      locked → building → verified or rejected
+    trigger: Scan / for the activity panel
+    expected_outcome: Last 5 events render with timestamp + actor + target.
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
-  - id: flow-trace-report
-    title: Read post-integrate trace report
+  - id: flow-projects-category-filter
+    title: Filter projects by stage
     type: ui
     priority: important
     test_status: not-tested
-    trigger: User opens an integrated iteration
-    expected_outcome: TraceReport view shows side-by-side raw text + verified items
-      + verifier verdicts
-    pre_conditions: []
-    steps: []
-    edge_cases: []
-    linked_features:
-      - feat-anti-gaslighting
-    linked_pages: []
-  - id: flow-search
-    title: Cross-doc full-text search
-    type: ui
-    priority: important
-    test_status: not-tested
-    trigger: User types in /search or via ⌘K
-    expected_outcome: Hits FTS5 index; sees grouped results by doc type with bm25
-      ranking + highlighted snippets
-    pre_conditions: []
-    steps: []
-    edge_cases: []
-    linked_features:
-      - feat-fts5
-    linked_pages: []
-  - id: flow-cmdk
-    title: Quick-jump via command palette
-    type: ui
-    priority: important
-    test_status: not-tested
-    trigger: User presses ⌘K (or Ctrl+K) anywhere
-    expected_outcome: Palette opens; type to filter projects/nav/search; ⏎ navigates
+    trigger: Click a stage chip (SPEC/BUILD/SHIPPED/MAINT) on /
+    expected_outcome: Register filters to projects in that lifecycle stage
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
-  - id: flow-inbox-triage
-    title: Triage cross-project bug inbox
+  - id: flow-projects-click-card
+    title: Click a project card to open overview
     type: ui
     priority: important
-    test_status: not-tested
-    trigger: User opens /inbox
-    expected_outcome: Sees pending reports across all projects; status filter chips switch view
+    test_status: passing
+    trigger: Click any card on /
+    expected_outcome: Routes to /projects/<slug> overview tab.
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
-  - id: flow-coverage-dashboard
-    title: Check test coverage roll-up
+  - id: flow-project-overview-pipeline
+    title: Read pipeline progress widget
     type: ui
     priority: important
-    test_status: not-tested
-    trigger: User opens /coverage
-    expected_outcome: Per-project flow + feature pass-rate bars; colour-coded by threshold
+    test_status: passing
+    trigger: Open /projects/<slug>
+    expected_outcome: PipelineProgress widget shows 5 stages with done/remaining count per stage.
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
-  - id: flow-risks-heatmap
-    title: Cross-project risk overview
+  - id: flow-project-overview-key-context
+    title: Read key-context panels
     type: ui
     priority: important
     test_status: not-tested
-    trigger: User opens /risks
-    expected_outcome: Sees catalog of 50 risk types with open instance counts
-      cross-project; resolved hidden by default
+    trigger: Scroll Overview
+    expected_outcome: Three glass cards render must-haves / non-goals / preferences
+      from projects.preferences JSON.
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
-  - id: flow-master-plan-view
-    title: Inspect locked UI Master Plan
+  - id: flow-project-overview-public-url
+    title: Open public URL
     type: ui
     priority: important
     test_status: not-tested
-    trigger: User opens /projects/[slug]/master-plan
-    expected_outcome: Sees palette swatches (dark+light), font samples, animation
-      level, aspect ratios
+    trigger: Click public_url in Overview header
+    expected_outcome: Opens deployed site in new tab.
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
-  - id: flow-architecture-view
-    title: View Mermaid architecture diagrams
+  - id: flow-project-overview-repo-url
+    title: Open repo link
     type: ui
     priority: important
     test_status: not-tested
-    trigger: User opens /projects/[slug]/architecture
-    expected_outcome: Renders all *.mmd files from /repos/[slug]/architecture/ via mermaid.js
+    trigger: Click repository_url in Overview
+    expected_outcome: Opens Gitea repo in new tab.
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
-  - id: flow-graph-view
-    title: Explore relationships graph
+  - id: flow-project-overview-todo
+    title: Add a project todo
     type: ui
     priority: important
     test_status: not-tested
-    trigger: User opens /projects/[slug]/graph
-    expected_outcome: Interactive react-flow canvas with flow/feature/page/component
-      nodes + labelled edges
+    trigger: Type into "+ add task" input on Overview
+    expected_outcome: New row inserted in project_todos; checklist re-renders.
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
-  - id: flow-submit-report
-    title: Skill submits raw user report
-    type: backend
+  - id: flow-project-overview-todo-toggle
+    title: Toggle a todo as done
+    type: ui
     priority: important
     test_status: not-tested
-    trigger: Skill captures user feedback at Stage 4.1
-    expected_outcome: POST /api/projects/[slug]/reports stores raw text with status pending
+    trigger: Click checkbox on a todo row
+    expected_outcome: project_todos.done flips; row gets struck-through styling.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-project-overview-activity-preview
+    title: Read activity preview
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Scroll bottom of Overview
+    expected_outcome: Last 7 ActivityItem rows render with verb + target.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-project-overview-docs-rail
+    title: Browse public_docs rail
+    type: ui
+    priority: important
+    test_status: passing
+    trigger: Click the Docs rail tabs
+    expected_outcome: architecture-summary / feature-spec-public / adr-summary
+      bodies render inline.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-project-overview-blockers
+    title: Read blockers panel
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Scan blockers card on Overview
+    expected_outcome: Open risks (risk_instances.status=open) render with severity colour.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-architecture-process
+    title: Read process flow diagram
+    type: ui
+    priority: important
+    test_status: passing
+    trigger: Open Architecture tab
+    expected_outcome: First Mermaid diagram (kind=process) renders.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-architecture-topology
+    title: Read system topology diagram
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Scroll Architecture
+    expected_outcome: topology kind diagram renders + adjacent ADR cards anchored_to=topology.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-architecture-data
+    title: Read data model diagram
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Scroll Architecture (only if has_data_layer)
+    expected_outcome: data kind diagram renders; section hides when no data layer.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-architecture-adr-expand
+    title: Expand an ADR card
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click an ADR card
+    expected_outcome: Card expands to show body markdown rendered.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-iterations-list
+    title: Browse iterations list
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Open Iterations tab
+    expected_outcome: All iterations render as SpotlightCards with status + item counts.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-iterations-click-card
+    title: Open an iteration detail
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click an iteration card
+    expected_outcome: Routes to /iterations/<id> lock-in gate or trace report.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-iterations-submit-cta
+    title: Click submit-report CTA from iterations tab
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click "+ Submit a report" on iterations tab
+    expected_outcome: Routes to /inbox?action=new with SubmitBugModal open.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-pick-status-rollup
+    title: Read picker status rollup
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Open /projects/<slug>/components-pick
+    expected_outcome: Header shows picked / skipped / unresolved / total counts +
+      ready_for_stage_3 badge.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-pick-card
+    title: Pick a component for a slot
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click one of 3 SpotlightCards in a slot
+    expected_outcome: POST /api/components/<id>/pick; slot card transitions to
+      picked state with picked badge.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-pick-skip
+    title: Skip a slot with a reason
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click "Skip with reason" + enter >=10 chars + save
+    expected_outcome: POST /api/components/<id>/pick {skip_reason}; slot transitions
+      to skipped state.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-iteration-detail-items
+    title: View extracted items at lock gate
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Open /iterations/<id>
+    expected_outcome: All iteration_items render with source_substring proof + confidence.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-iteration-detail-lock
+    title: Lock the iteration
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click "Lock & build" on /iterations/<id>
+    expected_outcome: POST /api/iterations/<id>/lock; iteration.status -> building;
+      coder dispatch starts.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-iteration-detail-edit-item
+    title: Edit an item before lock
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click edit on an item, change fields, save
+    expected_outcome: PATCH /api/iterations/<id>/items/<itemId>; user_edited=true.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-iteration-detail-reject-item
+    title: Reject an item before lock
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click reject on an item, confirm
+    expected_outcome: DELETE soft-rejects (status=rejected); item still in trace report.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-iteration-detail-trace
+    title: Read trace report post-integrate
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Open /iterations/<id> after integrate
+    expected_outcome: Trace report block renders with original message + locked
+      items + per-item evidence.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-inbox-list
+    title: Browse the bug inbox
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Open /inbox
+    expected_outcome: Report cards render filtered to current status tab (default pending).
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-inbox-filter-status
+    title: Filter inbox by status
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click a status pill
+    expected_outcome: Page re-fetches with ?status=<x>; cards re-render.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-inbox-submit-modal
+    title: Submit a bug via modal
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click "+ Submit bug", fill form, click Submit
+    expected_outcome: POST /api/projects/<slug>/reports; modal closes; inbox
+      refreshes with new pending row.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-coverage-heatmap
+    title: Read coverage heatmap
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Open /coverage
+    expected_outcome: Page-by-flow matrix renders; cells colour-coded passing/failing/not-tested.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-coverage-cell-drill
+    title: Drill into a coverage cell
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click a heatmap cell
+    expected_outcome: Flow test-run history renders for that flow.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-components-grid
+    title: Browse the components catalog
+    type: ui
+    priority: important
+    test_status: passing
+    trigger: Open /components-browser
+    expected_outcome: 193 SpotlightCards render across 18 category sections.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-components-search
+    title: Search the catalog
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Type into search input + click Filter
+    expected_outcome: Filtered grid re-renders matching name / id / description / tags / library.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-components-filter-library
+    title: Filter components by library
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Select a library in dropdown + Filter
+    expected_outcome: Grid filters to that library only; chip count updates.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-components-filter-quality
+    title: Filter components by quality grade
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Select A / A+B / C in quality dropdown
+    expected_outcome: Grid filters by quality_grade.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-components-jump-category
+    title: Jump to a category
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click a category chip at the top
+    expected_outcome: "Page anchors to #cat-<id>; category section in view."
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-components-add
+    title: Add a new component to catalog
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click "+ Add component", fill form, Save
+    expected_outcome: POST /api/master-components; new card appears in the right
+      category; source file written to /asset-library/components/<id>/<file>.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-components-click-card
+    title: Open a component detail
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click a card on /components-browser
+    expected_outcome: Routes to /components-browser/<id>; live preview tab loaded.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-component-detail-preview
+    title: Toggle preview tab
+    type: ui
+    priority: important
+    test_status: passing
+    trigger: Click Preview tab
+    expected_outcome: iframe srcdoc renders the HTML bundle (or shows the
+      deferred-state stub for TSX).
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-component-detail-source
+    title: Browse source code tabs
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click Source tab, then a file tab
+    expected_outcome: File content renders in <pre>; file tabs cycle through
+      index.tsx / styles.css / etc.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-component-detail-feedback
+    title: Record component feedback
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: In FeedbackWidget pick project + verdict + optional note, click Record
+    expected_outcome: POST /api/component-feedback; history list appends new row.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-inspirations-grid
+    title: Browse the inspirations gallery
+    type: ui
+    priority: important
+    test_status: passing
+    trigger: Open /inspirations
+    expected_outcome: 27 inspiration SpotlightCards render with thumbnails + style tags.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-inspirations-filter-domain
+    title: Filter inspirations by domain
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Select a domain in dropdown + Filter
+    expected_outcome: Grid filters to that domain (e.g. dashboard/finance).
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-inspirations-filter-source
+    title: Filter inspirations by source type
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Select dribbble / figma-community / etc.
+    expected_outcome: Grid filters by source_type.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-inspirations-click-card
+    title: Open an inspiration detail
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click an inspiration card
+    expected_outcome: Routes to /inspirations/<id> with matched master_components list.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-inspiration-detail-matched
+    title: Open a matched master_component from inspiration
+    type: ui
+    priority: important
+    test_status: not-tested
+    trigger: Click a matched-component card on /inspirations/<id>
+    expected_outcome: Routes to /components-browser/<mc_id>.
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
   - id: flow-classify-report
-    title: Skill classifies report into items
+    title: Skill classifies a raw report
     type: backend
     priority: important
     test_status: not-tested
-    trigger: Skill runs classifier prompt then submits results
-    expected_outcome: POST /api/reports/[id]/classify creates iteration
-      awaiting-lock + iteration_items pending-review
-    pre_conditions: []
-    steps: []
-    edge_cases: []
-    linked_features: []
-    linked_pages: []
-  - id: flow-lock-iteration
-    title: User locks the items list
-    type: mixed
-    priority: important
-    test_status: not-tested
-    trigger: User clicks Lock & Build in the UI
-    expected_outcome: POST /api/iterations/[id]/lock validates confidence floor and
-      sets status=building + lock_in_audit JSON
+    trigger: Skill invokes POST /api/reports/<id>/classify with extracted items
+    expected_outcome: Server creates an iteration row + iteration_items[];
+      source_substring stored per item.
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
   - id: flow-verifier-result
-    title: Verifier posts 4-pass report
+    title: Verifier sub-agent posts a result
     type: backend
     priority: important
     test_status: not-tested
-    trigger: Verifier sub-agent finishes per item
-    expected_outcome: POST /api/iterations/[id]/items/[itemId]/verifier-result
-      inserts verification_reports row + updates item status
-    pre_conditions: []
-    steps: []
-    edge_cases: []
-    linked_features:
-      - feat-verifier
-    linked_pages: []
-  - id: flow-integrate
-    title: Skill integrates the iteration
-    type: backend
-    priority: important
-    test_status: not-tested
-    trigger: All items verified or rejected
-    expected_outcome: POST /api/iterations/[id]/integrate stamps integrated_at and
-      persists trace_report
+    trigger: Verifier sub-agent calls POST
+      /api/iterations/<id>/items/<itemId>/verifier-result
+    expected_outcome: verification_reports row inserted; item.verifier_result
+      updated; recommendation captured.
     pre_conditions: []
     steps: []
     edge_cases: []
     linked_features: []
     linked_pages: []
-  - id: flow-pack-up
-    title: Pack-up triggers DB to YAML mirror
+  - id: flow-integrate
+    title: Skill integrates a completed iteration
     type: backend
     priority: important
     test_status: not-tested
-    trigger: User says pack up at session end
-    expected_outcome: POST /api/pack-up backs up DB + serialises 7 SO1 docs to YAML
-      strings; skill SCPs to project repo
+    trigger: POST /api/iterations/<id>/integrate
+    expected_outcome: All items must be verified; iteration.integrated_at set;
+      trace_report blob saved.
     pre_conditions: []
     steps: []
     edge_cases: []
-    linked_features:
-      - feat-pack-up
+    linked_features: []
     linked_pages: []
-  - id: flow-drift-watch
-    title: Watcher detects manual YAML edits
+  - id: flow-pack-up-mirror
+    title: Pack-up writes YAML mirrors
+    type: backend
+    priority: important
+    test_status: not-tested
+    trigger: npm run mirror:write -- <slug>
+    expected_outcome: flows.yaml + features.yaml + ... regenerated from DB;
+      hash-checked, skipped if unchanged.
+    pre_conditions: []
+    steps: []
+    edge_cases: []
+    linked_features: []
+    linked_pages: []
+  - id: flow-drift-watcher
+    title: Watcher detects YAML drift
     type: automated
     priority: important
     test_status: not-tested
-    trigger: Chokidar fires on /repos/[slug]/ottomate/*.yaml change
-    expected_outcome: Recomputes hash, compares to last_yaml_hash; if different,
-      stamps drift_detected_at
+    trigger: User manually edits /repos/<slug>/ottomate/<doc>.yaml
+    expected_outcome: Chokidar fires; DriftBanner appears on next /projects/<slug>
+      load with reconcile dialog.
     pre_conditions: []
     steps: []
     edge_cases: []

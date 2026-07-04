@@ -1,145 +1,4 @@
 features:
-  - id: feat-phase-0
-    title: "Phase 0: Foundations"
-    short_description: Scaffold the plugin and tracker repo, lay planning docs, init Gitea repo
-    status: done
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-1
-    title: "Phase 1: DB migrations + seeds"
-    short_description: drizzle generate/migrate, seed risks_catalog (50) +
-      master_components (15), Docker smoke test
-    status: done
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-2
-    title: "Phase 2: REST API endpoints"
-    short_description: 76 routes across Doc 1-8 CRUD, Stage 4 flow, cross-cutting,
-      FTS5, M:N joins, webhooks
-    status: done
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-3
-    title: "Phase 3: Skill Stage 2/3 references"
-    short_description: 7 reference MD docs the skill loads at the right stage
-    status: done
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-4
-    title: "Phase 4: Tracker UI Stage 1 doc views"
-    short_description: App shell, project list, 11-tab project detail, generic DocTable
-    status: done
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-5
-    title: "Phase 5: Tracker UI Stage 2/3 views"
-    short_description: UI Master Plan + Architecture (Mermaid) + Graph (react-flow) tabs
-    status: done
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-6
-    title: "Phase 6: Stage 4 lock-in gate UI"
-    short_description: LockInPanel + TraceReport + BuildProgress; the anti-gaslighting bedrock
-    status: done
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-7
-    title: "Phase 7: Skill Stage 4 implementation"
-    short_description: stage-4-mini-pipeline.md updated with concrete API call mapping
-    status: done
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-8
-    title: "Phase 8: Cross-cutting features"
-    short_description: Inbox, Coverage, Risks heatmap, Components browser, Search, cmdk palette
-    status: done
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-9
-    title: "Phase 9: File watcher + DB-YAML sync"
-    short_description: chokidar watcher, drift detection + banner, DB to YAML mirror builder
-    status: done
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-10
-    title: "Phase 10: Pilot onboarding (3 projects)"
-    short_description: Pilot 1 (ottomate meta) running now; pilots 2 (BOTB) + 3 (tasks) queued
-    status: building
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-11
-    title: "Phase 11: Migrate remaining 6 projects"
-    short_description: cricket-stats Full, cap-a Full, desi-skies Full,
-      media-dashboard Full, health Standard, home Standard, ingest Standard,
-      paata Standard
-    status: planned
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-12
-    title: "Phase 12: Codex Round 3"
-    short_description: Run Codex review with current state; apply Round 3 feedback before cutover
-    status: planned
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-13
-    title: "Phase 13: Cutover"
-    short_description: DNS for ottomate.vault7a.xyz, plugin swap (mv ottomate
-      ottomate-old), decommission v2 after 1-2 weeks
-    status: planned
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
-  - id: feat-phase-14
-    title: "Phase 14: Stage 5 design"
-    short_description: Multi-user, public-launch lifecycle, observability stack —
-      deferred until home-server assumption changes
-    status: planned
-    priority: P1
-    size: L
-    test_status: not-tested
-    acceptance_criteria: []
-    dependencies: []
   - id: feat-anti-gaslighting
     title: Anti-gaslighting bedrock (R1)
     short_description: Lock-in gate at 4.3 + verifier sub-agent + trace report — the
@@ -230,4 +89,187 @@ features:
           403; with correct token proceeds
         test_status: not-tested
         linked_test: null
+    dependencies: []
+  - id: feat-project-lifecycle
+    title: Project lifecycle tracking
+    short_description: Per-project Stage 0-4 pipeline progress with done/remaining
+      task counts. Renders as the PipelineProgress widget on every project
+      overview.
+    type: ui
+    status: done
+    priority: P1
+    size: medium
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-component-catalog
+    title: Component catalog browser
+    short_description: 193 master_components in 18 categories, filterable by library
+      / quality / tag / source. Each card shows library + quality badges + tags.
+      Spotlight Glass cards on /components-browser.
+    type: ui
+    status: done
+    priority: P1
+    size: medium
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-component-live-preview
+    title: Live component preview
+    short_description: Per-component detail page renders HTML bundles in an iframe
+      srcdoc; TSX entries show source code with file tabs. Sandpack integration
+      for TSX live preview is deferred.
+    type: ui
+    status: done
+    priority: P1
+    size: small
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-component-crud
+    title: Component catalog CRUD
+    short_description: Add modal on /components-browser writes new master_components
+      rows + writes source code to /asset-library/components/<id>/<file>. PUT +
+      DELETE backend live; Edit/Delete UI lands with the sandpack follow-up.
+    type: ui
+    status: done
+    priority: P1
+    size: small
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-stage-2-4-picker
+    title: Stage 2.4 component picker
+    short_description: Per-project /components-pick page renders all unpicked
+      component slots grouped by page; each slot surfaces 3 ranked
+      master_components for click-to-pick or skip-with-reason. Stage 2 -> 3 gate
+      enforces unresolved=0.
+    type: ui
+    status: done
+    priority: P1
+    size: medium
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-stage-4-4-5-iteration-pick
+    title: Stage 4.4.5 iteration-time component pick
+    short_description: Iteration items with target_kind=component get the same
+      ranked-options + pick flow scoped to the item. Backend endpoints live; UI
+      surfacing inside iteration detail page is pending E.7 redesign.
+    type: backend
+    status: done
+    priority: P1
+    size: small
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-inspirations-gallery
+    title: Visual inspirations gallery
+    short_description: "/inspirations: 27 Dribbble + Figma references with style
+      tags, domain, matched master_components, and click-through detail page.
+      Stage 2.2 UI master plan pulls from this catalog."
+    type: ui
+    status: done
+    priority: P1
+    size: small
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-component-feedback
+    title: Per-project component feedback
+    short_description: On each component detail page, users mark
+      good/bad/needs-fix/classification-wrong from a specific project context.
+      History is project-scoped + influences Stage 2.4 ranking.
+    type: ui
+    status: done
+    priority: P1
+    size: small
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-bug-inbox
+    title: Cross-project bug inbox
+    short_description: Submit a report (raw text + optional flow_id) via /inbox or
+      /api/projects/<slug>/reports. Reports route through Stage 4 classifier
+      into structured iteration items.
+    type: ui
+    status: done
+    priority: P1
+    size: small
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-iteration-lock-in-gate
+    title: Iteration lock-in gate
+    short_description: "Anti-gaslight bridge at Stage 4.3: raw report -> classifier
+      extracts items with source_substring proof -> user edits / locks -> code
+      begins. Items at /iterations/<id> until locked."
+    type: mixed
+    status: done
+    priority: P1
+    size: large
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-architecture-diagrams
+    title: Architecture diagrams (Mermaid)
+    short_description: Per-project /architecture tab renders DB-backed Mermaid
+      diagrams grouped by kind (process / topology / data / ux / api). Falls
+      back to filesystem .mmd files for legacy projects.
+    type: ui
+    status: building
+    priority: P1
+    size: medium
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-adr-tracking
+    title: ADR tracking with diagram anchoring
+    short_description: Decision records keyed by anchored_to (process / topology /
+      data / ux / api / NULL). Cards pair with the diagram they shaped on the
+      Architecture tab.
+    type: ui
+    status: done
+    priority: P1
+    size: small
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-public-docs-mirror
+    title: public_docs/ pack-up mirror
+    short_description: Per repo
+      public_docs/{architecture-summary,feature-spec-public,adr-summary}.md gets
+      ingested into the project_docs table on pack-up. Surfaced as a Docs rail
+      on Overview.
+    type: mixed
+    status: done
+    priority: P2
+    size: medium
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-drift-watcher
+    title: Drift watcher (manual YAML edits)
+    short_description: Watches each /repos/<slug>/ottomate/ for manual edits between
+      sessions; surfaces a Drift banner on the project page so the user can
+      reconcile DB <-> YAML before code runs.
+    type: backend
+    status: done
+    priority: P2
+    size: small
+    test_status: not-tested
+    acceptance_criteria: []
+    dependencies: []
+  - id: feat-spotlight-glass-ui
+    title: Spotlight Glass design system
+    short_description: "Cross-app design language: glass cards with cursor-following
+      spotlight, gradient typography, dot+aurora background. Shared components
+      at components/ui/ (SpotlightCard, Badge, PageHeader, FilterBar,
+      EmptyState, Modal, TabsBar)."
+    type: ui
+    status: building
+    priority: P1
+    size: large
+    test_status: not-tested
+    acceptance_criteria: []
     dependencies: []
