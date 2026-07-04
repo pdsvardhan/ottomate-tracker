@@ -113,3 +113,87 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
   .reg-more { transition: none; }
   .reg-bar { transition: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PROJECT SHOWCASE — "Cinematic Cyber-Den" (Version C, multi-hue).
+   Everything scoped under .sc so it never touches the rest of the app.
+   No per-project accent — a shared neon-night spectrum across every project.
+   ═══════════════════════════════════════════════════════════════════ */
+.sc {
+  --mag:#ff3d8b; --vio:#a855f7; --cyan:#22d3ee; --coral:#ff8a5b; --amber:#f5b23c;
+  --ink:#f3f0ff; --mute:#9a90c4; --dim:#635c86;
+  --line:rgba(168,85,247,.16); --line2:rgba(34,211,238,.14);
+  --scard:rgba(18,16,38,.55); --scard2:rgba(12,11,28,.7);
+  --disp:var(--font-display); --scmono:var(--font-mono);
+  position:relative; color:var(--ink); font-family:var(--font-body);
+}
+.sc ::selection{background:var(--mag);color:#fff}
+
+/* ambient overlay layers. Shader canvas + these all sit at NEGATIVE z so they
+   stay behind ALL content (incl. the layout back-link/drift) but above the
+   app's body aurora (they live inside the layout's z-10 main container). */
+.sc-veil{position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:radial-gradient(120% 80% at 50% -10%,transparent 40%,rgba(7,8,17,.55) 78%,rgba(7,8,17,.92) 100%),linear-gradient(180deg,rgba(7,8,17,.35),rgba(7,8,17,.72));}
+.sc-scan{position:fixed;inset:0;z-index:-1;pointer-events:none;mix-blend-mode:overlay;opacity:.45;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px);}
+.sc-grain{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.045;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+.sc-wrap{position:relative;z-index:1}
+
+/* hero display title with the multi-hue sweep */
+.sc .display{font-family:var(--disp);font-weight:800;letter-spacing:-.035em;line-height:.94;
+  font-size:clamp(42px,7vw,84px);text-wrap:balance;
+  background:linear-gradient(104deg,#fff 8%,var(--mag) 34%,var(--vio) 55%,var(--cyan) 82%);
+  background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:scSweep 11s ease-in-out infinite;filter:drop-shadow(0 6px 40px rgba(168,85,247,.35))}
+@keyframes scSweep{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+.sc .chip{font-family:var(--scmono);font-size:11.5px;letter-spacing:.04em;color:var(--mute);
+  border:1px solid var(--line);padding:5px 11px;border-radius:999px;background:rgba(12,11,28,.4);transition:.3s}
+.sc .chip:hover{color:var(--ink);border-color:var(--vio);transform:translateY(-2px)}
+.sc .stagepill{font-family:var(--scmono);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:#070811;background:linear-gradient(92deg,var(--mag),var(--coral));border-radius:999px;padding:5px 12px;
+  box-shadow:0 0 24px rgba(255,61,139,.4)}
+
+.sc .lc{position:relative;overflow:hidden;text-decoration:none;display:block;
+  border:1px solid var(--line);border-radius:16px;padding:15px 17px;background:var(--scard2);
+  transition:transform .3s cubic-bezier(.2,.7,.2,1),border-color .3s}
+.sc .lc::before{content:"";position:absolute;inset:0;opacity:0;transition:.4s;
+  background:radial-gradient(120% 120% at 0% 0%,rgba(255,61,139,.16),transparent 60%)}
+.sc .lc:hover{transform:translateY(-4px);border-color:var(--mag)}
+.sc .lc:hover::before{opacity:1}
+.sc .lc .k{font-family:var(--scmono);font-size:11px;color:var(--cyan);letter-spacing:.08em;text-transform:uppercase}
+.sc .lc .v{color:var(--ink);font-size:14.5px;margin-top:6px;font-weight:600;word-break:break-all}
+.sc .lc.repo .k{color:var(--amber)}
+
+.sc .numc{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:15px;padding:15px 15px;background:var(--scard);transition:.35s}
+.sc .numc::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:100%;opacity:.7;background:linear-gradient(90deg,var(--nc,var(--vio)),transparent)}
+.sc .numc:hover{transform:translateY(-3px);border-color:var(--nc,var(--vio));box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.sc .numc .n{font-family:var(--disp);font-weight:800;font-size:clamp(28px,3.6vw,40px);color:var(--nc,var(--vio));
+  letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 0 26px color-mix(in srgb,var(--nc,var(--vio)) 55%,transparent)}
+.sc .numc .l{font-family:var(--scmono);font-size:11px;color:var(--mute);margin-top:8px;letter-spacing:.03em;text-transform:uppercase}
+
+.sc .reel{position:relative;border-radius:22px;overflow:hidden;min-height:340px;height:100%;
+  border:1px solid rgba(168,85,247,.28);background:#05060f;box-shadow:0 24px 80px rgba(0,0,0,.6),0 0 60px rgba(168,85,247,.18)}
+
+.sc .eyebrow{font-family:var(--scmono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--cyan);display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.sc .eyebrow::before{content:"";width:30px;height:1px;background:linear-gradient(90deg,var(--cyan),transparent)}
+.sc .h2{font-family:var(--disp);font-weight:800;letter-spacing:-.03em;font-size:clamp(24px,3.4vw,38px);line-height:1.04;text-wrap:balance}
+
+.sc .tabbar{position:sticky;top:64px;z-index:30;display:flex;gap:6px;flex-wrap:wrap;padding:8px;border-radius:16px;
+  background:linear-gradient(180deg,rgba(12,11,28,.9),rgba(12,11,28,.7));border:1px solid var(--line);backdrop-filter:blur(16px)}
+.sc .tab{font-family:var(--scmono);font-size:13.5px;color:var(--mute);border:0;cursor:pointer;padding:10px 18px;border-radius:11px;background:transparent;transition:.3s;font-weight:500}
+.sc .tab:hover{color:var(--ink)}
+.sc .tab[aria-selected="true"]{color:#070811;font-weight:700;background:linear-gradient(94deg,var(--mag),var(--vio));box-shadow:0 6px 24px rgba(168,85,247,.4)}
+.sc .tab .idx{opacity:.55;margin-right:7px}
+.sc .panel{animation:scPanelIn .55s cubic-bezier(.2,.7,.2,1)}
+@keyframes scPanelIn{from{opacity:0;transform:translateY(20px) scale(.99)}to{opacity:1;transform:none}}
+
+.sc .card{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:16px;padding:18px;background:var(--scard);transition:.35s}
+.sc .card:hover{transform:translateY(-4px);border-color:var(--vio);box-shadow:0 14px 40px rgba(0,0,0,.45)}
+.sc .card.flat:hover{transform:none;border-color:var(--line);box-shadow:none}
+
+@media (prefers-reduced-motion: reduce){
+  .sc .display{animation:none}
+  .sc .panel{animation:none}
+}
