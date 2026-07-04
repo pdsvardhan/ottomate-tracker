@@ -43,6 +43,9 @@ export default async function ComponentsBrowser({
   const shotIds = new Set(
     Object.entries(manifest?.components ?? {}).filter(([, v]) => v.shot).map(([k]) => k),
   );
+  // Cache-bust the poster URLs by the manifest build time (iter-15) — the shot.png
+  // path is stable, so re-cropped posters were served stale from browser cache.
+  const posterVer = manifest?.built_at ? String(Date.parse(manifest.built_at) || '') : '';
 
   // Filter
   const queryNorm = q?.toLowerCase().trim();
@@ -169,7 +172,7 @@ export default async function ComponentsBrowser({
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {items.map((c) => (
-                      <ComponentCard key={c.id} component={c} hasShot={shotIds.has(c.id)} />
+                      <ComponentCard key={c.id} component={c} hasShot={shotIds.has(c.id)} posterVer={posterVer} />
                     ))}
                   </div>
                 )}
@@ -188,7 +191,7 @@ export default async function ComponentsBrowser({
   );
 }
 
-function ComponentCard({ component, hasShot }: { component: typeof schema.master_components.$inferSelect; hasShot?: boolean }) {
+function ComponentCard({ component, hasShot, posterVer }: { component: typeof schema.master_components.$inferSelect; hasShot?: boolean; posterVer?: string }) {
   const hasSource = Boolean(component.source_paths?.[0] && component.source_paths[0].trim().length > 0);
   const quality = (component.quality_grade ?? '') as QualityGrade | '';
 
@@ -200,7 +203,7 @@ function ComponentCard({ component, hasShot }: { component: typeof schema.master
         {hasShot ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={`/api/previews/${component.id}/shot.png`}
+            src={`/api/previews/${component.id}/shot.png${posterVer ? `?v=${posterVer}` : ''}`}
             alt={`${component.name} preview`}
             loading="lazy"
             className="max-h-full max-w-full object-contain"
