@@ -1,14 +1,17 @@
-// Home — projects register (iter-12 rebuild per owner feedback 2026-07-04).
-// Cyber-Den backdrop (same shader as project pages), hero-integrated stats,
-// stage-based filters (personal/cv retired — all projects equal stature),
-// value-dense columns (overview / public-private / health / open items /
-// stack), and a below-fold activity feed + stage distribution strip.
+// Home — projects register (iter-14 refinements per owner feedback 2026-07-04).
+// Register trimmed to the agreed 8 columns (Name / Summary / Stage / Progress /
+// Category / Health / Links / Age — OPEN + STACK dropped). Public/Private + Stage
+// are placeholder values (owner corrects later). Below the fold: cross-project
+// activity + a live VAULT7A server-telemetry card (real /proc readings).
 
+import os from 'node:os';
+import { statfs } from 'node:fs/promises';
 import { desc, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { projectAccent } from '@/lib/project-accent';
-import { ProjectRegister, type RegisterRow, type ActivityLine, type StageSlice } from '@/components/home/ProjectRegister';
+import { ProjectRegister, type RegisterRow, type ActivityLine } from '@/components/home/ProjectRegister';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
+import type { ServerStats } from '@/components/project/ServerStatsCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +39,51 @@ const STAGE_LABEL: Record<string, string> = {
   deprecated: 'ARCHIVED',
 };
 
+// VAULT7A host facts the container can't introspect (no docker socket / host df).
+// Refreshed manually; rendered as plain labelled facts, never as fake-live values.
+const HOST_FACTS = {
+  cpuModel: 'Intel Core i5-14600K',
+  containers: 53,
+  networks: 18,
+  storageTotalTB: 21,
+};
+
+async function readServerStats(): Promise<ServerStats> {
+  const totalBytes = os.totalmem();
+  const freeBytes = os.freemem();
+  const GB = 1024 ** 3;
+  const TB = 1024 ** 4;
+  let storageTotalTB = HOST_FACTS.storageTotalTB;
+  let storageUsedTB = 7.1;
+  try {
+    // /repos is the /mnt/storage pool bind-mounted read-only into the container.
+    const fs = await statfs('/repos');
+    const total = fs.blocks * fs.bsize;
+    const avail = fs.bavail * fs.bsize;
+    if (total > 0) {
+      storageTotalTB = total / TB;
+      storageUsedTB = (total - avail) / TB;
+    }
+  } catch {
+    /* keep the baked fallback */
+  }
+  return {
+    host: os.hostname(),
+    os: 'Ubuntu 24.04 LTS',
+    cpuModel: HOST_FACTS.cpuModel,
+    cores: os.cpus().length,
+    load1: os.loadavg()[0],
+    memTotalGB: totalBytes / GB,
+    memUsedGB: (totalBytes - freeBytes) / GB,
+    storageTotalTB,
+    storageUsedTB,
+    uptimeSeconds: Math.floor(os.uptime()),
+    containers: HOST_FACTS.containers,
+    networks: HOST_FACTS.networks,
+    snapshotMs: Date.now(),
+  };
+}
+
 export default async function HomePage() {
   const db = await getDb();
 
@@ -49,23 +97,8 @@ export default async function HomePage() {
     .from(schema.flows).all();
   const risks = db.select({ slug: schema.risk_instances.project_slug, status: schema.risk_instances.status })
     .from(schema.risk_instances).all();
-  const todos = db.select().from(schema.project_todos)
-    .where(eq(schema.project_todos.done, false))
-    .orderBy(schema.project_todos.sort_order).all();
   const events = db.select().from(schema.skill_events)
     .orderBy(desc(schema.skill_events.event_at)).limit(80).all();
-  const policies = db.select({ slug: schema.policies.project_slug, exposure: schema.policies.exposure })
-    .from(schema.policies).all();
-  // Column-scoped select: at least one tech_stacks row carries malformed JSON
-  // in testing_libs ("vitest 2.1…") — full-row select would JSON.parse it and 500.
-  const stacks = db.select({
-    slug: schema.tech_stacks.project_slug,
-    framework: schema.tech_stacks.framework,
-    database: schema.tech_stacks.database,
-    styling: schema.tech_stacks.styling,
-  }).from(schema.tech_stacks).all();
-  const pendingReports = db.select({ slug: schema.reports.project_slug, status: schema.reports.status })
-    .from(schema.reports).where(eq(schema.reports.status, 'pending')).all();
 
   // ── Roll-ups keyed by slug ──
   const fStat = new Map<string, { done: number; total: number }>();
@@ -88,24 +121,6 @@ export default async function HomePage() {
     if (r.status !== 'open') continue;
     riskOpen.set(r.slug, (riskOpen.get(r.slug) ?? 0) + 1);
   }
-  const todoMap = new Map<string, { items: string[]; count: number }>();
-  for (const t of todos) {
-    const s = todoMap.get(t.project_slug) ?? { items: [], count: 0 };
-    s.count += 1;
-    if (s.items.length < 3) s.items.push(t.title);
-    todoMap.set(t.project_slug, s);
-  }
-  const reportOpen = new Map<string, number>();
-  for (const r of pendingReports) {
-    reportOpen.set(r.slug, (reportOpen.get(r.slug) ?? 0) + 1);
-  }
-  const exposure = new Map<string, string>();
-  for (const p of policies) exposure.set(p.slug, p.exposure ?? '');
-  const stackMap = new Map<string, string[]>();
-  for (const t of stacks) {
-    const chips = [t.framework, t.database, t.styling].filter(Boolean) as string[];
-    stackMap.set(t.slug, chips.slice(0, 3));
-  }
   const lastChange = new Map<string, { text: string; at: number }>();
   for (const e of events) {
     if (!e.project_slug || lastChange.has(e.project_slug)) continue;
@@ -121,15 +136,13 @@ export default async function HomePage() {
     const changed = lastChange.get(p.slug);
     const updatedAt = unix(p.updated_at);
     const changeAt = Math.max(changed?.at ?? 0, updatedAt);
-    // Public/Private (owner decision 2026-07-04): policy exposure wins,
-    // presence of a public URL is the honest fallback.
-    const isPublic = exposure.get(p.slug)
-      ? exposure.get(p.slug) === 'public'
-      : !!p.public_url;
+    // Public/Private — PLACEHOLDER: derived from an explicit 'public-facing' tag
+    // (owner sets the real call per project later).
+    const isPublic = tags.includes('public-facing');
     return {
       slug: p.slug,
       name: p.display_name,
-      sub: p.tagline ?? p.slug,
+      summary: p.tagline ?? p.short_description ?? p.slug,
       accent: projectAccent(p.slug),
       stageLabel: STAGE_LABEL[p.lifecycle_phase ?? 'building'] ?? 'BUILD',
       phase: p.lifecycle_phase ?? 'building',
@@ -140,16 +153,12 @@ export default async function HomePage() {
       flowsPassing: fls.passing,
       flowsTotal: fls.total,
       risksOpen: riskOpen.get(p.slug) ?? 0,
-      openItems: (todoMap.get(p.slug)?.count ?? 0) + (reportOpen.get(p.slug) ?? 0),
-      stack: stackMap.get(p.slug) ?? [],
       liveUrl: p.public_url ?? null,
       repoUrl: p.repository_url ?? null,
       port: p.port ?? null,
       age: timeAgo(changeAt),
       blurb: p.short_description ?? p.core_idea ?? p.tagline ?? '',
-      tags: tags.filter((t) => t !== 'personal' && t !== 'cv').slice(0, 4),
-      todos: (todoMap.get(p.slug)?.items) ?? [],
-      todoCount: todoMap.get(p.slug)?.count ?? 0,
+      tags: tags.filter((t) => t !== 'personal' && t !== 'cv' && t !== 'public-facing').slice(0, 4),
       lastChange: changed?.text ?? null,
     };
   });
@@ -158,7 +167,6 @@ export default async function HomePage() {
   const liveCount = rows.filter((r) => r.liveUrl).length;
   const flowsPassing = rows.reduce((n, r) => n + r.flowsPassing, 0);
 
-  // ── Below-fold data (iter-12 item: use the empty space) ──
   const activity: ActivityLine[] = events
     .filter((e) => e.project_slug && nameBySlug.has(e.project_slug))
     .slice(0, 9)
@@ -170,19 +178,11 @@ export default async function HomePage() {
       when: timeAgo(unix(e.event_at)),
     }));
 
-  const STAGE_ORDER = ['ideating', 'building', 'shipped', 'maintained', 'deprecated'];
-  const stageDist: StageSlice[] = STAGE_ORDER
-    .map((phase) => ({
-      phase,
-      label: STAGE_LABEL[phase],
-      count: rows.filter((r) => r.phase === phase).length,
-    }))
-    .filter((s) => s.count > 0);
+  const serverStats = await readServerStats();
 
   return (
     <div className="sc">
-      {/* Same Cyber-Den backdrop as the project pages (iter-12: the homepage
-          felt disconnected without it) */}
+      {/* Same Cyber-Den backdrop as the project pages */}
       <ShaderBackground />
       <div className="sc-veil" aria-hidden />
       <div className="sc-scan" aria-hidden />
@@ -192,7 +192,7 @@ export default async function HomePage() {
           rows={rows}
           stats={{ projects: rows.length, featuresShipped, live: liveCount, flowsPassing }}
           activity={activity}
-          stageDist={stageDist}
+          serverStats={serverStats}
         />
       </div>
     </div>

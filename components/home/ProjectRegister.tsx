@@ -1,20 +1,21 @@
 'use client';
 
-// Projects register (iter-12 rebuild per owner feedback 2026-07-04).
-// Hero-integrated count-up stats, stage-based filters (personal/cv retired),
-// value-dense columns: name / overview / stage / progress / public-private /
-// health / open items / stack / links / age. Fluid type via --t-* tokens —
-// nothing below the readability floor. Below the fold: activity + pipeline.
+// Projects register (iter-14 refinements per owner feedback 2026-07-04).
+// Columns trimmed to the agreed set — Name / Summary / Stage / Progress /
+// Category / Health / Links / Age (OPEN + STACK removed). Hover/tap opens a
+// COMPACT floating panel (reel + overview) instead of a full-width drawer.
+// Fluid --t-* type throughout. Below the fold: activity + VAULT7A server card.
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { accentStyle } from '@/lib/project-accent';
 import { NumberTicker } from '@/components/ui/NumberTicker';
+import { ServerStatsCard, type ServerStats } from '@/components/project/ServerStatsCard';
 
 export interface RegisterRow {
   slug: string;
   name: string;
-  sub: string;
+  summary: string;
   accent: string;
   stageLabel: string;
   phase: string;
@@ -25,16 +26,12 @@ export interface RegisterRow {
   flowsPassing: number;
   flowsTotal: number;
   risksOpen: number;
-  openItems: number;
-  stack: string[];
   liveUrl: string | null;
   repoUrl: string | null;
   port: number | null;
   age: string;
   blurb: string;
   tags: string[];
-  todos: string[];
-  todoCount: number;
   lastChange: string | null;
 }
 
@@ -46,16 +43,10 @@ export interface ActivityLine {
   when: string;
 }
 
-export interface StageSlice {
-  phase: string;
-  label: string;
-  count: number;
-}
-
-// md: 9 columns (no overview/stack) · xl: all 11. Header mirrors the row.
+// md: 8 cols (no Summary) · lg+: 9 cols (with Summary). Header mirrors this.
 const COLS =
-  'md:grid md:grid-cols-[minmax(200px,1.3fr)_84px_minmax(130px,1fr)_92px_104px_56px_132px_56px_30px] ' +
-  'xl:grid-cols-[minmax(210px,1.15fr)_minmax(0,1.5fr)_84px_minmax(120px,.9fr)_92px_104px_56px_minmax(130px,.9fr)_132px_56px_30px] ' +
+  'md:grid md:grid-cols-[minmax(180px,1fr)_84px_146px_96px_104px_120px_48px_28px] ' +
+  'lg:grid-cols-[minmax(180px,.85fr)_minmax(0,1.35fr)_84px_146px_96px_104px_120px_48px_28px] ' +
   'md:items-center';
 
 const STAGE_HUES: Record<string, string> = {
@@ -86,21 +77,18 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
       />
 
       <div className={`flex flex-wrap ${COLS} items-center gap-x-4 gap-y-2 px-3 md:px-4 py-4 pointer-events-none`}>
-        {/* PROJECT */}
+        {/* PROJECT — name only (iter-14) */}
         <div className="flex items-center gap-3.5 min-w-0 flex-1 md:flex-none">
           <span
             className="size-3 shrink-0 rounded-full"
             style={{ background: 'var(--accent)', boxShadow: '0 0 11px var(--accent-glow)' }}
           />
-          <div className="min-w-0">
-            <div className="font-display text-[length:var(--t-title)] font-bold text-zinc-50 truncate leading-tight">{row.name}</div>
-            <div className="mono text-[length:var(--t-cap)] text-zinc-400 truncate mt-0.5">{row.sub}</div>
-          </div>
+          <div className="font-display text-[length:var(--t-title)] font-bold text-zinc-50 truncate leading-tight">{row.name}</div>
         </div>
 
-        {/* OVERVIEW (xl+) — 1-2 lines, the column that earns the width */}
-        <div className="hidden xl:block min-w-0 pr-2">
-          <p className="text-[length:var(--t-label)] leading-snug text-zinc-300/90 line-clamp-2">{row.blurb || '—'}</p>
+        {/* SUMMARY — the one-liner (lg+) */}
+        <div className="hidden lg:block min-w-0 pr-2">
+          <p className="text-[length:var(--t-label)] leading-snug text-zinc-300/90 truncate">{row.summary}</p>
         </div>
 
         {/* STAGE */}
@@ -111,15 +99,16 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           {row.stageLabel}
         </div>
 
-        {/* PROGRESS */}
-        <div className="flex items-center gap-2.5 mono text-[length:var(--t-label)] font-semibold text-zinc-200 basis-full md:basis-auto order-last md:order-none">
+        {/* PROGRESS — labelled 'feats' so it self-explains (iter-14) */}
+        <div className="flex items-center gap-2.5 mono text-[length:var(--t-label)] font-semibold text-zinc-200 basis-full md:basis-auto order-last md:order-none" title="features complete">
           <span className="tabular-nums shrink-0">{row.total > 0 ? `${row.done}/${row.total}` : '—'}</span>
+          <span className="text-[length:var(--t-cap)] text-zinc-500 shrink-0">feats</span>
           <span className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden">
             <span className="block h-full rounded-full" style={{ width: `${row.pct}%`, background: 'var(--accent)' }} />
           </span>
         </div>
 
-        {/* CATEGORY — Public / Private, equal stature (owner decision 2026-07-04) */}
+        {/* CATEGORY — Public / Private (placeholder, owner-set later) */}
         <div className="hidden md:block">
           <span
             className="mono text-[length:var(--t-cap)] uppercase tracking-wide rounded-md border px-2 py-1"
@@ -139,21 +128,7 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           </span>
         </div>
 
-        {/* OPEN ITEMS — to-dos + pending reports */}
-        <div className="hidden md:block mono text-[length:var(--t-label)] tabular-nums font-semibold" title="open to-dos + pending reports">
-          <span className={row.openItems > 0 ? 'text-zinc-200' : 'text-zinc-600'}>{row.openItems || '—'}</span>
-        </div>
-
-        {/* STACK (xl+) */}
-        <div className="hidden xl:flex flex-wrap items-center gap-1.5 min-w-0">
-          {row.stack.length > 0 ? row.stack.map((s) => (
-            <span key={s} className="mono text-[length:var(--t-cap)] text-zinc-300 rounded border border-white/10 bg-black/25 px-2 py-0.5 truncate max-w-[110px]">{s}</span>
-          )) : <span className="text-zinc-700">—</span>}
-        </div>
-
-        {/* LINKS — desktop only inline; on mobile they intercepted the row's tap
-            center (E2E flow-projects-click-card mobile fail) so they live in the
-            expandable preview there instead */}
+        {/* LINKS — desktop only (on mobile the row taps through to the project) */}
         <div className="hidden md:flex items-center gap-2 pointer-events-auto relative z-10">
           {row.liveUrl && (
             <a
@@ -161,7 +136,7 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
               target="_blank"
               rel="noopener"
               onClick={(e) => e.stopPropagation()}
-              className="mono text-[length:var(--t-cap)] font-bold text-black rounded-md px-3 py-1.5 transition-opacity hover:opacity-85"
+              className="mono text-[length:var(--t-cap)] font-bold text-black rounded-md px-3 py-1.5 whitespace-nowrap transition-opacity hover:opacity-85"
               style={{ background: 'var(--accent)' }}
             >
               live ↗
@@ -173,9 +148,10 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
               target="_blank"
               rel="noopener"
               onClick={(e) => e.stopPropagation()}
-              className="mono text-[length:var(--t-cap)] font-semibold text-zinc-300 rounded-md border border-white/15 px-3 py-1.5 transition-colors hover:text-zinc-100 hover:border-zinc-400"
+              className="mono text-[length:var(--t-cap)] font-semibold rounded-md px-3 py-1.5 whitespace-nowrap transition-colors"
+              style={{ color: 'var(--accent)', border: '1px solid var(--accent-bd)', background: 'var(--accent-bg)' }}
             >
-              repo
+              repo ↗
             </a>
           )}
         </div>
@@ -183,7 +159,7 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
         {/* AGE */}
         <div className="mono text-[length:var(--t-cap)] text-zinc-400 justify-self-end hidden md:block tabular-nums">{row.age}</div>
 
-        {/* EXPAND */}
+        {/* EXPAND — opens the floating panel */}
         <button
           type="button"
           aria-expanded={open}
@@ -195,65 +171,25 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
         </button>
       </div>
 
-      {/* PREVIEW — absolute overlay; opens on hover (desktop) / focus / click (touch). */}
-      <div className="reg-more">
-        <div className="grid grid-cols-1 md:grid-cols-[280px_1.05fr_1fr_1fr] gap-6 px-5 py-5">
-          <div
-            className="hidden md:block rounded-lg border border-white/[0.08] min-h-[150px]"
-            style={{ background: 'radial-gradient(120% 120% at 30% 0%, var(--accent-bg), #0c0f16 62%)' }}
-          >
-            <div className="h-full grid place-items-center">
-              <span className="mono text-[length:var(--t-cap)] tracking-widest text-zinc-500">{row.name} REEL</span>
+      {/* FLOATING PANEL (iter-14) — compact popover, reel + overview only; does
+          NOT push siblings. Opens on hover (desktop) / focus / tap (data-open). */}
+      <div className="reg-pop">
+        <div
+          className="reg-pop-reel"
+          style={{ background: 'radial-gradient(120% 120% at 30% 0%, var(--accent-bg), #0c0f16 65%)' }}
+        >
+          <span className="mono text-[length:var(--t-cap)] tracking-widest text-zinc-500">{row.name} · REEL</span>
+        </div>
+        <div className="p-4">
+          <div className="mono text-[length:var(--t-cap)] font-semibold tracking-widest text-zinc-500 mb-2">OVERVIEW</div>
+          <p className="text-[length:var(--t-label)] leading-relaxed text-zinc-300">{row.blurb || row.summary || 'No summary yet.'}</p>
+          {row.tags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {row.tags.map((t) => (
+                <span key={t} className="mono text-[length:var(--t-cap)] text-zinc-300 rounded border border-white/10 bg-black/25 px-2 py-0.5">{t}</span>
+              ))}
             </div>
-          </div>
-          <div>
-            <div className="mono text-[length:var(--t-cap)] font-semibold tracking-widest text-zinc-500 mb-2.5">OVERVIEW</div>
-            <p className="text-[length:var(--t-label)] leading-relaxed text-zinc-300">{row.blurb || 'No summary yet.'}</p>
-            {row.tags.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {row.tags.map((t) => (
-                  <span key={t} className="mono text-[length:var(--t-cap)] text-zinc-300 rounded border border-white/10 bg-black/25 px-2.5 py-1">{t}</span>
-                ))}
-              </div>
-            )}
-          </div>
-          <div>
-            <div className="mono text-[length:var(--t-cap)] font-semibold tracking-widest text-zinc-500 mb-2.5">
-              TO DO{row.todoCount > 0 ? ` · ${row.todoCount}` : ''}
-            </div>
-            {row.todos.length > 0 ? (
-              <ul className="flex flex-col gap-2">
-                {row.todos.map((t, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-[length:var(--t-label)] leading-snug text-zinc-300">
-                    <span className="mt-[5px] size-2.5 shrink-0 rounded-[3px] border" style={{ borderColor: 'var(--accent-bd)' }} />
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-[length:var(--t-label)] text-zinc-500">Nothing open.</p>
-            )}
-          </div>
-          <div>
-            <div className="mono text-[length:var(--t-cap)] font-semibold tracking-widest text-zinc-500 mb-2.5">LAST CHANGE · {row.age}</div>
-            <p className="text-[length:var(--t-label)] font-medium leading-snug text-zinc-200">{row.lastChange ?? 'No recorded activity.'}</p>
-            {(row.liveUrl || row.repoUrl) && (
-              <div className="mt-3.5 flex items-center gap-2 md:hidden">
-                {row.liveUrl && (
-                  <a href={href(row.liveUrl)} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()}
-                    className="mono text-[length:var(--t-cap)] font-bold text-black rounded-md px-3 py-1.5" style={{ background: 'var(--accent)' }}>
-                    live ↗
-                  </a>
-                )}
-                {row.repoUrl && (
-                  <a href={href(row.repoUrl)} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()}
-                    className="mono text-[length:var(--t-cap)] font-semibold text-zinc-300 rounded-md border border-white/15 px-3 py-1.5">
-                    repo
-                  </a>
-                )}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
@@ -267,12 +203,12 @@ export function ProjectRegister({
   rows,
   stats,
   activity,
-  stageDist,
+  serverStats,
 }: {
   rows: RegisterRow[];
   stats: { projects: number; featuresShipped: number; live: number; flowsPassing: number };
   activity: ActivityLine[];
-  stageDist: StageSlice[];
+  serverStats: ServerStats;
 }) {
   const [stage, setStage] = useState<string>('ALL');
 
@@ -300,8 +236,6 @@ export function ProjectRegister({
     { n: stats.flowsPassing, l: 'FLOWS PASSING', c: 'var(--coral)' },
   ];
 
-  const distTotal = stageDist.reduce((n, s) => n + s.count, 0) || 1;
-
   return (
     <div>
       {/* ── HERO: title + tagline left, count-up stats right ── */}
@@ -322,7 +256,7 @@ export function ProjectRegister({
         </div>
       </div>
 
-      {/* ── Stage filter (iter-12: replaces personal/cv classification) ── */}
+      {/* ── Stage filter ── */}
       <div className="mb-5 flex flex-wrap gap-2.5">
         {stageChips.map((c) => {
           const active = stage === c.key;
@@ -349,13 +283,11 @@ export function ProjectRegister({
       {/* Column header (desktop only) */}
       <div className={`hidden ${COLS} gap-x-4 px-4 pb-3 mono text-[length:var(--t-cap)] font-bold tracking-widest text-zinc-400`}>
         <span>PROJECT</span>
-        <span className="hidden xl:block">OVERVIEW</span>
+        <span className="hidden lg:block">SUMMARY</span>
         <span>STAGE</span>
         <span>PROGRESS</span>
         <span>CATEGORY</span>
         <span>HEALTH</span>
-        <span>OPEN</span>
-        <span className="hidden xl:block">STACK</span>
         <span>LINKS</span>
         <span className="text-right">AGE</span>
         <span />
@@ -371,9 +303,8 @@ export function ProjectRegister({
         <p className="mt-6 text-center text-[length:var(--t-body)] text-zinc-500">No projects in this stage.</p>
       )}
 
-      {/* ── BELOW THE FOLD (iter-12: put the empty space to work) ── */}
-      <div className="mt-12 grid gap-4 lg:grid-cols-[1.15fr_.85fr] items-start">
-        {/* Recent activity across every project */}
+      {/* ── BELOW THE FOLD: activity + the machine behind it all ── */}
+      <div className="mt-12 grid gap-4 lg:grid-cols-[1fr_1fr] items-start">
         <div className="card flat">
           <div className="eyebrow" style={{ color: 'var(--mag)' }}>Recent activity</div>
           {activity.length > 0 ? (
@@ -394,34 +325,7 @@ export function ProjectRegister({
           )}
         </div>
 
-        {/* Pipeline distribution — where the portfolio sits */}
-        <div className="card flat">
-          <div className="eyebrow">Pipeline</div>
-          <div className="dist mb-4">
-            {stageDist.map((s) => (
-              <span
-                key={s.phase}
-                title={`${s.label} · ${s.count}`}
-                style={{ flex: s.count / distTotal, background: STAGE_HUES[s.label] ?? 'var(--vio)', opacity: 0.85 }}
-              />
-            ))}
-          </div>
-          <div className="flex flex-col gap-2.5">
-            {stageDist.map((s) => (
-              <button
-                key={s.phase}
-                type="button"
-                onClick={() => setStage(s.label)}
-                className="flex items-center gap-3 text-left group"
-              >
-                <span className="size-2.5 rounded-full shrink-0" style={{ background: STAGE_HUES[s.label] ?? 'var(--vio)' }} />
-                <span className="mono text-[length:var(--t-label)] text-zinc-300 group-hover:text-zinc-100 transition-colors">{s.label}</span>
-                <span className="ml-auto mono text-[length:var(--t-label)] font-bold text-zinc-200 tabular-nums">{s.count}</span>
-              </button>
-            ))}
-          </div>
-          <p className="mt-4 text-[length:var(--t-cap)] text-zinc-500">Click a stage to filter the register.</p>
-        </div>
+        <ServerStatsCard stats={serverStats} />
       </div>
     </div>
   );

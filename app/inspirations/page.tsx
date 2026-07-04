@@ -6,9 +6,9 @@ import { asc } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { SpotlightCard } from '@/components/ui/SpotlightCard';
 import { Badge } from '@/components/ui/Badge';
-import { PageHeader } from '@/components/ui/PageHeader';
 import { FilterBar, FILTER_CONTROL_CLASSES, PRIMARY_BUTTON_CLASSES } from '@/components/ui/FilterBar';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ShaderBackground } from '@/components/project/ShaderBackground';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,17 +48,21 @@ export default async function InspirationsPage({
   const withThumb = all.filter((i) => (i.thumbnail_url ?? '').trim().length > 0).length;
 
   return (
-    <div className="px-6 md:px-10 py-8">
-      <PageHeader
-        title="Inspirations"
-        tagline="visual references that shape Stage 2.2 UI master plans"
-        meta={
-          <>
-            <span className="text-zinc-200 font-medium">{filtered.length}</span> of {all.length} shown ·{' '}
-            {withThumb} with thumbnail · {sourceTypes.length} sources · {domains.length} domains
-          </>
-        }
-      />
+    <div className="sc">
+      <ShaderBackground />
+      <div className="sc-veil" aria-hidden />
+      <div className="sc-scan" aria-hidden />
+      <div className="sc-grain" aria-hidden />
+      <div className="sc-wrap px-6 md:px-10 py-10">
+        {/* Cyber-Den header (iter-14) */}
+        <div className="mb-7">
+          <div className="eyebrow" style={{ color: 'var(--vio)' }}>Visual references</div>
+          <h1 className="display pg">Inspirations</h1>
+          <p className="mt-3 text-[length:var(--t-lead)]" style={{ color: 'var(--ink)', opacity: 0.82 }}>
+            References that shape Stage 2 UI master plans ·{' '}
+            <span className="font-semibold" style={{ color: 'var(--ink)' }}>{filtered.length}</span> of {all.length} shown · {withThumb} with thumbnail
+          </p>
+        </div>
 
       <FilterBar>
         <input
@@ -109,6 +113,7 @@ export default async function InspirationsPage({
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -116,18 +121,19 @@ export default async function InspirationsPage({
 function InspirationCard({ insp }: { insp: typeof schema.inspirations.$inferSelect }) {
   return (
     <SpotlightCard href={`/inspirations/${insp.id}`}>
-      {/* Thumbnail area */}
-      <div className="mb-3 -mx-4 -mt-4 h-32 rounded-t-2xl overflow-hidden bg-gradient-to-br from-violet-500/10 via-zinc-900/40 to-cyan-500/10 border-b border-zinc-800/60 relative">
+      {/* Thumbnail area (iter-14: was a short h-32 strip — 'cant see shit'. Now a
+          proper 16:10 frame so the reference reads at a glance) */}
+      <div className="mb-3 -mx-4 -mt-4 aspect-[16/10] rounded-t-2xl overflow-hidden bg-gradient-to-br from-violet-500/10 via-zinc-900/40 to-cyan-500/10 border-b border-zinc-800/60 relative">
         {insp.thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={insp.thumbnail_url}
             alt={insp.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-center"
             loading="lazy"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] uppercase tracking-wider text-zinc-600">
+          <div className="absolute inset-0 flex items-center justify-center text-[length:var(--t-cap)] uppercase tracking-wider text-zinc-600">
             {insp.source_type}
           </div>
         )}

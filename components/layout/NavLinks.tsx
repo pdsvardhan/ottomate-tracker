@@ -7,9 +7,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+// Coverage removed from the showcase nav (iter-14) — the one useful number
+// (overall pass rate) lives on the home hero + per-project overviews; the route
+// stays reachable by URL.
 const NAV: Array<{ label: string; href: string }> = [
   { label: 'Projects', href: '/' },
-  { label: 'Coverage', href: '/coverage' },
   { label: 'Components', href: '/components-browser' },
   { label: 'Inspirations', href: '/inspirations' },
 ];

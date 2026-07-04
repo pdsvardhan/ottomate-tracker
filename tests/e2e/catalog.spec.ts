@@ -7,7 +7,7 @@ import { test, expect } from '@playwright/test';
 test('flow-components-grid — catalog renders grouped components', async ({ page }) => {
   await page.goto('/components-browser');
   await expect(page.getByRole('heading', { name: 'Components', level: 1 })).toBeVisible();
-  await expect(page.getByText('central asset library')).toBeVisible();
+  await expect(page.getByText('Central asset library')).toBeVisible();
   // At least one component card links into a detail page.
   await expect(page.locator('a[href^="/components-browser/mc-"]').first()).toBeVisible();
 });

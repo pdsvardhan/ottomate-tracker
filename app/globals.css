@@ -95,22 +95,27 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
   * { scroll-behavior: auto !important; }
 }
 
-/* ── Home register row: hover-expand preview (prototype fidelity) ──
-   Absolute overlay so expanding never pushes sibling rows (no jank). Opens on
-   hover (desktop), keyboard focus-within, OR click (data-open, for touch). */
+/* ── Home register row: compact floating panel (iter-14) ──
+   Owner asked to stop expanding the whole row — a small floating popover with
+   just the reel + overview instead. Absolute + own z-layer so it never pushes
+   siblings. Opens on hover (desktop), focus-within, OR tap (data-open). */
 .reg-row { position: relative; }
-.reg-more {
-  position: absolute; left: 0; right: 0; top: 100%; z-index: 5; pointer-events: none;
-  background: linear-gradient(180deg, #12151d, #0c0f16);
-  border: 1px solid var(--color-border-2); border-top: none;
-  border-radius: 0 0 14px 14px; box-shadow: 0 26px 44px rgba(0, 0, 0, .55);
-  max-height: 0; opacity: 0; overflow: hidden;
-  transition: max-height .42s cubic-bezier(.22, .7, .2, 1), opacity .26s ease;
+.reg-pop {
+  position: absolute; left: 12px; top: calc(100% - 6px); z-index: 40;
+  width: min(400px, calc(100vw - 48px));
+  pointer-events: none; opacity: 0; transform: translateY(-6px) scale(.98);
+  transform-origin: top left;
+  background: linear-gradient(180deg, #14171f, #0c0f16);
+  border: 1px solid var(--color-border-2);
+  border-radius: 14px; box-shadow: 0 26px 60px rgba(0, 0, 0, .62);
+  overflow: hidden;
+  transition: opacity .2s ease, transform .24s cubic-bezier(.2, .8, .2, 1);
 }
-.reg-row:hover, .reg-row:focus-within, .reg-row[data-open="true"] { z-index: 10; }
-.reg-row:hover .reg-more,
-.reg-row:focus-within .reg-more,
-.reg-row[data-open="true"] .reg-more { max-height: 420px; opacity: 1; pointer-events: auto; }
+.reg-pop-reel { height: 168px; display: grid; place-items: center; border-bottom: 1px solid var(--color-border); }
+.reg-row:hover, .reg-row:focus-within, .reg-row[data-open="true"] { z-index: 30; }
+.reg-row:hover .reg-pop,
+.reg-row:focus-within .reg-pop,
+.reg-row[data-open="true"] .reg-pop { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
 /* accent bar sweeps in along the row bottom on hover/open */
 .reg-bar { transform: scaleX(0); transform-origin: left; transition: transform .5s cubic-bezier(.2, .8, .2, 1); }
 .reg-row:hover .reg-bar, .reg-row:focus-within .reg-bar, .reg-row[data-open="true"] .reg-bar { transform: scaleX(1); }
@@ -119,7 +124,7 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
 .reg-row:hover .reg-chev, .reg-row:focus-within .reg-chev, .reg-row[data-open="true"] .reg-chev { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
-  .reg-more { transition: none; }
+  .reg-pop { transition: opacity .2s ease; transform: none; }
   .reg-bar { transition: none; }
 }
 

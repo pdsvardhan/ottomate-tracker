@@ -15,9 +15,9 @@ interface Props {
 }
 
 // Bug Inbox link removed from the palette for the showcase (route/API kept, just hidden).
+// Coverage removed from the showcase surface (iter-14); route still reachable.
 const NAV_LINKS: { label: string; href: string }[] = [
   { label: 'Projects', href: '/' },
-  { label: 'Coverage Dashboard', href: '/coverage' },
   { label: 'Risk Heatmap', href: '/risks' },
   { label: 'Components', href: '/components-browser' },
   { label: 'Search', href: '/search' },

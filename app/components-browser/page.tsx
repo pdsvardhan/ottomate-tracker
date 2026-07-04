@@ -7,7 +7,6 @@ import { getDb, schema } from '@/lib/db/client';
 import { getPreviewManifest } from '@/lib/previews';
 import { SpotlightCard } from '@/components/ui/SpotlightCard';
 import { Badge } from '@/components/ui/Badge';
-import { PageHeader } from '@/components/ui/PageHeader';
 import {
   FilterBar,
   FILTER_CONTROL_CLASSES,
@@ -16,6 +15,7 @@ import {
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AddComponentModal } from '@/components/master-component/AddComponentModal';
 import { COMPONENT_CATEGORIES } from '@/lib/categories';
+import { ShaderBackground } from '@/components/project/ShaderBackground';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,127 +73,114 @@ export default async function ComponentsBrowser({
   const allTags = Array.from(new Set(all.flatMap((c) => (c.tags ?? []) as string[]))).sort();
 
   return (
-    <div className="px-6 md:px-10 py-8">
-      <PageHeader
-        title="Components"
-        tagline="central asset library"
-        meta={
-          <>
-            <span className="text-zinc-200 font-medium">{filtered.length}</span> of {all.length} shown ·{' '}
-            {totalWithSource} have source · {CATEGORY_ORDER.length} categories · {libraries.length} libraries
-          </>
-        }
-        actions={
-          <Link
-            href="/components-browser?action=new"
-            className={PRIMARY_BUTTON_CLASSES}
-          >
+    <div className="sc">
+      <ShaderBackground />
+      <div className="sc-veil" aria-hidden />
+      <div className="sc-scan" aria-hidden />
+      <div className="sc-grain" aria-hidden />
+      <div className="sc-wrap px-6 md:px-10 py-10">
+        {/* Cyber-Den header (iter-14: was the Spotlight-Glass PageHeader) */}
+        <div className="mb-7 flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <div className="eyebrow" style={{ color: 'var(--cyan)' }}>Central asset library</div>
+            <h1 className="display pg">Components</h1>
+            <p className="mt-3 text-[length:var(--t-lead)]" style={{ color: 'var(--ink)', opacity: 0.82 }}>
+              <span className="font-semibold" style={{ color: 'var(--ink)' }}>{filtered.length}</span> of {all.length} shown ·{' '}
+              {totalWithSource} with source · {CATEGORY_ORDER.length} categories
+            </p>
+          </div>
+          <Link href="/components-browser?action=new" className={PRIMARY_BUTTON_CLASSES}>
             + Add component
           </Link>
-        }
-      />
+        </div>
 
-      <FilterBar>
-        <input
-          type="search"
-          name="q"
-          defaultValue={q ?? ''}
-          placeholder="Search by name, ID, description, tag, or library…"
-          className={FILTER_CONTROL_CLASSES + ' flex-1 min-w-[260px]'}
-        />
-        <select name="lib" defaultValue={lib ?? ''} className={FILTER_CONTROL_CLASSES}>
-          <option value="">— any library —</option>
-          {libraries.map((l) => (
-            <option key={l} value={l}>
-              {l}
-            </option>
-          ))}
-        </select>
-        <select name="quality" defaultValue={quality ?? ''} className={FILTER_CONTROL_CLASSES}>
-          <option value="">— any quality —</option>
-          <option value="A">A only</option>
-          <option value="B">A+B</option>
-          <option value="C">C only</option>
-        </select>
-        <select name="tag" defaultValue={tag ?? ''} className={FILTER_CONTROL_CLASSES}>
-          <option value="">— any tag —</option>
-          {allTags.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <select name="only" defaultValue={only ?? ''} className={FILTER_CONTROL_CLASSES}>
-          <option value="">— source: any —</option>
-          <option value="with-source">with source</option>
-          <option value="no-source">missing source</option>
-        </select>
-        <button type="submit" className={PRIMARY_BUTTON_CLASSES}>
-          Filter
-        </button>
-      </FilterBar>
+        <FilterBar>
+          <input
+            type="search"
+            name="q"
+            defaultValue={q ?? ''}
+            placeholder="Search by name, ID, description, or tag…"
+            className={FILTER_CONTROL_CLASSES + ' flex-1 min-w-[260px]'}
+          />
+          <select name="quality" defaultValue={quality ?? ''} className={FILTER_CONTROL_CLASSES}>
+            <option value="">— any quality —</option>
+            <option value="A">A only</option>
+            <option value="B">A+B</option>
+            <option value="C">C only</option>
+          </select>
+          <select name="tag" defaultValue={tag ?? ''} className={FILTER_CONTROL_CLASSES}>
+            <option value="">— any tag —</option>
+            {allTags.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className={PRIMARY_BUTTON_CLASSES}>
+            Filter
+          </button>
+        </FilterBar>
 
-      {/* Category quick-jump chips */}
-      <div className="mb-10 flex flex-wrap gap-1.5">
-        {CATEGORY_ORDER.map((cat) => {
-          const count = grouped.get(cat.id)?.length ?? 0;
-          const isEmpty = count === 0;
-          return (
-            <a
-              key={cat.id}
-              href={`#cat-${cat.id}`}
-              className={
-                'rounded-full border px-3.5 py-1.5 text-[13px] backdrop-blur-sm transition-all ' +
-                (isEmpty
-                  ? 'border-zinc-900/80 bg-zinc-950/40 text-zinc-700 cursor-default'
-                  : 'border-zinc-700/60 bg-zinc-900/40 text-zinc-300 hover:border-cyan-600/60 hover:bg-zinc-800/60 hover:text-cyan-200 hover:shadow-[0_0_15px_-5px_rgba(0,212,170,0.4)]')
-              }
-            >
-              {cat.label} <span className={'ml-0.5 ' + (isEmpty ? 'text-zinc-700' : 'text-zinc-500')}>{count}</span>
-            </a>
-          );
-        })}
-      </div>
+        {/* Category quick-jump chips */}
+        <div className="mb-10 flex flex-wrap gap-1.5">
+          {CATEGORY_ORDER.map((cat) => {
+            const count = grouped.get(cat.id)?.length ?? 0;
+            const isEmpty = count === 0;
+            return (
+              <a
+                key={cat.id}
+                href={`#cat-${cat.id}`}
+                className={
+                  'rounded-full border px-3.5 py-1.5 text-[length:var(--t-cap)] backdrop-blur-sm transition-all ' +
+                  (isEmpty
+                    ? 'border-zinc-900/80 bg-zinc-950/40 text-zinc-700 cursor-default'
+                    : 'border-zinc-700/60 bg-zinc-900/40 text-zinc-300 hover:border-cyan-600/60 hover:bg-zinc-800/60 hover:text-cyan-200 hover:shadow-[0_0_15px_-5px_rgba(0,212,170,0.4)]')
+                }
+              >
+                {cat.label} <span className={'ml-0.5 ' + (isEmpty ? 'text-zinc-700' : 'text-zinc-500')}>{count}</span>
+              </a>
+            );
+          })}
+        </div>
 
-      {/* Category sections */}
-      <div className="space-y-12">
-        {CATEGORY_ORDER.map((cat) => {
-          const items = grouped.get(cat.id) ?? [];
-          return (
-            <section key={cat.id} id={`cat-${cat.id}`} className="scroll-mt-20">
-              <header className="mb-4 flex items-baseline justify-between gap-3">
-                <div>
-                  <div className="flex items-baseline gap-3">
-                    <h2 className="text-xl font-semibold bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
-                      {cat.label}
-                    </h2>
-                    <Badge variant="count">{items.length}</Badge>
+        {/* Category sections */}
+        <div className="space-y-12">
+          {CATEGORY_ORDER.map((cat) => {
+            const items = grouped.get(cat.id) ?? [];
+            return (
+              <section key={cat.id} id={`cat-${cat.id}`} className="scroll-mt-24">
+                <header className="mb-4 flex items-baseline justify-between gap-3">
+                  <div>
+                    <div className="flex items-baseline gap-3">
+                      <h2 className="h2" style={{ fontSize: 'var(--t-title)' }}>{cat.label}</h2>
+                      <Badge variant="count">{items.length}</Badge>
+                    </div>
+                    <p className="text-[length:var(--t-label)] text-zinc-400 mt-1">{cat.description}</p>
                   </div>
-                  <p className="text-sm text-zinc-500 mt-1">{cat.description}</p>
-                </div>
-              </header>
-              {items.length === 0 ? (
-                <EmptyState
-                  title="No components in this category yet"
-                  body="See the taxonomy doc in the skill plugin for suggestions, or use + Add component to seed one."
-                />
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {items.map((c) => (
-                    <ComponentCard key={c.id} component={c} hasShot={shotIds.has(c.id)} />
-                  ))}
-                </div>
-              )}
-            </section>
-          );
-        })}
-      </div>
+                </header>
+                {items.length === 0 ? (
+                  <EmptyState
+                    title="No components in this category yet"
+                    body="See the taxonomy doc in the skill plugin for suggestions, or use + Add component to seed one."
+                  />
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {items.map((c) => (
+                      <ComponentCard key={c.id} component={c} hasShot={shotIds.has(c.id)} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
 
-      {/* CRUD modals — mounted once; toggled by ?action= URL param */}
-      <AddComponentModal
-        categories={CATEGORY_ORDER.map((c) => c.id)}
-        libraries={libraries}
-      />
+        {/* CRUD modals — mounted once; toggled by ?action= URL param */}
+        <AddComponentModal
+          categories={CATEGORY_ORDER.map((c) => c.id)}
+          libraries={libraries}
+        />
+      </div>
     </div>
   );
 }
@@ -204,18 +191,20 @@ function ComponentCard({ component, hasShot }: { component: typeof schema.master
 
   return (
     <SpotlightCard href={`/components-browser/${component.id}`}>
-      {/* Inline-preview poster thumbnail (iter-77) */}
-      <div className="mb-3 -mt-1 overflow-hidden rounded-lg border border-zinc-800/80 bg-[#0a0a0f] h-32">
+      {/* Inline-preview poster thumbnail (iter-77; iter-14: taller + object-contain
+          so the whole rendered element is visible, was h-32 object-cover object-top
+          which cropped most previews to a blank top strip — 'cant see shit') */}
+      <div className="mb-3 -mt-1 grid place-items-center overflow-hidden rounded-lg border border-zinc-800/80 bg-[#0b0b12] h-48 p-2">
         {hasShot ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={`/api/previews/${component.id}/shot.png`}
             alt={`${component.name} preview`}
             loading="lazy"
-            className="h-full w-full object-cover object-top"
+            className="max-h-full max-w-full object-contain"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[11px] uppercase tracking-wider text-zinc-700">
+          <div className="flex h-full w-full items-center justify-center text-[length:var(--t-cap)] uppercase tracking-wider text-zinc-700">
             no preview
           </div>
         )}
