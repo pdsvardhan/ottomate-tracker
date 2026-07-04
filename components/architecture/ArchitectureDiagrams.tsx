@@ -42,11 +42,11 @@ const CATEGORY_META = [
 function DecisionRow({ d }: { d: DecisionEntry }) {
   const chips = d.tags.filter((t) => !t.startsWith('cat:') && t !== 'curated');
   return (
-    <li className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-1.5">
-      <time className="font-mono text-[10px] text-zinc-600 shrink-0">{d.date}</time>
-      <span className="text-sm text-zinc-300">{d.title}</span>
+    <li className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
+      <time className="font-mono text-[length:var(--t-cap)] text-zinc-500 shrink-0">{d.date}</time>
+      <span className="text-[length:var(--t-label)] text-zinc-200">{d.title}</span>
       {chips.map((t) => (
-        <span key={t} className="rounded-full border border-zinc-800/60 px-2 py-0.5 text-[10px] text-zinc-500">
+        <span key={t} className="rounded-full border border-zinc-700/60 px-2 py-0.5 text-[length:var(--t-cap)] text-zinc-400">
           {t}
         </span>
       ))}
@@ -110,8 +110,8 @@ function SectionHeader({ index, label, desc, legacy }: {
   return (
     <header className="mb-4">
       <div className="flex items-baseline gap-3 flex-wrap">
-        <span className="font-mono text-xs text-cyan-500/70">{String(index).padStart(2, '0')}</span>
-        <h2 className="text-xl font-semibold bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
+        <span className="font-mono text-[length:var(--t-label)] text-cyan-500/80">{String(index).padStart(2, '0')}</span>
+        <h2 className="text-[length:var(--t-title)] font-semibold bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
           {label}
         </h2>
         {legacy && (
@@ -120,7 +120,8 @@ function SectionHeader({ index, label, desc, legacy }: {
           </Badge>
         )}
       </div>
-      <p className="text-xs text-zinc-500 mt-1">{desc}</p>
+      {/* iter-13: caption was 12px zinc-500 — disappeared into the background */}
+      <p className="text-[length:var(--t-label)] text-zinc-400 mt-1.5">{desc}</p>
     </header>
   );
 }
@@ -130,7 +131,7 @@ function DiagramList({ section }: { section: DiagramSection }) {
     <div className="space-y-4">
       {section.diagrams.map((d, i) => (
         <div key={`${section.kind}-${i}`}>
-          {d.caption && <p className="text-xs text-zinc-500 mb-2 font-mono">{d.caption}</p>}
+          {d.caption && <p className="text-[length:var(--t-label)] text-zinc-400 mb-2 font-mono">{d.caption}</p>}
           <MermaidView source={d.source} filename={d.caption ?? `${section.kind}-${i + 1}.mmd`} />
         </div>
       ))}
@@ -158,9 +159,9 @@ export function ArchitectureView({ sections, details, decisions }: {
           <a
             key={a.id}
             href={`#${a.id}`}
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-800/60 bg-zinc-900/40 px-3.5 py-1.5 text-xs text-zinc-400 transition-all hover:border-cyan-700/60 hover:text-cyan-200"
+            className="inline-flex items-center gap-2 rounded-full border border-zinc-700/60 bg-zinc-900/40 px-4 py-2 text-[length:var(--t-label)] text-zinc-300 transition-all hover:border-cyan-700/60 hover:text-cyan-200"
           >
-            <span className="font-mono text-[10px] text-zinc-600">{String(i + 1).padStart(2, '0')}</span>
+            <span className="font-mono text-[length:var(--t-cap)] text-zinc-500">{String(i + 1).padStart(2, '0')}</span>
             <span className="font-medium">{a.label}</span>
           </a>
         ))}
@@ -187,7 +188,7 @@ export function ArchitectureView({ sections, details, decisions }: {
       {/* Secondary diagrams, collapsed — details beyond the 90-second read */}
       {details.length > 0 && (
         <details className="group rounded-xl border border-zinc-800/60 bg-zinc-900/30">
-          <summary className="cursor-pointer select-none px-4 py-3 text-xs text-zinc-400 transition-colors hover:text-zinc-200">
+          <summary className="cursor-pointer select-none px-4 py-3.5 text-[length:var(--t-label)] text-zinc-300 transition-colors hover:text-zinc-100">
             <span className="font-medium">More detail</span>
             <span className="text-zinc-600">
               {' '}— {details.map((s) => s.label).join(' · ')} ({detailCount}{' '}

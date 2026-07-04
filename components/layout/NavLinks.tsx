@@ -20,7 +20,7 @@ export function NavLinks() {
     href === '/' ? pathname === '/' || pathname.startsWith('/projects') : pathname.startsWith(href);
 
   return (
-    <nav className="hidden sm:flex items-center gap-1">
+    <nav className="hidden sm:flex items-center gap-1.5">
       {NAV.map((n) => {
         const active = isActive(n.href);
         return (
@@ -28,10 +28,10 @@ export function NavLinks() {
             key={n.href}
             href={n.href}
             className={
-              'mono text-[12.5px] font-semibold tracking-wide rounded-lg px-3 py-1.5 transition-colors border ' +
+              'mono text-[length:var(--t-label)] font-semibold tracking-wide rounded-lg px-4 py-2 transition-colors border ' +
               (active
-                ? 'text-zinc-100 bg-white/[0.07] border-white/10'
-                : 'text-zinc-500 hover:text-zinc-200 border-transparent')
+                ? 'text-zinc-50 bg-white/[0.09] border-white/15 shadow-[0_0_18px_rgba(168,85,247,0.25)]'
+                : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04] border-transparent')
             }
           >
             {n.label}

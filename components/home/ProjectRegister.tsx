@@ -1,13 +1,15 @@
 'use client';
 
-// Projects register table (prototype adoption). Per-project accent, honest
-// progress, click/keyboard-expandable preview (no hover-only trap), category
-// filter, staggered load. Hybrid columns: identity/stage/progress/category lead;
-// coverage (flows passing) + open risks are present but visually de-emphasised.
+// Projects register (iter-12 rebuild per owner feedback 2026-07-04).
+// Hero-integrated count-up stats, stage-based filters (personal/cv retired),
+// value-dense columns: name / overview / stage / progress / public-private /
+// health / open items / stack / links / age. Fluid type via --t-* tokens —
+// nothing below the readability floor. Below the fold: activity + pipeline.
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { accentStyle } from '@/lib/project-accent';
+import { NumberTicker } from '@/components/ui/NumberTicker';
 
 export interface RegisterRow {
   slug: string;
@@ -19,10 +21,12 @@ export interface RegisterRow {
   done: number;
   total: number;
   pct: number;
-  category: string | null;
+  isPublic: boolean;
   flowsPassing: number;
   flowsTotal: number;
   risksOpen: number;
+  openItems: number;
+  stack: string[];
   liveUrl: string | null;
   repoUrl: string | null;
   port: number | null;
@@ -34,8 +38,33 @@ export interface RegisterRow {
   lastChange: string | null;
 }
 
-// Columns kick in at md; below that the row is a wrapping flex (clean reflow).
-const COLS = 'md:grid md:grid-cols-[minmax(190px,1.5fr)_86px_150px_92px_120px_130px_48px_26px] md:items-center';
+export interface ActivityLine {
+  slug: string;
+  name: string;
+  accent: string;
+  note: string;
+  when: string;
+}
+
+export interface StageSlice {
+  phase: string;
+  label: string;
+  count: number;
+}
+
+// md: 9 columns (no overview/stack) · xl: all 11. Header mirrors the row.
+const COLS =
+  'md:grid md:grid-cols-[minmax(200px,1.3fr)_84px_minmax(130px,1fr)_92px_104px_56px_132px_56px_30px] ' +
+  'xl:grid-cols-[minmax(210px,1.15fr)_minmax(0,1.5fr)_84px_minmax(120px,.9fr)_92px_104px_56px_minmax(130px,.9fr)_132px_56px_30px] ' +
+  'md:items-center';
+
+const STAGE_HUES: Record<string, string> = {
+  SPEC: 'var(--amber)',
+  BUILD: 'var(--vio)',
+  SHIPPED: 'var(--cyan)',
+  MAINT: 'var(--coral)',
+  ARCHIVED: 'var(--dim)',
+};
 
 function href(url: string): string {
   return url.startsWith('http') ? url : `https://${url}`;
@@ -45,7 +74,7 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
   const [open, setOpen] = useState(false);
   return (
     <li
-      className="a-fade-up reg-row group border-t border-[var(--color-border)] last:border-b transition-colors hover:bg-white/[0.02]"
+      className="a-fade-up reg-row group border-t border-white/[0.07] last:border-b transition-colors hover:bg-white/[0.025]"
       data-open={open ? 'true' : 'false'}
       style={{ ...accentStyle(row.accent), animationDelay: `${Math.min(index, 10) * 45}ms` }}
     >
@@ -56,58 +85,81 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
         className="absolute inset-0 z-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
       />
 
-      <div className={`flex flex-wrap ${COLS} items-center gap-x-4 gap-y-2 px-3 md:px-4 py-3 pointer-events-none`}>
+      <div className={`flex flex-wrap ${COLS} items-center gap-x-4 gap-y-2 px-3 md:px-4 py-4 pointer-events-none`}>
         {/* PROJECT */}
-        <div className="flex items-center gap-3 min-w-0 flex-1 md:flex-none">
+        <div className="flex items-center gap-3.5 min-w-0 flex-1 md:flex-none">
           <span
-            className="size-2.5 shrink-0 rounded-full"
-            style={{ background: 'var(--accent)', boxShadow: '0 0 9px var(--accent-glow)' }}
+            className="size-3 shrink-0 rounded-full"
+            style={{ background: 'var(--accent)', boxShadow: '0 0 11px var(--accent-glow)' }}
           />
           <div className="min-w-0">
-            <div className="font-display text-[16.5px] font-bold text-zinc-100 truncate">{row.name}</div>
-            <div className="mono text-[11.5px] text-zinc-500 truncate">{row.sub}</div>
+            <div className="font-display text-[length:var(--t-title)] font-bold text-zinc-50 truncate leading-tight">{row.name}</div>
+            <div className="mono text-[length:var(--t-cap)] text-zinc-400 truncate mt-0.5">{row.sub}</div>
           </div>
         </div>
 
+        {/* OVERVIEW (xl+) — 1-2 lines, the column that earns the width */}
+        <div className="hidden xl:block min-w-0 pr-2">
+          <p className="text-[length:var(--t-label)] leading-snug text-zinc-300/90 line-clamp-2">{row.blurb || '—'}</p>
+        </div>
+
         {/* STAGE */}
-        <div className="mono text-[10px] font-semibold tracking-wide text-accent hidden md:block">{row.stageLabel}</div>
+        <div
+          className="mono text-[length:var(--t-cap)] font-bold tracking-wide hidden md:block"
+          style={{ color: STAGE_HUES[row.stageLabel] ?? 'var(--cyan)' }}
+        >
+          {row.stageLabel}
+        </div>
 
         {/* PROGRESS */}
-        <div className="flex items-center gap-2 mono text-[11px] font-semibold text-zinc-300 basis-full md:basis-auto order-last md:order-none">
+        <div className="flex items-center gap-2.5 mono text-[length:var(--t-label)] font-semibold text-zinc-200 basis-full md:basis-auto order-last md:order-none">
           <span className="tabular-nums shrink-0">{row.total > 0 ? `${row.done}/${row.total}` : '—'}</span>
-          <span className="h-1 flex-1 rounded-full bg-white/10 overflow-hidden">
+          <span className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden">
             <span className="block h-full rounded-full" style={{ width: `${row.pct}%`, background: 'var(--accent)' }} />
           </span>
         </div>
 
-        {/* CATEGORY */}
+        {/* CATEGORY — Public / Private, equal stature (owner decision 2026-07-04) */}
         <div className="hidden md:block">
-          {row.category ? (
-            <span className="mono text-[9px] uppercase tracking-wide text-zinc-400 rounded-md border border-[var(--color-border)] px-2 py-1">
-              {row.category}
-            </span>
-          ) : (
-            <span className="text-zinc-700">—</span>
-          )}
+          <span
+            className="mono text-[length:var(--t-cap)] uppercase tracking-wide rounded-md border px-2 py-1"
+            style={row.isPublic
+              ? { color: 'var(--cyan)', borderColor: 'rgba(34,211,238,.35)' }
+              : { color: 'var(--mute)', borderColor: 'var(--line)' }}
+          >
+            {row.isPublic ? 'public' : 'private'}
+          </span>
         </div>
 
-        {/* HEALTH — de-emphasised */}
-        <div className="hidden md:flex items-center gap-2 mono text-[10px] text-zinc-600">
+        {/* HEALTH */}
+        <div className="hidden md:flex items-center gap-2.5 mono text-[length:var(--t-cap)] text-zinc-400">
           <span title="flows passing / total">◇ {row.flowsPassing}/{row.flowsTotal}</span>
-          <span className={row.risksOpen > 0 ? 'text-[var(--color-risk)]/80' : 'text-zinc-700'} title="open risks">
+          <span className={row.risksOpen > 0 ? 'text-[var(--color-risk)]' : 'text-zinc-600'} title="open risks">
             ⚑ {row.risksOpen}
           </span>
         </div>
 
+        {/* OPEN ITEMS — to-dos + pending reports */}
+        <div className="hidden md:block mono text-[length:var(--t-label)] tabular-nums font-semibold" title="open to-dos + pending reports">
+          <span className={row.openItems > 0 ? 'text-zinc-200' : 'text-zinc-600'}>{row.openItems || '—'}</span>
+        </div>
+
+        {/* STACK (xl+) */}
+        <div className="hidden xl:flex flex-wrap items-center gap-1.5 min-w-0">
+          {row.stack.length > 0 ? row.stack.map((s) => (
+            <span key={s} className="mono text-[length:var(--t-cap)] text-zinc-300 rounded border border-white/10 bg-black/25 px-2 py-0.5 truncate max-w-[110px]">{s}</span>
+          )) : <span className="text-zinc-700">—</span>}
+        </div>
+
         {/* LINKS */}
-        <div className="flex items-center gap-1.5 justify-self-end md:justify-self-auto pointer-events-auto relative z-10">
+        <div className="flex items-center gap-2 justify-self-end md:justify-self-auto pointer-events-auto relative z-10">
           {row.liveUrl && (
             <a
               href={href(row.liveUrl)}
               target="_blank"
               rel="noopener"
               onClick={(e) => e.stopPropagation()}
-              className="mono text-[9px] font-semibold text-black rounded-md px-2.5 py-1.5 transition-opacity hover:opacity-85"
+              className="mono text-[length:var(--t-cap)] font-bold text-black rounded-md px-3 py-1.5 transition-opacity hover:opacity-85"
               style={{ background: 'var(--accent)' }}
             >
               live ↗
@@ -119,7 +171,7 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
               target="_blank"
               rel="noopener"
               onClick={(e) => e.stopPropagation()}
-              className="mono text-[9px] font-semibold text-zinc-300 rounded-md border border-[var(--color-border-2)] px-2.5 py-1.5 transition-colors hover:text-zinc-100 hover:border-zinc-500"
+              className="mono text-[length:var(--t-cap)] font-semibold text-zinc-300 rounded-md border border-white/15 px-3 py-1.5 transition-colors hover:text-zinc-100 hover:border-zinc-400"
             >
               repo
             </a>
@@ -127,7 +179,7 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
         </div>
 
         {/* AGE */}
-        <div className="mono text-[10px] text-zinc-500 justify-self-end hidden md:block tabular-nums">{row.age}</div>
+        <div className="mono text-[length:var(--t-cap)] text-zinc-400 justify-self-end hidden md:block tabular-nums">{row.age}</div>
 
         {/* EXPAND */}
         <button
@@ -135,55 +187,54 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           aria-expanded={open}
           aria-label={open ? 'Collapse preview' : 'Expand preview'}
           onClick={() => setOpen((v) => !v)}
-          className="pointer-events-auto relative z-10 justify-self-end grid place-items-center size-6 rounded-md text-zinc-500 transition-colors hover:text-zinc-200 hover:bg-white/5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          className="pointer-events-auto relative z-10 justify-self-end grid place-items-center size-7 rounded-md text-zinc-500 transition-colors hover:text-zinc-200 hover:bg-white/5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         >
           <span className={`reg-chev inline-block transition-transform duration-300 ${open ? 'rotate-90' : ''}`} style={{ color: 'var(--accent)' }}>▸</span>
         </button>
       </div>
 
-      {/* PREVIEW — absolute overlay; opens on hover (desktop) / focus / click (touch).
-          Matches the prototype's 4-column panel: reel · overview · to-do · last change. */}
+      {/* PREVIEW — absolute overlay; opens on hover (desktop) / focus / click (touch). */}
       <div className="reg-more">
-        <div className="grid grid-cols-1 md:grid-cols-[280px_1.05fr_1fr_1fr] gap-5 px-4 py-4">
+        <div className="grid grid-cols-1 md:grid-cols-[280px_1.05fr_1fr_1fr] gap-6 px-5 py-5">
           <div
-            className="hidden md:block rounded-lg border border-[var(--color-border)] min-h-[150px]"
+            className="hidden md:block rounded-lg border border-white/[0.08] min-h-[150px]"
             style={{ background: 'radial-gradient(120% 120% at 30% 0%, var(--accent-bg), #0c0f16 62%)' }}
           >
             <div className="h-full grid place-items-center">
-              <span className="mono text-[9px] tracking-widest text-zinc-600">{row.name} REEL</span>
+              <span className="mono text-[length:var(--t-cap)] tracking-widest text-zinc-500">{row.name} REEL</span>
             </div>
           </div>
           <div>
-            <div className="mono text-[9px] font-semibold tracking-widest text-zinc-600 mb-2">OVERVIEW</div>
-            <p className="text-[12.5px] leading-relaxed text-zinc-400">{row.blurb || 'No summary yet.'}</p>
+            <div className="mono text-[length:var(--t-cap)] font-semibold tracking-widest text-zinc-500 mb-2.5">OVERVIEW</div>
+            <p className="text-[length:var(--t-label)] leading-relaxed text-zinc-300">{row.blurb || 'No summary yet.'}</p>
             {row.tags.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
+              <div className="mt-3 flex flex-wrap gap-2">
                 {row.tags.map((t) => (
-                  <span key={t} className="mono text-[9px] text-zinc-400 rounded border border-[var(--color-border)] bg-black/20 px-2 py-0.5">{t}</span>
+                  <span key={t} className="mono text-[length:var(--t-cap)] text-zinc-300 rounded border border-white/10 bg-black/25 px-2.5 py-1">{t}</span>
                 ))}
               </div>
             )}
           </div>
           <div>
-            <div className="mono text-[9px] font-semibold tracking-widest text-zinc-600 mb-2">
+            <div className="mono text-[length:var(--t-cap)] font-semibold tracking-widest text-zinc-500 mb-2.5">
               TO DO{row.todoCount > 0 ? ` · ${row.todoCount}` : ''}
             </div>
             {row.todos.length > 0 ? (
               <ul className="flex flex-col gap-2">
                 {row.todos.map((t, i) => (
-                  <li key={i} className="flex items-start gap-2 text-[12px] leading-snug text-zinc-400">
-                    <span className="mt-[3px] size-2.5 shrink-0 rounded-[3px] border" style={{ borderColor: 'var(--accent-bd)' }} />
+                  <li key={i} className="flex items-start gap-2.5 text-[length:var(--t-label)] leading-snug text-zinc-300">
+                    <span className="mt-[5px] size-2.5 shrink-0 rounded-[3px] border" style={{ borderColor: 'var(--accent-bd)' }} />
                     {t}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-[12px] text-zinc-600">Nothing open.</p>
+              <p className="text-[length:var(--t-label)] text-zinc-500">Nothing open.</p>
             )}
           </div>
           <div>
-            <div className="mono text-[9px] font-semibold tracking-widest text-zinc-600 mb-2">LAST CHANGE · {row.age}</div>
-            <p className="text-[12.5px] font-medium leading-snug text-zinc-300">{row.lastChange ?? 'No recorded activity.'}</p>
+            <div className="mono text-[length:var(--t-cap)] font-semibold tracking-widest text-zinc-500 mb-2.5">LAST CHANGE · {row.age}</div>
+            <p className="text-[length:var(--t-label)] font-medium leading-snug text-zinc-200">{row.lastChange ?? 'No recorded activity.'}</p>
           </div>
         </div>
       </div>
@@ -197,75 +248,96 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
 export function ProjectRegister({
   rows,
   stats,
+  activity,
+  stageDist,
 }: {
   rows: RegisterRow[];
-  stats: { projects: number; featuresShipped: number; live: number };
+  stats: { projects: number; featuresShipped: number; live: number; flowsPassing: number };
+  activity: ActivityLine[];
+  stageDist: StageSlice[];
 }) {
-  const [cat, setCat] = useState<'all' | 'personal' | 'cv'>('all');
+  const [stage, setStage] = useState<string>('ALL');
+
+  const stageChips = useMemo(() => {
+    const present = Array.from(new Set(rows.map((r) => r.stageLabel)));
+    const order = ['SPEC', 'BUILD', 'SHIPPED', 'MAINT', 'ARCHIVED'];
+    return [
+      { key: 'ALL', count: rows.length },
+      ...order.filter((s) => present.includes(s)).map((s) => ({
+        key: s,
+        count: rows.filter((r) => r.stageLabel === s).length,
+      })),
+    ];
+  }, [rows]);
 
   const filtered = useMemo(
-    () => (cat === 'all' ? rows : rows.filter((r) => (r.category ?? '').includes(cat))),
-    [rows, cat],
+    () => (stage === 'ALL' ? rows : rows.filter((r) => r.stageLabel === stage)),
+    [rows, stage],
   );
 
-  const chips: Array<{ key: 'all' | 'personal' | 'cv'; label: string; count: number }> = [
-    { key: 'all', label: 'ALL', count: rows.length },
-    { key: 'personal', label: 'PERSONAL', count: rows.filter((r) => (r.category ?? '').includes('personal')).length },
-    { key: 'cv', label: 'CV', count: rows.filter((r) => (r.category ?? '').includes('cv')).length },
+  const statCards = [
+    { n: stats.projects, l: 'PROJECTS', c: 'var(--mag)' },
+    { n: stats.featuresShipped, l: 'FEATURES SHIPPED', c: 'var(--cyan)' },
+    { n: stats.live, l: 'LIVE', c: 'var(--vio)' },
+    { n: stats.flowsPassing, l: 'FLOWS PASSING', c: 'var(--coral)' },
   ];
 
-  const statCards = [
-    { n: stats.projects, l: 'PROJECTS' },
-    { n: stats.featuresShipped, l: 'FEATURES SHIPPED' },
-    { n: stats.live, l: 'LIVE' },
-  ];
+  const distTotal = stageDist.reduce((n, s) => n + s.count, 0) || 1;
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      {/* ── HERO: title + tagline left, count-up stats right ── */}
+      <div className="mb-8 grid items-end gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
         <div>
-          <h1 className="font-display text-3xl font-extrabold tracking-tight text-zinc-50">Projects</h1>
-          <p className="mt-1 text-[13px] text-zinc-500">Every VAULT7A build — spec through shipped, tracked end to end.</p>
+          <h1 className="display pg">Projects</h1>
+          <p className="mt-3 text-[length:var(--t-lead)] leading-relaxed" style={{ color: 'var(--ink)', opacity: 0.82 }}>
+            Every VAULT7A build — spec through shipped, tracked end to end.
+          </p>
         </div>
-        <div className="flex gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {statCards.map((s) => (
-            <div key={s.l} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3.5 py-2">
-              <div className="mono text-[19px] font-bold leading-none text-zinc-100 tabular-nums">{s.n}</div>
-              <div className="mono text-[9.5px] tracking-widest text-zinc-500 mt-1.5">{s.l}</div>
+            <div key={s.l} className="numc min-w-[128px]" style={{ '--nc': s.c } as React.CSSProperties}>
+              <div className="n"><NumberTicker value={s.n} /></div>
+              <div className="l">{s.l}</div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Category filter */}
-      <div className="mb-4 flex gap-2">
-        {chips.map((c) => {
-          const active = cat === c.key;
+      {/* ── Stage filter (iter-12: replaces personal/cv classification) ── */}
+      <div className="mb-5 flex flex-wrap gap-2.5">
+        {stageChips.map((c) => {
+          const active = stage === c.key;
+          const hue = STAGE_HUES[c.key];
           return (
             <button
               key={c.key}
               type="button"
-              onClick={() => setCat(c.key)}
+              onClick={() => setStage(c.key)}
               className={
-                'mono text-[10px] font-semibold tracking-wide rounded-lg px-3 py-1.5 border transition-colors ' +
+                'mono text-[length:var(--t-label)] font-semibold tracking-wide rounded-lg px-4 py-2 border transition-colors ' +
                 (active
-                  ? 'text-zinc-100 border-white/15 bg-white/[0.06]'
-                  : 'text-zinc-500 border-[var(--color-border)] hover:text-zinc-300')
+                  ? 'text-zinc-50 border-white/20 bg-white/[0.08]'
+                  : 'text-zinc-400 border-white/[0.08] hover:text-zinc-100 hover:border-white/20')
               }
             >
-              {c.label}<span className="ml-1.5 opacity-50">{c.count}</span>
+              {hue && <span className="mr-2 inline-block size-2 rounded-full align-middle" style={{ background: hue }} />}
+              {c.key}<span className="ml-2 opacity-55 tabular-nums">{c.count}</span>
             </button>
           );
         })}
       </div>
 
       {/* Column header (desktop only) */}
-      <div className={`hidden ${COLS} gap-x-4 px-4 pb-2.5 mono text-[10.5px] font-semibold tracking-widest text-zinc-600`}>
+      <div className={`hidden ${COLS} gap-x-4 px-4 pb-3 mono text-[length:var(--t-cap)] font-bold tracking-widest text-zinc-400`}>
         <span>PROJECT</span>
+        <span className="hidden xl:block">OVERVIEW</span>
         <span>STAGE</span>
         <span>PROGRESS</span>
         <span>CATEGORY</span>
         <span>HEALTH</span>
+        <span>OPEN</span>
+        <span className="hidden xl:block">STACK</span>
         <span>LINKS</span>
         <span className="text-right">AGE</span>
         <span />
@@ -278,8 +350,61 @@ export function ProjectRegister({
       </ul>
 
       {filtered.length === 0 && (
-        <p className="mt-6 text-center text-sm text-zinc-600">No projects in this category.</p>
+        <p className="mt-6 text-center text-[length:var(--t-body)] text-zinc-500">No projects in this stage.</p>
       )}
+
+      {/* ── BELOW THE FOLD (iter-12: put the empty space to work) ── */}
+      <div className="mt-12 grid gap-4 lg:grid-cols-[1.15fr_.85fr] items-start">
+        {/* Recent activity across every project */}
+        <div className="card flat">
+          <div className="eyebrow" style={{ color: 'var(--mag)' }}>Recent activity</div>
+          {activity.length > 0 ? (
+            <ul className="flex flex-col">
+              {activity.map((a, i) => (
+                <li key={i} className="flex items-center gap-3.5 py-2.5" style={{ borderTop: i ? '1px solid var(--line)' : 'none' }}>
+                  <span className="size-2.5 shrink-0 rounded-full" style={{ ...accentStyle(a.accent), background: 'var(--accent)', boxShadow: '0 0 9px var(--accent-glow)' }} />
+                  <Link href={`/projects/${a.slug}`} className="mono text-[length:var(--t-cap)] font-semibold text-zinc-200 shrink-0 hover:underline">
+                    {a.name}
+                  </Link>
+                  <span className="flex-1 truncate text-[length:var(--t-label)] text-zinc-400">{a.note}</span>
+                  <span className="mono text-[length:var(--t-cap)] text-zinc-500 tabular-nums shrink-0">{a.when}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[length:var(--t-label)] text-zinc-500">No recorded activity yet.</p>
+          )}
+        </div>
+
+        {/* Pipeline distribution — where the portfolio sits */}
+        <div className="card flat">
+          <div className="eyebrow">Pipeline</div>
+          <div className="dist mb-4">
+            {stageDist.map((s) => (
+              <span
+                key={s.phase}
+                title={`${s.label} · ${s.count}`}
+                style={{ flex: s.count / distTotal, background: STAGE_HUES[s.label] ?? 'var(--vio)', opacity: 0.85 }}
+              />
+            ))}
+          </div>
+          <div className="flex flex-col gap-2.5">
+            {stageDist.map((s) => (
+              <button
+                key={s.phase}
+                type="button"
+                onClick={() => setStage(s.label)}
+                className="flex items-center gap-3 text-left group"
+              >
+                <span className="size-2.5 rounded-full shrink-0" style={{ background: STAGE_HUES[s.label] ?? 'var(--vio)' }} />
+                <span className="mono text-[length:var(--t-label)] text-zinc-300 group-hover:text-zinc-100 transition-colors">{s.label}</span>
+                <span className="ml-auto mono text-[length:var(--t-label)] font-bold text-zinc-200 tabular-nums">{s.count}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-4 text-[length:var(--t-cap)] text-zinc-500">Click a stage to filter the register.</p>
+        </div>
+      </div>
     </div>
   );
 }

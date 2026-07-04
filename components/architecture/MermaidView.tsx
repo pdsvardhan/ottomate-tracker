@@ -84,6 +84,9 @@ function DiagramViewport({
   const naturalSize = useRef<{ w: number; h: number } | null>(null);
   const userInteracted = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  // iter-13: narrow/tall diagrams no longer get the full row width (which left
+  // ~80% dead space) — the viewport is sized to the diagram's own aspect.
+  const [aspect, setAspect] = useState<number | null>(null);
 
   const fitToView = useCallback(() => {
     const utils = transformRef.current;
@@ -123,6 +126,9 @@ function DiagramViewport({
           const rect = svgEl.getBoundingClientRect();
           naturalSize.current = { w: rect.width, h: rect.height };
         }
+        if (naturalSize.current && naturalSize.current.h > 0) {
+          setAspect(naturalSize.current.w / naturalSize.current.h);
+        }
         requestAnimationFrame(() => requestAnimationFrame(() => {
           if (!cancelled) fitToView();
         }));
@@ -159,13 +165,22 @@ function DiagramViewport({
       minScale={0.2}
       maxScale={6}
       initialScale={1}
-      wheel={{ step: 0.08 }}
+      wheel={{ step: 0.035 }}
       doubleClick={{ mode: 'reset' }}
       onZoomStart={() => { userInteracted.current = true; }}
       onPanningStart={() => { userInteracted.current = true; }}
     >
       {(utils: ReactZoomPanPinchRef) => (
-        <div className="relative">
+        <div
+          className="relative mx-auto"
+          style={{
+            // Fit the frame to the diagram's shape (with a small breathing
+            // margin), never wider than the row. Fullscreen keeps full width.
+            width: !fullscreenActive && aspect
+              ? `min(100%, calc(${height} * ${(aspect * 1.12).toFixed(3)}))`
+              : '100%',
+          }}
+        >
           {/* Controls */}
           <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
             <ControlButton label="Zoom in" onClick={() => { userInteracted.current = true; utils.zoomIn(); }}>
@@ -192,6 +207,11 @@ function DiagramViewport({
           >
             <div ref={hostRef} className="mermaid-host [&_svg]:max-w-none" />
           </TransformComponent>
+
+          {/* usage hint — inside the frame, out of the way */}
+          <span className="pointer-events-none absolute bottom-2 left-3 z-10 font-mono text-[length:var(--t-cap)] text-zinc-500/80">
+            scroll to zoom · drag to pan · dbl-click resets
+          </span>
         </div>
       )}
     </TransformWrapper>
@@ -211,11 +231,8 @@ export function MermaidView({ source, filename }: { source: string; filename: st
 
   return (
     <>
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <h4 className="text-xs font-mono text-zinc-400 truncate">{filename}</h4>
-          <span className="text-[10px] text-zinc-600">scroll to zoom · drag to pan · dbl-click for 100%</span>
-        </div>
+      {/* iter-13: fake window chrome dropped — a clean panel, controls overlay only */}
+      <div className="rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-2">
         <DiagramViewport
           source={source}
           filename={filename}

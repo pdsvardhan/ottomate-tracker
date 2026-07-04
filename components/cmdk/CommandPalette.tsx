@@ -65,10 +65,13 @@ export function CommandPalette({ projects }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="hidden sm:flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors px-3 py-1.5 rounded-md border border-zinc-800 bg-zinc-900/40"
+        className="hidden sm:flex items-center gap-2.5 text-[length:var(--t-label)] text-zinc-400 hover:text-zinc-100 hover:border-zinc-600 transition-colors px-4 py-2 rounded-lg border border-zinc-700/80 bg-zinc-900/50"
       >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+          <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+        </svg>
         <span>Search</span>
-        <kbd className="text-[10px] font-mono bg-zinc-800 text-zinc-400 rounded px-1.5 py-0.5">⌘K</kbd>
+        <kbd className="text-[length:var(--t-cap)] font-mono bg-zinc-800 text-zinc-300 rounded px-2 py-0.5">⌘K</kbd>
       </button>
 
       {open && (

@@ -27,6 +27,12 @@ function ymd(value: unknown): string {
   if (!s) return '';
   return new Date(s * 1000).toISOString().slice(0, 10);
 }
+function monthYear(value: unknown): string {
+  const s = unix(value);
+  if (!s) return '—';
+  const d = new Date(s * 1000);
+  return `${d.toLocaleString('en-US', { month: 'short' })} ${d.getFullYear()}`;
+}
 
 const STAGE_LABEL: Record<string, string> = {
   ideating: 'SPEC', building: 'BUILD', shipped: 'SHIPPED', maintained: 'MAINTAINED', deprecated: 'ARCHIVED',
@@ -137,13 +143,14 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
       }
     : null;
 
+  // Hero stats curated (iter-13, owner feedback): recruiter-meaningful only.
+  // SUCCESS CRITERIA + NON-GOALS counts are build rails — capture-not-display
+  // (adr-017); flow coverage lives honestly in the Development tab instead.
   const numbers: { n: string | number; l: string }[] = [
     { n: activeFeatures.length, l: 'FEATURES' },
-    { n: success.length, l: 'SUCCESS CRITERIA' },
-    { n: nonGoals.length, l: 'NON-GOALS' },
     { n: adrs.length, l: 'DECISIONS' },
-    { n: `${coveragePct}%`, l: 'FLOW COVERAGE' },
     { n: iterations.length, l: 'ITERATIONS' },
+    { n: monthYear(project.created_at), l: 'STARTED' },
   ];
 
   const contextChips = [
@@ -178,7 +185,8 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     accent: projectAccent(project.slug),
     tagline: project.tagline ?? '',
     hook: project.short_description ?? project.core_idea ?? project.tagline ?? '',
-    tags: (project.tags ?? []) as string[],
+    // personal/cv retired from display (owner decision 2026-07-04) — tech tags only
+    tags: ((project.tags ?? []) as string[]).filter((t) => t !== 'personal' && t !== 'cv'),
     stageLabel: STAGE_LABEL[project.lifecycle_phase ?? 'building'] ?? 'BUILD',
     status: project.current_status ?? 'building',
     liveUrl: project.public_url ?? null,
