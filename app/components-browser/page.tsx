@@ -206,7 +206,9 @@ function ComponentCard({ component, hasShot, posterVer }: { component: typeof sc
             src={`/api/previews/${component.id}/shot.png${posterVer ? `?v=${posterVer}` : ''}`}
             alt={`${component.name} preview`}
             loading="lazy"
-            className="max-h-full max-w-full object-contain"
+            // w-full h-full + object-contain scales the tight-cropped poster UP to
+            // fill the card (centered), so small elements read big and clear.
+            className="h-full w-full object-contain"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[length:var(--t-cap)] uppercase tracking-wider text-zinc-700">
