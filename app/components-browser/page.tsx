@@ -16,6 +16,9 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { AddComponentModal } from '@/components/master-component/AddComponentModal';
 import { COMPONENT_CATEGORIES } from '@/lib/categories';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
+import { RATING_LABEL } from '@/components/master-component/RatingControl';
+
+const RATING_HUE: Record<string, string> = { A: 'var(--cyan)', B: 'var(--vio)', C: 'var(--amber)' };
 
 export const dynamic = 'force-dynamic';
 
@@ -103,10 +106,10 @@ export default async function ComponentsBrowser({
             className={FILTER_CONTROL_CLASSES + ' flex-1 min-w-[260px]'}
           />
           <select name="quality" defaultValue={quality ?? ''} className={FILTER_CONTROL_CLASSES}>
-            <option value="">— any quality —</option>
-            <option value="A">A only</option>
-            <option value="B">A+B</option>
-            <option value="C">C only</option>
+            <option value="">— any rating —</option>
+            <option value="A">Standout</option>
+            <option value="B">Solid</option>
+            <option value="C">Fine</option>
           </select>
           <select name="tag" defaultValue={tag ?? ''} className={FILTER_CONTROL_CLASSES}>
             <option value="">— any tag —</option>
@@ -213,7 +216,15 @@ function ComponentCard({ component, hasShot }: { component: typeof schema.master
       <div className="flex items-start justify-between gap-2 mb-3">
         <code className="text-[12.5px] font-mono text-zinc-500 truncate">{component.id}</code>
         <div className="flex items-center gap-1.5 shrink-0">
-          {quality ? <Badge variant="quality" grade={quality} /> : null}
+          {quality ? (
+            <span
+              className="mono text-[10px] font-semibold rounded px-1.5 py-0.5"
+              style={{ color: RATING_HUE[quality], border: `1px solid color-mix(in srgb, ${RATING_HUE[quality]} 40%, transparent)`, background: `color-mix(in srgb, ${RATING_HUE[quality]} 12%, transparent)` }}
+              title={`Rated ${RATING_LABEL[quality]}`}
+            >
+              {RATING_LABEL[quality]}
+            </span>
+          ) : null}
           {hasSource ? (
             <span
               className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.6)]"

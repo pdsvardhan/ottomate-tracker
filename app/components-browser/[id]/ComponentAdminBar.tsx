@@ -1,25 +1,17 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { SECONDARY_BUTTON_CLASSES } from '@/components/ui/FilterBar';
+import { useRouter } from 'next/navigation';
 
-/** Edit + Delete controls for a master_component detail page. Mutations use the
- *  sessionStorage('ottomate_token') -> Bearer convention shared with AddComponentModal. */
+/** Delete control for a master_component detail page (iter-15: Edit removed per
+ *  owner — delete is enough). Mutations use the sessionStorage('ottomate_token')
+ *  -> Bearer convention shared with AddComponentModal. */
 export function ComponentAdminBar({ id }: { id: string }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [, startTransition] = useTransition();
-
-  function openEdit() {
-    const next = new URLSearchParams(searchParams.toString());
-    next.set('action', 'edit');
-    router.replace(pathname + '?' + next.toString());
-  }
 
   async function handleDelete() {
     setError(null);
@@ -48,10 +40,6 @@ export function ComponentAdminBar({ id }: { id: string }) {
 
   return (
     <div className="mt-10 flex flex-wrap items-center gap-3">
-      <button type="button" onClick={openEdit} className={SECONDARY_BUTTON_CLASSES}>
-        Edit
-      </button>
-
       {confirming ? (
         <div className="flex items-center gap-2">
           <span className="text-xs text-rose-300">Delete {id} and its DB row?</span>

@@ -1,27 +1,30 @@
-// /components-browser/[id] — single component detail.
-// Reads source files from /asset-library/components/<id>/ and the inline-preview
-// manifest entry (iter-77), passing both to <LivePreview>, which serves the
-// prebuilt esbuild iframe, an HTML srcdoc, or a graceful reason-panel.
+// /components-browser/[id] — single component detail (iter-15 rebuild).
+// Cyber-Den restyle + de-cluttered per owner: dropped the raw id, quality badge,
+// free tags, Variants (2/132 populated), and Used-in-projects + the per-project
+// "mark this component" feedback widget (owner doesn't track usage). Added a
+// single global Rating control (Standout/Solid/Fine) and delete-only admin.
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import Link from 'next/link';
-import { asc, desc, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { getDb, schema } from '@/lib/db/client';
 import { getPreviewEntry } from '@/lib/previews';
-import { Badge } from '@/components/ui/Badge';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { COMPONENT_CATEGORIES } from '@/lib/categories';
 import { LivePreview } from './LivePreview';
-import { EditComponentModal } from './EditComponentModal';
 import { ComponentAdminBar } from './ComponentAdminBar';
-import { FeedbackWidget } from '@/components/master-component/FeedbackWidget';
-import { CATEGORY_IDS } from '@/lib/categories';
+import { RatingControl } from '@/components/master-component/RatingControl';
+import { ShaderBackground } from '@/components/project/ShaderBackground';
 
 export const dynamic = 'force-dynamic';
 
 const ASSET_ROOT = '/asset-library/components';
 const READABLE_EXT = new Set(['.tsx', '.ts', '.jsx', '.js', '.html', '.css', '.scss', '.md', '.json', '.pug']);
+
+const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
+  COMPONENT_CATEGORIES.map((c) => [c.id, c.label]),
+);
 
 interface SourceFile {
   name: string;
@@ -76,127 +79,70 @@ export default async function ComponentDetailPage({ params }: Ctx) {
   const files = await readComponentFiles(id, component.primary_file);
   const preview = await getPreviewEntry(id);
 
-  const projects = db
-    .select({ slug: schema.projects.slug, display_name: schema.projects.display_name })
-    .from(schema.projects)
-    .orderBy(asc(schema.projects.display_name))
-    .all();
-
-  const feedback = db
-    .select()
-    .from(schema.component_feedback)
-    .where(eq(schema.component_feedback.mc_id, id))
-    .orderBy(desc(schema.component_feedback.created_at))
-    .all();
-
-  const libraries = (
-    db
-      .selectDistinct({ library: schema.master_components.library })
-      .from(schema.master_components)
-      .all()
-      .map((r) => r.library)
-      .filter(Boolean) as string[]
-  ).sort();
-
-  const quality = (component.quality_grade ?? '') as 'A' | 'B' | 'C' | '';
+  const grade = (component.quality_grade ?? null) as 'A' | 'B' | 'C' | null;
+  const deps = (component.dependencies ?? []) as string[];
+  const frameworks = (component.framework_tags ?? []) as string[];
+  const catLabel = component.category ? (CATEGORY_LABEL[component.category] ?? component.category) : null;
 
   return (
-    <div className="px-8 py-10 max-w-6xl mx-auto">
-      <Link href="/components-browser" className="text-xs text-zinc-500 hover:text-cyan-300 transition-colors">
-        ← all components
-      </Link>
+    <div className="sc">
+      <ShaderBackground />
+      <div className="sc-veil" aria-hidden />
+      <div className="sc-scan" aria-hidden />
+      <div className="sc-grain" aria-hidden />
+      <div className="sc-wrap px-6 md:px-10 py-10 max-w-6xl mx-auto">
+        <Link href="/components-browser" className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--mute)' }}>
+          ← all components
+        </Link>
 
-      <div className="mt-3">
-        <PageHeader
-          title={component.name}
-          tagline={component.id}
-          meta={
-            <span className="inline-flex items-center gap-2 flex-wrap">
-              {component.category && <Badge variant="tag">{component.category}</Badge>}
-              {component.library && <Badge variant="library">{component.library}</Badge>}
-              {quality && <Badge variant="quality" grade={quality} />}
-              {((component.tags ?? []) as string[]).slice(0, 5).map((t) => (
-                <Badge key={t} variant="tag">{t}</Badge>
-              ))}
-            </span>
-          }
-          actions={
-            component.source_url ? (
-              <a
-                href={component.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-cyan-300 hover:text-cyan-100 transition-colors"
-              >
-                Open upstream →
+        {/* Header — name + category eyebrow + library; no raw id / quality / free tags */}
+        <header className="mt-4 mb-7">
+          {catLabel && <div className="eyebrow" style={{ color: 'var(--cyan)' }}>{catLabel}</div>}
+          <div className="flex items-end justify-between gap-4 flex-wrap">
+            <h1 className="display pg">{component.name}</h1>
+            {component.source_url && (
+              <a href={component.source_url} target="_blank" rel="noopener noreferrer"
+                className="mono text-[length:var(--t-label)] pb-2" style={{ color: 'var(--cyan)' }}>
+                open upstream ↗
               </a>
-            ) : null
-          }
-        />
+            )}
+          </div>
+          <div className="mt-4 flex items-center gap-3 flex-wrap">
+            {component.library && (
+              <span className="mono text-[length:var(--t-cap)] rounded-lg px-2.5 py-1" style={{ color: 'var(--ink)', background: 'rgba(12,11,28,.6)', border: '1px solid var(--line)' }}>
+                {component.library}
+              </span>
+            )}
+            <RatingControl id={component.id} initial={grade} />
+          </div>
+        </header>
+
+        {component.description && (
+          <p className="mb-8 text-[length:var(--t-lead)] leading-relaxed max-w-3xl" style={{ color: 'var(--ink)', opacity: 0.85 }}>
+            {component.description}
+          </p>
+        )}
+
+        {/* Live preview + source (tabs inside LivePreview) */}
+        <section className="mb-8">
+          <LivePreview componentId={component.id} files={files} preview={preview} />
+        </section>
+
+        {/* Metadata — only the useful, populated bits */}
+        <section className="grid gap-4 md:grid-cols-3">
+          <MetaCard label="Frameworks" values={frameworks} />
+          {deps.length > 0 && <MetaCard label="Requires" values={deps} />}
+          <MetaCard
+            label="Source file"
+            values={component.primary_file ? [component.primary_file] : []}
+            fallback={files[0]?.name ?? null}
+          />
+          <MetaCard label="Ingestion" values={[component.ingestion_method ?? '—']} />
+        </section>
+
+        {/* Delete-only admin (Edit removed per owner) */}
+        <ComponentAdminBar id={component.id} />
       </div>
-
-      {component.description && (
-        <p className="mb-8 text-sm text-zinc-400 leading-relaxed max-w-3xl">{component.description}</p>
-      )}
-
-      {/* Live preview pane */}
-      <section className="mb-8">
-        <LivePreview componentId={component.id} files={files} preview={preview} />
-      </section>
-
-      {/* Metadata grid */}
-      <section className="grid gap-4 md:grid-cols-3">
-        <MetaCard label="Frameworks" values={((component.framework_tags ?? []) as string[])} />
-        <MetaCard label="Variants" values={((component.variants ?? []) as string[])} />
-        <MetaCard label="Dependencies" values={((component.dependencies ?? []) as string[])} />
-        <MetaCard label="Used in projects" values={((component.used_in_projects ?? []) as string[])} />
-        <MetaCard
-          label="File on disk"
-          values={component.primary_file ? [component.primary_file] : []}
-          fallback={files[0]?.name ?? null}
-        />
-        <MetaCard
-          label="Ingestion"
-          values={[component.ingestion_method ?? '—']}
-        />
-      </section>
-
-      {/* Per-project feedback (iteration #5 item 39) */}
-      <section className="mt-10">
-        <FeedbackWidget
-          mcId={component.id}
-          projects={projects}
-          initialFeedback={feedback.map((f) => ({
-            id: f.id,
-            project_slug: f.project_slug,
-            verdict: f.verdict as 'good' | 'bad' | 'needs-fix' | 'classification-wrong',
-            note: f.note,
-            created_at: f.created_at instanceof Date ? f.created_at.getTime() / 1000 : (f.created_at ?? 0),
-          }))}
-        />
-      </section>
-
-      {/* Edit + Delete (iter-7 #55) */}
-      <ComponentAdminBar id={component.id} />
-
-      <EditComponentModal
-        component={{
-          id: component.id,
-          name: component.name,
-          category: component.category,
-          library: component.library,
-          quality_grade: component.quality_grade,
-          source_url: component.source_url,
-          preview_url: component.preview_url,
-          description: component.description,
-          primary_file: component.primary_file,
-          framework_tags: (component.framework_tags ?? []) as string[],
-          tags: (component.tags ?? []) as string[],
-          dependencies: (component.dependencies ?? []) as string[],
-        }}
-        categories={CATEGORY_IDS}
-        libraries={libraries}
-      />
     </div>
   );
 }
@@ -204,17 +150,14 @@ export default async function ComponentDetailPage({ params }: Ctx) {
 function MetaCard({ label, values, fallback }: { label: string; values: string[]; fallback?: string | null }) {
   const display = values.length > 0 ? values : fallback ? [fallback] : [];
   return (
-    <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl p-4">
-      <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2">{label}</div>
+    <div className="card flat">
+      <div className="mono text-[length:var(--t-cap)] uppercase tracking-wider mb-2" style={{ color: 'var(--dim)' }}>{label}</div>
       {display.length === 0 ? (
-        <span className="text-xs text-zinc-600">— none</span>
+        <span className="text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>— none</span>
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {display.map((v) => (
-            <span
-              key={v}
-              className="text-[11px] font-mono text-zinc-300 bg-zinc-900/60 rounded px-1.5 py-0.5 border border-zinc-800"
-            >
+            <span key={v} className="mono text-[length:var(--t-cap)] rounded px-2 py-0.5" style={{ color: 'var(--ink)', background: 'rgba(12,11,28,.6)', border: '1px solid var(--line)' }}>
               {v}
             </span>
           ))}

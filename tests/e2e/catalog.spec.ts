@@ -17,7 +17,6 @@ test('flow-component-detail-preview — detail shows preview/source tabs + admin
   await expect(page.getByRole('button', { name: 'Preview' })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Source/ })).toBeVisible();
   // iter-8 #55 edit/delete UI is present.
-  await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Delete' })).toBeVisible();
   // iter-8 #62 regression guard: the preview pane must not surface a hard
   // Sandpack dependency error for a self-contained component.
