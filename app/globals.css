@@ -170,15 +170,25 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
   color:#070811;background:linear-gradient(92deg,var(--mag),var(--coral));border-radius:999px;padding:5px 12px;
   box-shadow:0 0 24px rgba(255,61,139,.4)}
 
+/* hero link cards (iter-13 item 461): accent left-rail + glow + lift, live=cyan
+   / repo=amber, so they read as first-class buttons, not plain boxes. */
 .sc .lc{position:relative;overflow:hidden;text-decoration:none;display:block;
-  border:1px solid var(--line);border-radius:16px;padding:15px 17px;background:var(--scard2);
-  transition:transform .3s cubic-bezier(.2,.7,.2,1),border-color .3s}
-.sc .lc::before{content:"";position:absolute;inset:0;opacity:0;transition:.4s;
-  background:radial-gradient(120% 120% at 0% 0%,rgba(255,61,139,.16),transparent 60%)}
-.sc .lc:hover{transform:translateY(-4px);border-color:var(--mag)}
-.sc .lc:hover::before{opacity:1}
-.sc .lc .k{font-family:var(--scmono);font-size:var(--t-cap);color:var(--cyan);letter-spacing:.08em;text-transform:uppercase}
-.sc .lc .v{color:var(--ink);font-size:var(--t-body);margin-top:6px;font-weight:600;word-break:break-all}
+  border:1px solid var(--line);border-radius:16px;padding:16px 18px 16px 22px;background:var(--scard2);
+  transition:transform .3s cubic-bezier(.2,.7,.2,1),border-color .3s,box-shadow .3s}
+/* colored left rail */
+.sc .lc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,var(--cyan),transparent);opacity:.85;transition:width .3s}
+/* corner glow wash on hover */
+.sc .lc::after{content:"";position:absolute;inset:0;opacity:0;transition:.4s;
+  background:radial-gradient(130% 130% at 0% 0%,rgba(34,211,238,.16),transparent 60%)}
+.sc .lc:hover{transform:translateY(-4px);border-color:var(--cyan);box-shadow:0 16px 44px rgba(34,211,238,.16)}
+.sc .lc:hover::before{width:4px}
+.sc .lc:hover::after{opacity:1}
+.sc .lc .k{position:relative;z-index:1;font-family:var(--scmono);font-size:var(--t-cap);color:var(--cyan);letter-spacing:.08em;text-transform:uppercase}
+.sc .lc .v{position:relative;z-index:1;color:var(--ink);font-size:var(--t-body);margin-top:6px;font-weight:600;word-break:break-all}
+.sc .lc.repo::before{background:linear-gradient(180deg,var(--amber),transparent)}
+.sc .lc.repo::after{background:radial-gradient(130% 130% at 0% 0%,rgba(245,178,60,.16),transparent 60%)}
+.sc .lc.repo:hover{border-color:var(--amber);box-shadow:0 16px 44px rgba(245,178,60,.16)}
 .sc .lc.repo .k{color:var(--amber)}
 
 .sc .numc{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:15px;padding:15px 15px;background:var(--scard);transition:.35s}
