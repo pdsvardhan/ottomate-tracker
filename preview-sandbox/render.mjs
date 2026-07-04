@@ -54,7 +54,20 @@ for (const b of targets) {
         maxArea = Math.max(maxArea, area); sumArea += area; paintedCount++;
       });
       const txt = (root?.innerText || '').trim();
-      return { coverage: total ? hits / total : 0, textLen: txt.length, maxArea, sumArea, paintedCount, renderError: window.__renderError ?? document.body.getAttribute('data-render-error'), noexport: window.__noexport === true };
+      // iter-15: content bounding box (union of painted elements) so the poster
+      // can be CROPPED tight to the actual element instead of a mostly-empty
+      // 900x600 canvas — owner: "just want it cropped and visible".
+      let bx0 = W, by0 = H, bx1 = 0, by1 = 0, anyBox = false;
+      if (root) root.querySelectorAll('*').forEach((e) => {
+        if (!painted(e)) return;
+        const r = e.getBoundingClientRect();
+        if (r.width < 4 || r.height < 4) return;
+        const x0 = Math.max(0, r.left), y0 = Math.max(0, r.top), x1 = Math.min(W, r.right), y1 = Math.min(H, r.bottom);
+        if (x1 <= x0 || y1 <= y0) return;
+        bx0 = Math.min(bx0, x0); by0 = Math.min(by0, y0); bx1 = Math.max(bx1, x1); by1 = Math.max(by1, y1); anyBox = true;
+      });
+      const bbox = anyBox ? { x: bx0, y: by0, w: bx1 - bx0, h: by1 - by0 } : null;
+      return { coverage: total ? hits / total : 0, textLen: txt.length, maxArea, sumArea, paintedCount, bbox, renderError: window.__renderError ?? document.body.getAttribute('data-render-error'), noexport: window.__noexport === true };
     });
     const hadError = errors.some((e) => /TypeError|ReferenceError|is not|undefined|Cannot read|not a function/.test(e));
     // iter-36 #278 honest render-check: live = painted ANY real visible DOM (small controls incl.), not a coverage threshold.
@@ -65,7 +78,20 @@ for (const b of targets) {
     else if (meaningful) { res.status = 'live'; }
     else if (hadError) { res.status = 'needs-props'; res.detail = (errors.find((e) => /TypeError|Cannot read|undefined|is not/.test(e)) || res.detail).slice(0, 160); }
     else { res.status = 'empty'; res.detail = 'mounted but visually empty (' + res.detail + ')'; }
-    await page.screenshot({ path: path.join(BUILD, b.id, 'shot.png') }).catch(() => {});
+    // Crop the poster to the content bbox (+ padding), clamped to the viewport,
+    // so small elements fill the thumbnail and huge ones are cropped sensibly.
+    let clip;
+    const bb = m.bbox;
+    if (bb && bb.w > 24 && bb.h > 24 && !(bb.w > 860 && bb.h > 560)) {
+      const padX = Math.max(14, bb.w * 0.1), padY = Math.max(14, bb.h * 0.1);
+      const x = Math.max(0, Math.floor(bb.x - padX));
+      const y = Math.max(0, Math.floor(bb.y - padY));
+      const width = Math.min(900 - x, Math.ceil(bb.w + padX * 2));
+      const height = Math.min(600 - y, Math.ceil(bb.h + padY * 2));
+      if (width > 24 && height > 24) clip = { x, y, width, height };
+    }
+    await page.screenshot({ path: path.join(BUILD, b.id, 'shot.png'), clip }).catch(() =>
+      page.screenshot({ path: path.join(BUILD, b.id, 'shot.png') }).catch(() => {}));
   } catch (e) {
     res.status = 'error';
     res.detail = String((e && e.message) || e).slice(0, 200);

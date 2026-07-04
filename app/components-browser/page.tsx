@@ -194,9 +194,8 @@ function ComponentCard({ component, hasShot }: { component: typeof schema.master
 
   return (
     <SpotlightCard href={`/components-browser/${component.id}`}>
-      {/* Inline-preview poster thumbnail (iter-77; iter-14: taller + object-contain
-          so the whole rendered element is visible, was h-32 object-cover object-top
-          which cropped most previews to a blank top strip — 'cant see shit') */}
+      {/* Static poster thumbnail (iter-15): posters are now CROPPED tight to the
+          content by render.mjs, so object-contain shows the element clearly. */}
       <div className="mb-3 -mt-1 grid place-items-center overflow-hidden rounded-lg border border-zinc-800/80 bg-[#0b0b12] h-48 p-2">
         {hasShot ? (
           // eslint-disable-next-line @next/next/no-img-element
