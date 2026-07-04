@@ -422,7 +422,7 @@ export const overrides: Record<string, Fixture> = {
         </KReelOverlay>
       </>
     ),
-    theme: 'light',
+    theme: 'dark',
   },
 
   // RelativeTime -- multiple time zones with date + clock.
