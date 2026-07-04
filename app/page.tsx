@@ -131,8 +131,10 @@ export default async function HomePage() {
   }
   const stackMap = new Map<string, string[]>();
   for (const t of stacks) {
-    const chips = [t.framework, t.database, t.styling].filter(Boolean) as string[];
-    stackMap.set(t.slug, chips.slice(0, 3));
+    // Register shows framework + database (the identifying pair); styling +
+    // testing live on the project's Engineering tab.
+    const chips = [t.framework, t.database].filter(Boolean) as string[];
+    stackMap.set(t.slug, chips);
   }
   const lastChange = new Map<string, { text: string; at: number }>();
   for (const e of events) {

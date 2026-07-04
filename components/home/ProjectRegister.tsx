@@ -131,10 +131,10 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           </span>
         </div>
 
-        {/* STACK (xl+) — real values backfilled iter-14 */}
-        <div className="hidden xl:flex flex-wrap items-center gap-1.5 min-w-0">
+        {/* STACK (xl+) — real values backfilled iter-14 (framework + database) */}
+        <div className="hidden xl:flex flex-col items-start gap-1 min-w-0">
           {row.stack.length > 0 ? row.stack.map((s) => (
-            <span key={s} className="mono text-[length:var(--t-cap)] text-zinc-300 rounded border border-white/10 bg-black/25 px-2 py-0.5 truncate max-w-[104px]">{s}</span>
+            <span key={s} className="mono text-[length:var(--t-cap)] text-zinc-300 rounded border border-white/10 bg-black/25 px-2 py-0.5 truncate max-w-full">{s}</span>
           )) : <span className="text-zinc-700">—</span>}
         </div>
 
