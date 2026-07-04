@@ -142,7 +142,7 @@ const orbitingChildren = [
  * "Confetti" heading behind it; Confetti renders its children after the canvas.
  * ------------------------------------------------------------------------- */
 const confettiHeading = (
-  <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-gradient-to-b from-black to-gray-300/80 bg-clip-text text-center text-8xl leading-none font-semibold whitespace-pre-wrap text-transparent">
+  <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-gradient-to-b from-white to-gray-500/70 bg-clip-text text-center text-8xl leading-none font-semibold whitespace-pre-wrap text-transparent">
     Confetti
   </span>
 );
@@ -153,14 +153,14 @@ export const overrides: Record<string, any> = {
     props: { containerRef: beamContainerRef, fromRef: beamFromRef, toRef: beamToRef, duration: 3, gradientStartColor: '#ffaa40', gradientStopColor: '#9c40ff' },
     children: null,
     wrap: true,
-    theme: 'light',
+    theme: 'dark',
   },
 
   // --- AnimatedCircularProgressBar: upstream demo counts; show a filled gauge.
   'mc-animated-circular-progress': {
-    props: { value: 70, max: 100, min: 0, gaugePrimaryColor: 'rgb(79 70 229)', gaugeSecondaryColor: 'rgba(0, 0, 0, 0.1)' },
+    props: { value: 70, max: 100, min: 0, gaugePrimaryColor: 'rgb(129 140 248)', gaugeSecondaryColor: 'rgba(255, 255, 255, 0.12)' },
     children: null,
-    theme: 'light',
+    theme: 'dark',
   },
 
   // --- AnimatedGridPattern: background SVG; upstream props + masked skew. Dark.
@@ -187,7 +187,7 @@ export const overrides: Record<string, any> = {
     props: { className: 'absolute top-0 left-0 z-0 size-full' },
     children: confettiHeading,
     wrap: true,
-    theme: 'light',
+    theme: 'dark',
   },
 
   // --- Dock: MacOS dock with brand icon chips. Light.
@@ -235,14 +235,14 @@ export const overrides: Record<string, any> = {
   'mc-marquee': {
     props: { pauseOnHover: true, className: '[--duration:20s]' },
     children: marqueeChildren,
-    theme: 'light',
+    theme: 'dark',
   },
 
   // --- NumberTicker: large counting number (upstream value 100). Light.
   'mc-number-ticker': {
-    props: { value: 100, className: 'text-8xl font-medium tracking-tighter whitespace-pre-wrap text-black' },
+    props: { value: 100, className: 'text-8xl font-medium tracking-tighter whitespace-pre-wrap text-white' },
     children: null,
-    theme: 'light',
+    theme: 'dark',
   },
 
   // --- OrbitingCircles: brand icons orbiting a path. Light.

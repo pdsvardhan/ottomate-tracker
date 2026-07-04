@@ -130,7 +130,22 @@ function htmlFor(js) {
 /* iter-11 follow-up: shadcn design-token utilities. cdn.tailwindcss.com has no
    shadcn config, so bg-background/bg-primary/etc. are otherwise undefined and
    such components (e.g. mc-mini-calendar) render light. Fill them with dark values. */
-.bg-background{background-color:#0a0a0f}.bg-card,.bg-popover{background-color:#18181b}.bg-primary{background-color:#6366f1}.bg-secondary,.bg-accent{background-color:#27272a}.bg-muted{background-color:#1f1f23}.text-foreground{color:#e4e4e7}.text-muted-foreground{color:#a1a1aa}.text-primary-foreground{color:#fff}.text-accent-foreground{color:#e4e4e7}.border-border{border-color:#27272a}</style>
+.bg-background{background-color:#0a0a0f}.bg-card,.bg-popover{background-color:#18181b}.bg-primary{background-color:#6366f1}.bg-secondary,.bg-accent{background-color:#27272a}.bg-muted{background-color:#1f1f23}.text-foreground{color:#e4e4e7}.text-muted-foreground{color:#a1a1aa}.text-primary-foreground{color:#fff}.text-accent-foreground{color:#e4e4e7}.border-border{border-color:#27272a}
+/* iter-15: aceternity/magicui custom keyframes. cdn.tailwindcss.com ships no
+   tailwind.config, so animate-spotlight/meteor/aurora/marquee are undefined and
+   those components sit in their initial (often invisible) state. Define them. */
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(calc(-100% - var(--gap,1rem)))}}
+@keyframes marquee-vertical{from{transform:translateY(0)}to{transform:translateY(calc(-100% - var(--gap,1rem)))}}
+.animate-marquee{animation:marquee var(--duration,40s) linear infinite}
+.animate-marquee-vertical{animation:marquee-vertical var(--duration,40s) linear infinite}
+@keyframes spotlight{0%{opacity:0;transform:translate(-72%,-62%) scale(.5)}100%{opacity:1;transform:translate(-50%,-40%) scale(1)}}
+.animate-spotlight{animation:spotlight 2s ease .75s 1 forwards}
+@keyframes meteor-effect{0%{transform:rotate(215deg) translateX(0);opacity:1}70%{opacity:1}100%{transform:rotate(215deg) translateX(-500px);opacity:0}}
+.animate-meteor-effect{animation:meteor-effect 5s linear infinite}
+@keyframes aurora{0%{background-position:50% 50%,50% 50%}100%{background-position:350% 50%,350% 50%}}
+.animate-aurora{animation:aurora 60s linear infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.animate-shimmer{animation:shimmer 2s linear infinite}</style>
 </head><body><div id="root"></div><script>${js}</script></body></html>`;
 }
 
