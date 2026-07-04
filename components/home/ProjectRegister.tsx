@@ -68,13 +68,13 @@ function href(url: string): string {
 }
 
 // HEALTH pill (iter-16): the old "◇ n/n  ⚑ n" symbols were unreadable (owner
-// feedback). Collapse flows + open-risks into one plain-word status pill with a
-// tooltip that spells out the raw numbers.
+// feedback). One plain-word status pill driven by OPEN RISKS, with a tooltip that
+// spells out the raw numbers. Flows are NOT scored — most are simply untested
+// (not failing), so counting them would wrongly flag healthy projects red.
 function healthOf(row: RegisterRow): { label: string; hue: string; tip: string } {
-  const rate = row.flowsTotal > 0 ? row.flowsPassing / row.flowsTotal : null;
   const tip = `Flows passing ${row.flowsPassing}/${row.flowsTotal} · Open risks ${row.risksOpen}`;
-  if (row.risksOpen >= 3 || (rate !== null && rate < 0.34)) return { label: 'At risk', hue: 'var(--coral)', tip };
-  if (row.risksOpen >= 1 || (rate !== null && rate < 1)) return { label: 'Watch', hue: 'var(--amber)', tip };
+  if (row.risksOpen >= 5) return { label: 'At risk', hue: 'var(--coral)', tip };
+  if (row.risksOpen >= 2) return { label: 'Watch', hue: 'var(--amber)', tip };
   return { label: 'Healthy', hue: '#34d399', tip };
 }
 
