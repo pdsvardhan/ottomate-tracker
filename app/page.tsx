@@ -56,7 +56,14 @@ export default async function HomePage() {
     .orderBy(desc(schema.skill_events.event_at)).limit(80).all();
   const policies = db.select({ slug: schema.policies.project_slug, exposure: schema.policies.exposure })
     .from(schema.policies).all();
-  const stacks = db.select().from(schema.tech_stacks).all();
+  // Column-scoped select: at least one tech_stacks row carries malformed JSON
+  // in testing_libs ("vitest 2.1…") — full-row select would JSON.parse it and 500.
+  const stacks = db.select({
+    slug: schema.tech_stacks.project_slug,
+    framework: schema.tech_stacks.framework,
+    database: schema.tech_stacks.database,
+    styling: schema.tech_stacks.styling,
+  }).from(schema.tech_stacks).all();
   const pendingReports = db.select({ slug: schema.reports.project_slug, status: schema.reports.status })
     .from(schema.reports).where(eq(schema.reports.status, 'pending')).all();
 
@@ -97,7 +104,7 @@ export default async function HomePage() {
   const stackMap = new Map<string, string[]>();
   for (const t of stacks) {
     const chips = [t.framework, t.database, t.styling].filter(Boolean) as string[];
-    stackMap.set(t.project_slug, chips.slice(0, 3));
+    stackMap.set(t.slug, chips.slice(0, 3));
   }
   const lastChange = new Map<string, { text: string; at: number }>();
   for (const e of events) {
