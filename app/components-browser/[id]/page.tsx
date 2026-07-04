@@ -15,6 +15,7 @@ import { ComponentAdminBar } from './ComponentAdminBar';
 import { RatingControl } from '@/components/master-component/RatingControl';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
 import { BackButton } from '@/components/ui/BackButton';
+import { SpotlightCard } from '@/components/ui/SpotlightCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -163,8 +164,10 @@ function MetaCard({
   linkLabel?: string | null;
 }) {
   const display = values.length > 0 ? values : fallback ? [fallback] : [];
+  // iter-16 (owner d082): meta panels now use our SpotlightCard surface
+  // (glass + cursor-following spotlight) instead of a flat box.
   return (
-    <div className="card flat" style={{ borderColor: 'var(--line)' }}>
+    <SpotlightCard className="!p-5">
       <div className="mono text-[length:var(--t-cap)] uppercase tracking-wider mb-2.5" style={{ color: 'var(--dim)' }}>{label}</div>
       {link ? (
         <a
@@ -187,6 +190,6 @@ function MetaCard({
           ))}
         </div>
       )}
-    </div>
+    </SpotlightCard>
   );
 }

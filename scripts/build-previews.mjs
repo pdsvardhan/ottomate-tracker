@@ -127,6 +127,8 @@ function htmlFor(js) {
   return `<!doctype html><html class="dark"><head><meta charset="utf-8">
 <script>window.process={env:{NODE_ENV:'production'}};window.global=window;</script><script src="https://cdn.tailwindcss.com"></script>
 <style>html,body{margin:0;background:#0a0a0f;color:#e4e4e7;font-family:system-ui,sans-serif}#root{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}#root>*{max-width:100%}
+/* iter-16: modern thin scrollbar so React-bundle iframes match the app UI */
+html{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:8px}::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.28)}
 /* iter-11 follow-up: shadcn design-token utilities. cdn.tailwindcss.com has no
    shadcn config, so bg-background/bg-primary/etc. are otherwise undefined and
    such components (e.g. mc-mini-calendar) render light. Fill them with dark values. */
@@ -196,7 +198,7 @@ async function buildHtmlPreview(dir, dirFiles) {
   // Base dark bg (iter-11): catalog is dark-themed; codepen exports assume the
   // pen's own background which isn't in the export. Placed BEFORE component css
   // so a component that sets its own body background still overrides it.
-  const headInject = `${cdns}\n<style>html,body{margin:0;background:#0a0a0f;color:#e4e4e7}\n${css}</style>`;
+  const headInject = `${cdns}\n<style>html,body{margin:0;background:#0a0a0f;color:#e4e4e7}html{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:8px}::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.28)}\n${css}</style>`;
   const jsInject = isModuleJs
     ? `<script type="module">\n${js}\n</script>`
     : `<script>window.addEventListener('load',function(){try{\n${js}\n}catch(e){console.error(e)}});</script>`;
