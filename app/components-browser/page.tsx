@@ -199,16 +199,16 @@ function ComponentCard({ component, hasShot, posterVer }: { component: typeof sc
     <SpotlightCard href={`/components-browser/${component.id}`}>
       {/* Static poster thumbnail (iter-15): posters are now CROPPED tight to the
           content by render.mjs, so object-contain shows the element clearly. */}
-      <div className="mb-3 -mt-1 grid place-items-center overflow-hidden rounded-lg border border-zinc-800/80 bg-[#0b0b12] h-48 p-2">
+      <div className="mb-3 -mt-1 flex items-center justify-center overflow-hidden rounded-lg border border-zinc-800/80 bg-[#0b0b12] h-48 p-3">
         {hasShot ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={`/api/previews/${component.id}/shot.png${posterVer ? `?v=${posterVer}` : ''}`}
             alt={`${component.name} preview`}
             loading="lazy"
-            // w-full h-full + object-contain scales the tight-cropped poster UP to
-            // fill the card (centered), so small elements read big and clear.
-            className="h-full w-full object-contain"
+            // Fit-within + centered: the tight-cropped poster shows whole (never
+            // clipped), scaled down only if bigger than the card.
+            className="max-h-full max-w-full object-contain"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[length:var(--t-cap)] uppercase tracking-wider text-zinc-700">
