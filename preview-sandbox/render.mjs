@@ -60,6 +60,12 @@ for (const b of targets) {
       let bx0 = W, by0 = H, bx1 = 0, by1 = 0, anyBox = false;
       if (root) root.querySelectorAll('*').forEach((e) => {
         if (!painted(e)) return;
+        // A <canvas> is often a full-viewport overlay (confetti / particles) that
+        // is transparent at rest — counting it blows the bbox up to the whole
+        // canvas. Skip it: a genuine canvas visual then has an empty bbox and
+        // falls back to the full screenshot (correct); a button behind a confetti
+        // canvas crops to the button.
+        if ((e.tagName || '').toUpperCase() === 'CANVAS') return;
         const r = e.getBoundingClientRect();
         if (r.width < 4 || r.height < 4) return;
         const x0 = Math.max(0, r.left), y0 = Math.max(0, r.top), x1 = Math.min(W, r.right), y1 = Math.min(H, r.bottom);
