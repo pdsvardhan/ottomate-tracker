@@ -38,23 +38,29 @@ export function ComponentAdminBar({ id }: { id: string }) {
     }
   }
 
+  // Danger zone (iter-16): prominent, clearly-scoped delete; the dev-only
+  // "bearer token" hint was removed from the showcase.
   return (
-    <div className="mt-10 flex flex-wrap items-center gap-3">
+    <div className="mt-12 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-rose-500/25 bg-rose-500/[0.04] px-4 py-3">
+      <div className="flex flex-col gap-0.5">
+        <span className="text-[length:var(--t-label)] font-semibold text-rose-200">Danger zone</span>
+        <span className="text-[length:var(--t-cap)] text-zinc-500">Permanently remove this component and its database row.</span>
+      </div>
       {confirming ? (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-rose-300">Delete {id} and its DB row?</span>
+        <div className="flex items-center gap-2.5">
+          <span className="text-[length:var(--t-cap)] text-rose-300">Delete {id}?</span>
           <button
             type="button"
             onClick={handleDelete}
             disabled={deleting}
-            className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-200 hover:bg-rose-500/20 disabled:opacity-50 transition-colors"
+            className="rounded-lg border border-rose-500/60 bg-rose-500/20 px-4 py-2 text-[length:var(--t-label)] font-semibold text-rose-100 hover:bg-rose-500/30 disabled:opacity-50 transition-colors"
           >
             {deleting ? 'Deleting…' : 'Confirm delete'}
           </button>
           <button
             type="button"
             onClick={() => setConfirming(false)}
-            className="text-xs text-zinc-400 hover:text-zinc-200"
+            className="text-[length:var(--t-cap)] text-zinc-400 hover:text-zinc-200"
           >
             Cancel
           </button>
@@ -63,17 +69,13 @@ export function ComponentAdminBar({ id }: { id: string }) {
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="rounded-lg border border-rose-500/30 px-3 py-1.5 text-xs text-rose-300/80 hover:bg-rose-500/10 hover:text-rose-200 transition-colors"
+          className="shrink-0 rounded-lg border border-rose-500/50 bg-rose-500/15 px-4 py-2 text-[length:var(--t-label)] font-semibold text-rose-200 hover:bg-rose-500/25 hover:text-rose-100 transition-colors"
         >
-          Delete
+          Delete component
         </button>
       )}
 
-      {error ? <span className="text-xs text-rose-300">{error}</span> : null}
-
-      <span className="ml-auto text-[11px] text-zinc-600">
-        Mutations require the bearer token in <code className="font-mono">sessionStorage.ottomate_token</code>.
-      </span>
+      {error ? <span className="w-full text-[length:var(--t-cap)] text-rose-300">{error}</span> : null}
     </div>
   );
 }

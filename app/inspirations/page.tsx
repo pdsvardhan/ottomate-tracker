@@ -6,8 +6,8 @@ import { asc } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { SpotlightCard } from '@/components/ui/SpotlightCard';
 import { Badge } from '@/components/ui/Badge';
-import { FilterBar, FILTER_CONTROL_CLASSES, PRIMARY_BUTTON_CLASSES } from '@/components/ui/FilterBar';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { BackButton } from '@/components/ui/BackButton';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
 
 export const dynamic = 'force-dynamic';
@@ -42,11 +42,6 @@ export default async function InspirationsPage({
     return true;
   });
 
-  const domains = Array.from(new Set(all.map((i) => i.domain).filter(Boolean))).sort() as string[];
-  const sourceTypes = Array.from(new Set(all.map((i) => i.source_type))).sort();
-  const allTags = Array.from(new Set(all.flatMap((i) => (i.style_tags ?? []) as string[]))).sort();
-  const withThumb = all.filter((i) => (i.thumbnail_url ?? '').trim().length > 0).length;
-
   return (
     <div className="sc">
       <ShaderBackground />
@@ -54,60 +49,20 @@ export default async function InspirationsPage({
       <div className="sc-scan" aria-hidden />
       <div className="sc-grain" aria-hidden />
       <div className="sc-wrap px-6 md:px-10 py-10">
-        {/* Cyber-Den header (iter-14) */}
-        <div className="mb-7">
-          <div className="eyebrow" style={{ color: 'var(--vio)' }}>Visual references</div>
-          <h1 className="display pg">Inspirations</h1>
-          <p className="mt-3 text-[length:var(--t-lead)]" style={{ color: 'var(--ink)', opacity: 0.82 }}>
-            References that shape Stage 2 UI master plans ·{' '}
-            <span className="font-semibold" style={{ color: 'var(--ink)' }}>{filtered.length}</span> of {all.length} shown · {withThumb} with thumbnail
-          </p>
+        {/* Header (iter-16): dropped the eyebrow, count line, and the whole
+            filter form; added the shared back button left of the title. */}
+        <div className="mb-8 flex items-center gap-4 flex-wrap">
+          <BackButton href="/" label="Home" />
+          <h1 className="display pg leading-none">Inspirations</h1>
         </div>
-
-      <FilterBar>
-        <input
-          type="search"
-          name="q"
-          defaultValue={q ?? ''}
-          placeholder="Search by title, tag, notes…"
-          className={FILTER_CONTROL_CLASSES + ' flex-1 min-w-[260px]'}
-        />
-        <select name="domain" defaultValue={domain ?? ''} className={FILTER_CONTROL_CLASSES}>
-          <option value="">— any domain —</option>
-          {domains.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-        <select name="source_type" defaultValue={source_type ?? ''} className={FILTER_CONTROL_CLASSES}>
-          <option value="">— any source —</option>
-          {sourceTypes.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select name="tag" defaultValue={tag ?? ''} className={FILTER_CONTROL_CLASSES}>
-          <option value="">— any tag —</option>
-          {allTags.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <button type="submit" className={PRIMARY_BUTTON_CLASSES}>
-          Filter
-        </button>
-      </FilterBar>
 
       {filtered.length === 0 ? (
         <EmptyState
-          title="No inspirations match"
-          body="Loosen the filters above, or add a new reference via POST /api/inspirations."
+          title="No inspirations yet"
+          body="Add a new reference via POST /api/inspirations."
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((insp) => (
             <InspirationCard key={insp.id} insp={insp} />
           ))}

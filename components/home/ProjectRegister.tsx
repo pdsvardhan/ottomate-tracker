@@ -46,10 +46,13 @@ export interface ActivityLine {
 
 // md: 8 cols · lg: 9 (+Summary) · xl: 10 (+Stack). Hidden cells drop out of grid
 // flow (display:none) so the visible-child count matches each breakpoint's tracks.
+// iter-16 (owner feedback 2026-07-05): PROJECT −40%, SUMMARY −30% (now wraps to
+// 2 lines instead of truncating), STACK −50%, PROGRESS + LINKS widened (LINKS
+// was crowding AGE).
 const COLS =
-  'md:grid md:grid-cols-[minmax(180px,1fr)_84px_146px_96px_104px_120px_48px_28px] ' +
-  'lg:grid-cols-[minmax(180px,.85fr)_minmax(0,1.25fr)_84px_146px_96px_104px_120px_48px_28px] ' +
-  'xl:grid-cols-[minmax(170px,.78fr)_minmax(0,1.05fr)_84px_146px_96px_104px_minmax(110px,.7fr)_120px_48px_28px] ' +
+  'md:grid md:grid-cols-[minmax(160px,1fr)_84px_184px_96px_112px_150px_52px_28px] ' +
+  'lg:grid-cols-[minmax(140px,.55fr)_minmax(0,.9fr)_84px_184px_96px_112px_150px_52px_28px] ' +
+  'xl:grid-cols-[minmax(120px,.5fr)_minmax(0,.75fr)_84px_184px_96px_112px_minmax(64px,.35fr)_150px_52px_28px] ' +
   'md:items-center';
 
 const STAGE_HUES: Record<string, string> = {
@@ -64,8 +67,20 @@ function href(url: string): string {
   return url.startsWith('http') ? url : `https://${url}`;
 }
 
+// HEALTH pill (iter-16): the old "◇ n/n  ⚑ n" symbols were unreadable (owner
+// feedback). Collapse flows + open-risks into one plain-word status pill with a
+// tooltip that spells out the raw numbers.
+function healthOf(row: RegisterRow): { label: string; hue: string; tip: string } {
+  const rate = row.flowsTotal > 0 ? row.flowsPassing / row.flowsTotal : null;
+  const tip = `Flows passing ${row.flowsPassing}/${row.flowsTotal} · Open risks ${row.risksOpen}`;
+  if (row.risksOpen >= 3 || (rate !== null && rate < 0.34)) return { label: 'At risk', hue: 'var(--coral)', tip };
+  if (row.risksOpen >= 1 || (rate !== null && rate < 1)) return { label: 'Watch', hue: 'var(--amber)', tip };
+  return { label: 'Healthy', hue: '#34d399', tip };
+}
+
 function Row({ row, index }: { row: RegisterRow; index: number }) {
   const [open, setOpen] = useState(false);
+  const health = healthOf(row);
   return (
     <li
       className="a-fade-up reg-row group border-t border-white/[0.07] last:border-b transition-colors hover:bg-white/[0.025]"
@@ -89,9 +104,9 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           <div className="font-display text-[length:var(--t-title)] font-bold text-zinc-50 truncate leading-tight">{row.name}</div>
         </div>
 
-        {/* SUMMARY — the one-liner (lg+) */}
-        <div className="hidden lg:block min-w-0 pr-2">
-          <p className="text-[length:var(--t-label)] leading-snug text-zinc-300/90 truncate">{row.summary}</p>
+        {/* SUMMARY — wraps to 2 lines instead of truncating (iter-16) */}
+        <div className="hidden lg:block min-w-0 pr-3">
+          <p className="text-[length:var(--t-label)] leading-snug text-zinc-300/90 line-clamp-2">{row.summary}</p>
         </div>
 
         {/* STAGE */}
@@ -102,10 +117,10 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           {row.stageLabel}
         </div>
 
-        {/* PROGRESS — labelled 'feats' so it self-explains (iter-14) */}
+        {/* PROGRESS — 'features' spelled out (iter-16), wider column */}
         <div className="flex items-center gap-2.5 mono text-[length:var(--t-label)] font-semibold text-zinc-200 basis-full md:basis-auto order-last md:order-none" title="features complete">
           <span className="tabular-nums shrink-0">{row.total > 0 ? `${row.done}/${row.total}` : '—'}</span>
-          <span className="text-[length:var(--t-cap)] text-zinc-500 shrink-0">feats</span>
+          <span className="text-[length:var(--t-cap)] text-zinc-500 shrink-0">features</span>
           <span className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden">
             <span className="block h-full rounded-full" style={{ width: `${row.pct}%`, background: 'var(--accent)' }} />
           </span>
@@ -123,11 +138,15 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           </span>
         </div>
 
-        {/* HEALTH */}
-        <div className="hidden md:flex items-center gap-2.5 mono text-[length:var(--t-cap)] text-zinc-400">
-          <span title="flows passing / total">◇ {row.flowsPassing}/{row.flowsTotal}</span>
-          <span className={row.risksOpen > 0 ? 'text-[var(--color-risk)]' : 'text-zinc-600'} title="open risks">
-            ⚑ {row.risksOpen}
+        {/* HEALTH — single plain-word status pill (iter-16) */}
+        <div className="hidden md:flex items-center">
+          <span
+            className="inline-flex items-center gap-1.5 mono text-[length:var(--t-cap)] rounded-full border px-2.5 py-1 whitespace-nowrap"
+            style={{ color: health.hue, borderColor: `color-mix(in srgb, ${health.hue} 40%, transparent)`, background: `color-mix(in srgb, ${health.hue} 12%, transparent)` }}
+            title={health.tip}
+          >
+            <span className="size-1.5 rounded-full" style={{ background: health.hue, boxShadow: `0 0 7px ${health.hue}` }} />
+            {health.label}
           </span>
         </div>
 
@@ -192,7 +211,8 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
         </div>
         <div className="p-4">
           <div className="mono text-[length:var(--t-cap)] font-semibold tracking-widest text-zinc-500 mb-2">OVERVIEW</div>
-          <p className="text-[length:var(--t-label)] leading-relaxed text-zinc-300">{row.blurb || row.summary || 'No summary yet.'}</p>
+          {/* clamp long blurbs (iter-16) — concise per-project copy is a ph1 task */}
+          <p className="text-[length:var(--t-label)] leading-relaxed text-zinc-300 line-clamp-4">{row.blurb || row.summary || 'No summary yet.'}</p>
           {row.tags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {row.tags.map((t) => (
@@ -314,8 +334,11 @@ export function ProjectRegister({
         <p className="mt-6 text-center text-[length:var(--t-body)] text-zinc-500">No projects in this stage.</p>
       )}
 
-      {/* ── BELOW THE FOLD: activity + the machine behind it all ── */}
+      {/* ── BELOW THE FOLD: the machine (LEFT) + recent activity (RIGHT) ──
+          Swapped per owner feedback iter-16 (server card moved to the left). */}
       <div className="mt-12 grid gap-4 lg:grid-cols-[1fr_1fr] items-start">
+        <ServerStatsCard stats={serverStats} />
+
         <div className="card flat">
           <div className="eyebrow" style={{ color: 'var(--mag)' }}>Recent activity</div>
           {activity.length > 0 ? (
@@ -335,8 +358,6 @@ export function ProjectRegister({
             <p className="text-[length:var(--t-label)] text-zinc-500">No recorded activity yet.</p>
           )}
         </div>
-
-        <ServerStatsCard stats={serverStats} />
       </div>
     </div>
   );

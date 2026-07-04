@@ -6,25 +6,32 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import Link from 'next/link';
 import { eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { getDb, schema } from '@/lib/db/client';
 import { getPreviewEntry } from '@/lib/previews';
-import { COMPONENT_CATEGORIES } from '@/lib/categories';
 import { LivePreview } from './LivePreview';
 import { ComponentAdminBar } from './ComponentAdminBar';
 import { RatingControl } from '@/components/master-component/RatingControl';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
+import { BackButton } from '@/components/ui/BackButton';
 
 export const dynamic = 'force-dynamic';
 
 const ASSET_ROOT = '/asset-library/components';
 const READABLE_EXT = new Set(['.tsx', '.ts', '.jsx', '.js', '.html', '.css', '.scss', '.md', '.json', '.pug']);
 
-const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
-  COMPONENT_CATEGORIES.map((c) => [c.id, c.label]),
-);
+// Drop the auto-generated "Name. Sourced from CodePen via gist X." descriptions
+// that just repeat the title (owner iter-16). Strip the provenance clause; if
+// nothing meaningful remains, show no description at all.
+function meaningfulDescription(name: string, description: string | null): string | null {
+  if (!description) return null;
+  const stripped = description.replace(/\s*Sourced from [^.]*\.?/i, '').trim().replace(/\.$/, '');
+  const bare = stripped.toLowerCase();
+  const nm = name.trim().toLowerCase().replace(/\.$/, '');
+  if (!bare || bare === nm) return null;
+  return stripped;
+}
 
 interface SourceFile {
   name: string;
@@ -82,7 +89,11 @@ export default async function ComponentDetailPage({ params }: Ctx) {
   const grade = (component.quality_grade ?? null) as 'A' | 'B' | 'C' | null;
   const deps = (component.dependencies ?? []) as string[];
   const frameworks = (component.framework_tags ?? []) as string[];
-  const catLabel = component.category ? (CATEGORY_LABEL[component.category] ?? component.category) : null;
+  // Provenance link (iter-16): upstream lib → source_url; gist/codepen →
+  // preview_url; authored in-house → none.
+  const sourceLink = component.source_url || component.preview_url || null;
+  const sourceLabel = component.source_url ? 'Open upstream' : component.preview_url ? 'View source' : null;
+  const desc = meaningfulDescription(component.name, component.description ?? null);
 
   return (
     <div className="sc">
@@ -90,52 +101,43 @@ export default async function ComponentDetailPage({ params }: Ctx) {
       <div className="sc-veil" aria-hidden />
       <div className="sc-scan" aria-hidden />
       <div className="sc-grain" aria-hidden />
-      <div className="sc-wrap px-6 md:px-10 py-10 max-w-6xl mx-auto">
-        <Link href="/components-browser" className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--mute)' }}>
-          ← all components
-        </Link>
-
-        {/* Header — name + category eyebrow + library; no raw id / quality / free tags */}
-        <header className="mt-4 mb-7">
-          {catLabel && <div className="eyebrow" style={{ color: 'var(--cyan)' }}>{catLabel}</div>}
-          <div className="flex items-end justify-between gap-4 flex-wrap">
-            <h1 className="display pg">{component.name}</h1>
-            {component.source_url && (
-              <a href={component.source_url} target="_blank" rel="noopener noreferrer"
-                className="mono text-[length:var(--t-label)] pb-2" style={{ color: 'var(--cyan)' }}>
-                open upstream ↗
-              </a>
-            )}
-          </div>
-          <div className="mt-4 flex items-center gap-3 flex-wrap">
-            {component.library && (
-              <span className="mono text-[length:var(--t-cap)] rounded-lg px-2.5 py-1" style={{ color: 'var(--ink)', background: 'rgba(12,11,28,.6)', border: '1px solid var(--line)' }}>
-                {component.library}
-              </span>
-            )}
-            <RatingControl id={component.id} initial={grade} />
-          </div>
+      {/* Responsive width (iter-16): removed the max-w-6xl cap so the page uses
+          the full wide desktop, matching the other pages. */}
+      <div className="sc-wrap px-6 md:px-10 py-10">
+        {/* Header — shared back button inline-left of the title (iter-16).
+            Dropped the category eyebrow + library chip; rating moved below the
+            preview. */}
+        <header className="mb-7 flex items-center gap-4 flex-wrap">
+          <BackButton href="/components-browser" label="All components" />
+          <h1 className="display pg leading-none">{component.name}</h1>
         </header>
 
-        {component.description && (
+        {desc && (
           <p className="mb-8 text-[length:var(--t-lead)] leading-relaxed max-w-3xl" style={{ color: 'var(--ink)', opacity: 0.85 }}>
-            {component.description}
+            {desc}
           </p>
         )}
 
         {/* Live preview + source (tabs inside LivePreview) */}
-        <section className="mb-8">
+        <section className="mb-5">
           <LivePreview componentId={component.id} files={files} preview={preview} />
         </section>
 
-        {/* Metadata — only the useful, populated bits */}
+        {/* Rating — moved below the preview (iter-16) */}
+        <section className="mb-8 flex items-center gap-3 flex-wrap">
+          <span className="mono text-[length:var(--t-cap)] uppercase tracking-wider" style={{ color: 'var(--dim)' }}>Rating</span>
+          <RatingControl id={component.id} initial={grade} />
+        </section>
+
+        {/* Metadata — only the useful, populated bits; Source is now a link */}
         <section className="grid gap-4 md:grid-cols-3">
           <MetaCard label="Frameworks" values={frameworks} />
           {deps.length > 0 && <MetaCard label="Requires" values={deps} />}
           <MetaCard
-            label="Source file"
-            values={component.primary_file ? [component.primary_file] : []}
-            fallback={files[0]?.name ?? null}
+            label="Source"
+            link={sourceLink}
+            linkLabel={sourceLabel}
+            values={sourceLink ? [] : ['Ottomate original']}
           />
           <MetaCard label="Ingestion" values={[component.ingestion_method ?? '—']} />
         </section>
@@ -147,12 +149,34 @@ export default async function ComponentDetailPage({ params }: Ctx) {
   );
 }
 
-function MetaCard({ label, values, fallback }: { label: string; values: string[]; fallback?: string | null }) {
+function MetaCard({
+  label,
+  values = [],
+  fallback,
+  link,
+  linkLabel,
+}: {
+  label: string;
+  values?: string[];
+  fallback?: string | null;
+  link?: string | null;
+  linkLabel?: string | null;
+}) {
   const display = values.length > 0 ? values : fallback ? [fallback] : [];
   return (
-    <div className="card flat">
-      <div className="mono text-[length:var(--t-cap)] uppercase tracking-wider mb-2" style={{ color: 'var(--dim)' }}>{label}</div>
-      {display.length === 0 ? (
+    <div className="card flat" style={{ borderColor: 'var(--line)' }}>
+      <div className="mono text-[length:var(--t-cap)] uppercase tracking-wider mb-2.5" style={{ color: 'var(--dim)' }}>{label}</div>
+      {link ? (
+        <a
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 mono text-[length:var(--t-label)] rounded-lg px-3 py-1.5 transition-colors"
+          style={{ color: 'var(--cyan)', background: 'color-mix(in srgb, var(--cyan) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--cyan) 32%, transparent)' }}
+        >
+          {linkLabel ?? 'Open'} ↗
+        </a>
+      ) : display.length === 0 ? (
         <span className="text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>— none</span>
       ) : (
         <div className="flex flex-wrap gap-1.5">

@@ -12,10 +12,10 @@ import {
   FILTER_CONTROL_CLASSES,
   PRIMARY_BUTTON_CLASSES,
 } from '@/components/ui/FilterBar';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { AddComponentModal } from '@/components/master-component/AddComponentModal';
 import { COMPONENT_CATEGORIES } from '@/lib/categories';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
+import { BackButton } from '@/components/ui/BackButton';
 import { RATING_LABEL } from '@/components/master-component/RatingControl';
 
 const RATING_HUE: Record<string, string> = { A: 'var(--cyan)', B: 'var(--vio)', C: 'var(--amber)' };
@@ -73,10 +73,12 @@ export default async function ComponentsBrowser({
     grouped.set(key, arr);
   }
 
-  // Derived stats
-  const totalWithSource = all.filter((c) => c.source_paths?.[0] && c.source_paths[0].trim().length > 0).length;
+  // Derived
   const libraries = Array.from(new Set(all.map((c) => c.library).filter(Boolean))).sort() as string[];
   const allTags = Array.from(new Set(all.flatMap((c) => (c.tags ?? []) as string[]))).sort();
+  // Only categories that actually have components (iter-16): empty ones (e.g.
+  // auth-screens) no longer render a chip or a hollow "no components" section.
+  const visibleCats = CATEGORY_ORDER.filter((cat) => (grouped.get(cat.id)?.length ?? 0) > 0);
 
   return (
     <div className="sc">
@@ -85,15 +87,12 @@ export default async function ComponentsBrowser({
       <div className="sc-scan" aria-hidden />
       <div className="sc-grain" aria-hidden />
       <div className="sc-wrap px-6 md:px-10 py-10">
-        {/* Cyber-Den header (iter-14: was the Spotlight-Glass PageHeader) */}
-        <div className="mb-7 flex items-end justify-between gap-4 flex-wrap">
-          <div>
-            <div className="eyebrow" style={{ color: 'var(--cyan)' }}>Central asset library</div>
-            <h1 className="display pg">Components</h1>
-            <p className="mt-3 text-[length:var(--t-lead)]" style={{ color: 'var(--ink)', opacity: 0.82 }}>
-              <span className="font-semibold" style={{ color: 'var(--ink)' }}>{filtered.length}</span> of {all.length} shown ·{' '}
-              {totalWithSource} with source · {CATEGORY_ORDER.length} categories
-            </p>
+        {/* Header (iter-16): dropped the eyebrow + count line, added the shared
+            back button to the left of the title. */}
+        <div className="mb-7 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4">
+            <BackButton href="/" label="Home" />
+            <h1 className="display pg leading-none">Components</h1>
           </div>
           <Link href="/components-browser?action=new" className={PRIMARY_BUTTON_CLASSES}>
             + Add component
@@ -127,31 +126,26 @@ export default async function ComponentsBrowser({
           </button>
         </FilterBar>
 
-        {/* Category quick-jump chips */}
-        <div className="mb-10 flex flex-wrap gap-1.5">
-          {CATEGORY_ORDER.map((cat) => {
+        {/* Category quick-jump chips (iter-16: empties hidden, restyled) */}
+        <div className="mb-10 flex flex-wrap gap-2">
+          {visibleCats.map((cat) => {
             const count = grouped.get(cat.id)?.length ?? 0;
-            const isEmpty = count === 0;
             return (
               <a
                 key={cat.id}
                 href={`#cat-${cat.id}`}
-                className={
-                  'rounded-full border px-3.5 py-1.5 text-[length:var(--t-cap)] backdrop-blur-sm transition-all ' +
-                  (isEmpty
-                    ? 'border-zinc-900/80 bg-zinc-950/40 text-zinc-700 cursor-default'
-                    : 'border-zinc-700/60 bg-zinc-900/40 text-zinc-300 hover:border-cyan-600/60 hover:bg-zinc-800/60 hover:text-cyan-200 hover:shadow-[0_0_15px_-5px_rgba(0,212,170,0.4)]')
-                }
+                className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-[length:var(--t-cap)] text-zinc-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-100"
               >
-                {cat.label} <span className={'ml-0.5 ' + (isEmpty ? 'text-zinc-700' : 'text-zinc-500')}>{count}</span>
+                {cat.label}
+                <span className="mono tabular-nums rounded-full bg-white/[0.06] px-1.5 text-[11px] text-zinc-400 group-hover:text-cyan-200">{count}</span>
               </a>
             );
           })}
         </div>
 
-        {/* Category sections */}
+        {/* Category sections (iter-16: only non-empty categories render) */}
         <div className="space-y-12">
-          {CATEGORY_ORDER.map((cat) => {
+          {visibleCats.map((cat) => {
             const items = grouped.get(cat.id) ?? [];
             return (
               <section key={cat.id} id={`cat-${cat.id}`} className="scroll-mt-24">
@@ -164,18 +158,11 @@ export default async function ComponentsBrowser({
                     <p className="text-[length:var(--t-label)] text-zinc-400 mt-1">{cat.description}</p>
                   </div>
                 </header>
-                {items.length === 0 ? (
-                  <EmptyState
-                    title="No components in this category yet"
-                    body="See the taxonomy doc in the skill plugin for suggestions, or use + Add component to seed one."
-                  />
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {items.map((c) => (
-                      <ComponentCard key={c.id} component={c} hasShot={shotIds.has(c.id)} posterVer={posterVer} />
-                    ))}
-                  </div>
-                )}
+                <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
+                  {items.map((c) => (
+                    <ComponentCard key={c.id} component={c} hasShot={shotIds.has(c.id)} posterVer={posterVer} />
+                  ))}
+                </div>
               </section>
             );
           })}

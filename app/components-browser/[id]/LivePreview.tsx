@@ -65,9 +65,15 @@ export function LivePreview({ componentId, files, preview }: LivePreviewProps) {
     if (/\bTHREE\b|three\./.test(jsText)) cdns.push('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
     if (/Splitting\b/.test(jsText)) cdns.push('https://unpkg.com/splitting/dist/splitting.min.js');
     if (/jQuery|\$\(/.test(jsText)) cdns.push('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js');
+    // iter-16 (owner: iframe scrollbar "old style af") — inject a modern thin
+    // scrollbar into the preview document itself (parent styles don't cascade in).
     const headInject =
       cdns.map((u) => `<script src="${u}" crossorigin></script>`).join('\n') +
-      `\n<style>html,body{margin:0;background:#0a0a0f;color:#e4e4e7}</style>\n` +
+      `\n<style>html,body{margin:0;background:#0a0a0f;color:#e4e4e7}` +
+      `*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}` +
+      `::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-track{background:transparent}` +
+      `::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:8px}` +
+      `::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.28)}</style>\n` +
       cssBlocks.join('\n');
     const head = bundled.indexOf('</head>');
     bundled = head !== -1 ? bundled.slice(0, head) + headInject + bundled.slice(head) : headInject + bundled;
@@ -118,31 +124,32 @@ export function LivePreview({ componentId, files, preview }: LivePreviewProps) {
 
   return (
     <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-zinc-800/60">
-        <div className="flex items-center gap-1">
+      {/* iter-16: enlarged the tiny tab / file / replay controls */}
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-zinc-800/60">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => setTab('preview')}
-            className={'rounded-lg px-3 py-1.5 text-xs transition-colors ' + (tab === 'preview' ? 'bg-cyan-500/10 text-cyan-200 border border-cyan-500/30' : 'text-zinc-400 hover:text-zinc-200 border border-transparent')}
+            className={'rounded-lg px-4 py-2 text-[length:var(--t-label)] font-medium transition-colors ' + (tab === 'preview' ? 'bg-cyan-500/10 text-cyan-200 border border-cyan-500/30' : 'text-zinc-400 hover:text-zinc-200 border border-transparent')}
           >
-            Preview{!previewable && <span className="ml-1 text-[10px] text-zinc-600">(deferred)</span>}
+            Preview{!previewable && <span className="ml-1 text-[length:var(--t-cap)] text-zinc-600">(deferred)</span>}
           </button>
           <button
             type="button"
             onClick={() => setTab('code')}
-            className={'rounded-lg px-3 py-1.5 text-xs transition-colors ' + (tab === 'code' ? 'bg-cyan-500/10 text-cyan-200 border border-cyan-500/30' : 'text-zinc-400 hover:text-zinc-200 border border-transparent')}
+            className={'rounded-lg px-4 py-2 text-[length:var(--t-label)] font-medium transition-colors ' + (tab === 'code' ? 'bg-cyan-500/10 text-cyan-200 border border-cyan-500/30' : 'text-zinc-400 hover:text-zinc-200 border border-transparent')}
           >
             Source ({files.length})
           </button>
         </div>
         {tab === 'code' && (
-          <div className="flex items-center gap-1 flex-wrap justify-end">
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
             {files.map((f) => (
               <button
                 key={f.name}
                 type="button"
                 onClick={() => setActiveFile(f.name)}
-                className={'rounded-md px-2 py-1 text-[10px] font-mono transition-colors ' + (activeFile === f.name ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300')}
+                className={'rounded-md px-2.5 py-1.5 text-[length:var(--t-cap)] font-mono transition-colors ' + (activeFile === f.name ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300')}
               >
                 {f.name}
               </button>
@@ -154,7 +161,7 @@ export function LivePreview({ componentId, files, preview }: LivePreviewProps) {
             type="button"
             onClick={() => setReloadKey((k) => k + 1)}
             title="Replay preview — re-runs on-load / one-shot animations"
-            className="rounded-lg px-2.5 py-1.5 text-xs text-zinc-400 hover:text-cyan-200 border border-zinc-800/60 hover:border-cyan-500/30 transition-colors"
+            className="rounded-lg px-4 py-2 text-[length:var(--t-label)] font-medium text-zinc-400 hover:text-cyan-200 border border-zinc-800/60 hover:border-cyan-500/30 transition-colors"
           >
             ↻ Replay
           </button>

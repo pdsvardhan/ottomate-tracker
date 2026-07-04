@@ -85,6 +85,33 @@ export function ServerStatsCard({ stats }: { stats: ServerStats }) {
         <span className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>{stats.os}</span>
       </div>
 
+      {/* What this box is + how the projects are hosted (iter-16 owner ask) */}
+      <p className="mb-3.5 text-[length:var(--t-label)] leading-relaxed" style={{ color: 'var(--ink)', opacity: 0.8 }}>
+        One self-hosted box runs every project on this site. Public traffic enters through a Cloudflare
+        Tunnel to <span className="mono" style={{ color: CYAN }}>&lt;project&gt;.vault7a.xyz</span>, gated by
+        Authentik single sign-on — no open ports, no cloud bill.
+      </p>
+
+      {/* Simple hosting diagram */}
+      <div className="mb-5 flex flex-wrap items-center gap-x-1.5 gap-y-2">
+        {['You', 'Cloudflare', 'Tunnel', 'Authentik SSO', 'Docker app'].map((node, i, arr) => (
+          <span key={node} className="flex items-center gap-1.5">
+            <span
+              className="mono text-[length:var(--t-cap)] rounded-lg px-2.5 py-1"
+              style={{
+                color: i === arr.length - 1 ? '#070811' : 'var(--ink)',
+                background: i === arr.length - 1 ? CYAN : 'rgba(12,11,28,.6)',
+                border: i === arr.length - 1 ? 'none' : '1px solid var(--line)',
+                fontWeight: i === arr.length - 1 ? 700 : 400,
+              }}
+            >
+              {node}
+            </span>
+            {i < arr.length - 1 && <span aria-hidden style={{ color: 'var(--dim)' }}>→</span>}
+          </span>
+        ))}
+      </div>
+
       {/* Big uptime */}
       <div className="mb-5 flex items-end gap-4 flex-wrap">
         {[{ v: up.d, l: 'days' }, { v: up.h, l: 'hrs' }, { v: up.m, l: 'min' }].map((u, i) => (

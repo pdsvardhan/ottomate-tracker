@@ -61,17 +61,17 @@ export function CommandPalette({ projects }: Props) {
 
   return (
     <>
-      {/* Hint chip */}
+      {/* Hint chip — enlarged per owner (iter-16) */}
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="hidden sm:flex items-center gap-2.5 text-[length:var(--t-label)] text-zinc-400 hover:text-zinc-100 hover:border-zinc-600 transition-colors px-4 py-2 rounded-lg border border-zinc-700/80 bg-zinc-900/50"
+        className="hidden sm:flex items-center gap-2.5 text-[length:var(--t-body)] text-zinc-300 hover:text-zinc-50 hover:border-zinc-600 transition-colors px-5 py-2.5 rounded-xl border border-zinc-700/80 bg-zinc-900/50"
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
           <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
         </svg>
-        <span>Search</span>
-        <kbd className="text-[length:var(--t-cap)] font-mono bg-zinc-800 text-zinc-300 rounded px-2 py-0.5">⌘K</kbd>
+        <span className="font-medium">Search</span>
+        <kbd className="text-[length:var(--t-cap)] font-mono bg-zinc-800 text-zinc-300 rounded px-2 py-1">⌘K</kbd>
       </button>
 
       {open && (
