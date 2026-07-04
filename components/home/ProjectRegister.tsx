@@ -31,6 +31,7 @@ export interface RegisterRow {
   port: number | null;
   age: string;
   blurb: string;
+  stack: string[];
   tags: string[];
   lastChange: string | null;
 }
@@ -43,10 +44,12 @@ export interface ActivityLine {
   when: string;
 }
 
-// md: 8 cols (no Summary) · lg+: 9 cols (with Summary). Header mirrors this.
+// md: 8 cols · lg: 9 (+Summary) · xl: 10 (+Stack). Hidden cells drop out of grid
+// flow (display:none) so the visible-child count matches each breakpoint's tracks.
 const COLS =
   'md:grid md:grid-cols-[minmax(180px,1fr)_84px_146px_96px_104px_120px_48px_28px] ' +
-  'lg:grid-cols-[minmax(180px,.85fr)_minmax(0,1.35fr)_84px_146px_96px_104px_120px_48px_28px] ' +
+  'lg:grid-cols-[minmax(180px,.85fr)_minmax(0,1.25fr)_84px_146px_96px_104px_120px_48px_28px] ' +
+  'xl:grid-cols-[minmax(170px,.78fr)_minmax(0,1.05fr)_84px_146px_96px_104px_minmax(110px,.7fr)_120px_48px_28px] ' +
   'md:items-center';
 
 const STAGE_HUES: Record<string, string> = {
@@ -126,6 +129,13 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           <span className={row.risksOpen > 0 ? 'text-[var(--color-risk)]' : 'text-zinc-600'} title="open risks">
             ⚑ {row.risksOpen}
           </span>
+        </div>
+
+        {/* STACK (xl+) — real values backfilled iter-14 */}
+        <div className="hidden xl:flex flex-wrap items-center gap-1.5 min-w-0">
+          {row.stack.length > 0 ? row.stack.map((s) => (
+            <span key={s} className="mono text-[length:var(--t-cap)] text-zinc-300 rounded border border-white/10 bg-black/25 px-2 py-0.5 truncate max-w-[104px]">{s}</span>
+          )) : <span className="text-zinc-700">—</span>}
         </div>
 
         {/* LINKS — desktop only (on mobile the row taps through to the project) */}
@@ -288,6 +298,7 @@ export function ProjectRegister({
         <span>PROGRESS</span>
         <span>CATEGORY</span>
         <span>HEALTH</span>
+        <span className="hidden xl:block">STACK</span>
         <span>LINKS</span>
         <span className="text-right">AGE</span>
         <span />

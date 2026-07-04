@@ -99,6 +99,14 @@ export default async function HomePage() {
     .from(schema.risk_instances).all();
   const events = db.select().from(schema.skill_events)
     .orderBy(desc(schema.skill_events.event_at)).limit(80).all();
+  // Column-scoped (skips testing_libs JSON) — real values backfilled iter-14 via
+  // the new /tech-stack endpoint; the STACK column is back per owner.
+  const stacks = db.select({
+    slug: schema.tech_stacks.project_slug,
+    framework: schema.tech_stacks.framework,
+    database: schema.tech_stacks.database,
+    styling: schema.tech_stacks.styling,
+  }).from(schema.tech_stacks).all();
 
   // ── Roll-ups keyed by slug ──
   const fStat = new Map<string, { done: number; total: number }>();
@@ -120,6 +128,11 @@ export default async function HomePage() {
   for (const r of risks) {
     if (r.status !== 'open') continue;
     riskOpen.set(r.slug, (riskOpen.get(r.slug) ?? 0) + 1);
+  }
+  const stackMap = new Map<string, string[]>();
+  for (const t of stacks) {
+    const chips = [t.framework, t.database, t.styling].filter(Boolean) as string[];
+    stackMap.set(t.slug, chips.slice(0, 3));
   }
   const lastChange = new Map<string, { text: string; at: number }>();
   for (const e of events) {
@@ -158,6 +171,7 @@ export default async function HomePage() {
       port: p.port ?? null,
       age: timeAgo(changeAt),
       blurb: p.short_description ?? p.core_idea ?? p.tagline ?? '',
+      stack: stackMap.get(p.slug) ?? [],
       tags: tags.filter((t) => t !== 'personal' && t !== 'cv' && t !== 'public-facing').slice(0, 4),
       lastChange: changed?.text ?? null,
     };
