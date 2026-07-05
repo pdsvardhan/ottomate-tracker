@@ -597,7 +597,7 @@ function ResourcesPanel({ d }: { d: ShowcaseData }) {
             <div
               className="doc-prose text-[length:var(--t-body)] leading-relaxed"
               style={{ color: 'var(--ink)' }}
-              dangerouslySetInnerHTML={{ __html: marked.parse(openDoc.body, { async: false }) as string }}
+              dangerouslySetInnerHTML={{ __html: marked.parse(openDoc.body.replace(/^﻿?---\r?\n[\s\S]*?\r?\n---\r?\n/, ''), { async: false }) as string }}
             />
           </div>
         </div>

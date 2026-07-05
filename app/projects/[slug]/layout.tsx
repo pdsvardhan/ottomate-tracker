@@ -8,6 +8,7 @@ import { notFound } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { DriftBanner } from '@/components/project/DriftBanner';
+import { BackButton } from '@/components/ui/BackButton';
 
 export default async function ProjectLayout({
   children,
@@ -23,7 +24,7 @@ export default async function ProjectLayout({
 
   return (
     <div className="px-6 md:px-10 py-6">
-      <a href="/" className="mono text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors">← all projects</a>
+      <BackButton href="/" label="All projects" />
       <div className="mt-3">
         <DriftBanner slug={slug} />
       </div>
