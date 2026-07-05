@@ -49,13 +49,15 @@ export interface ActivityLine {
 // iter-16 (owner feedback 2026-07-05): PROJECT −40%, SUMMARY −30% (now wraps to
 // 2 lines instead of truncating), STACK −50%, PROGRESS + LINKS widened (LINKS
 // was crowding AGE).
-// iter-16b: PROJECT is now a CAPPED column (hugs the name, no more dead gap to
-// SUMMARY) and SUMMARY is the single flexible track that absorbs all slack, so
-// the table fills the width intentionally on wide desktops instead of spreading.
+// iter-16b-fix: PROJECT + SUMMARY are both CAPPED (SUMMARY no longer hogs all
+// slack — that left a dead void before STAGE); the flexible tracks are now
+// PROGRESS and STACK, which absorb the leftover width in the middle-right so the
+// row fills evenly. STACK widened so "SQLite + Drizzle" / "FastAPI (Python)" no
+// longer truncate.
 const COLS =
-  'md:grid md:grid-cols-[minmax(150px,210px)_84px_minmax(180px,1fr)_92px_108px_150px_46px_28px] ' +
-  'lg:grid-cols-[minmax(150px,210px)_minmax(0,1fr)_84px_200px_92px_108px_150px_46px_28px] ' +
-  'xl:grid-cols-[minmax(160px,220px)_minmax(0,1fr)_84px_210px_92px_108px_minmax(110px,150px)_150px_46px_28px] ' +
+  'md:grid md:grid-cols-[minmax(150px,210px)_minmax(80px,96px)_minmax(190px,1fr)_minmax(88px,104px)_minmax(100px,116px)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
+  'lg:grid-cols-[minmax(150px,210px)_minmax(220px,440px)_minmax(80px,96px)_minmax(190px,1fr)_minmax(88px,104px)_minmax(100px,116px)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
+  'xl:grid-cols-[minmax(160px,220px)_minmax(240px,460px)_minmax(80px,96px)_minmax(190px,1fr)_minmax(88px,104px)_minmax(100px,116px)_minmax(160px,1fr)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
   'md:items-center';
 
 const STAGE_HUES: Record<string, string> = {
@@ -156,7 +158,7 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
         {/* STACK (xl+) — real values backfilled iter-14 (framework + database) */}
         <div className="hidden xl:flex flex-col items-start gap-1 min-w-0">
           {row.stack.length > 0 ? row.stack.map((s) => (
-            <span key={s} className="mono text-[length:var(--t-cap)] text-zinc-300 rounded border border-white/10 bg-black/25 px-2 py-0.5 truncate max-w-full">{s}</span>
+            <span key={s} className="mono text-[length:var(--t-cap)] text-zinc-300 rounded border border-white/10 bg-black/25 px-2 py-0.5 whitespace-nowrap">{s}</span>
           )) : <span className="text-zinc-700">—</span>}
         </div>
 
