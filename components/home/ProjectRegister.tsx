@@ -57,7 +57,7 @@ export interface ActivityLine {
 const COLS =
   'md:grid md:grid-cols-[minmax(150px,210px)_minmax(80px,96px)_minmax(190px,1fr)_minmax(88px,104px)_minmax(100px,116px)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
   'lg:grid-cols-[minmax(150px,210px)_minmax(220px,440px)_minmax(80px,96px)_minmax(190px,1fr)_minmax(88px,104px)_minmax(100px,116px)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
-  'xl:grid-cols-[minmax(160px,220px)_minmax(240px,460px)_minmax(80px,96px)_minmax(190px,1fr)_minmax(88px,104px)_minmax(100px,116px)_minmax(160px,1fr)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
+  'xl:grid-cols-[minmax(160px,220px)_minmax(240px,460px)_minmax(80px,96px)_minmax(190px,1fr)_minmax(88px,104px)_minmax(100px,116px)_minmax(150px,172px)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
   'md:items-center';
 
 const STAGE_HUES: Record<string, string> = {
