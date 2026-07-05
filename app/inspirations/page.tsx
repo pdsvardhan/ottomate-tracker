@@ -62,7 +62,7 @@ export default async function InspirationsPage({
           body="Add a new reference via POST /api/inspirations."
         />
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-x-8 gap-y-10 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((insp) => (
             <InspirationCard key={insp.id} insp={insp} />
           ))}

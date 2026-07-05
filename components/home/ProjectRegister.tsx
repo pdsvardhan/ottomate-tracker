@@ -49,10 +49,13 @@ export interface ActivityLine {
 // iter-16 (owner feedback 2026-07-05): PROJECT −40%, SUMMARY −30% (now wraps to
 // 2 lines instead of truncating), STACK −50%, PROGRESS + LINKS widened (LINKS
 // was crowding AGE).
+// iter-16b: PROJECT is now a CAPPED column (hugs the name, no more dead gap to
+// SUMMARY) and SUMMARY is the single flexible track that absorbs all slack, so
+// the table fills the width intentionally on wide desktops instead of spreading.
 const COLS =
-  'md:grid md:grid-cols-[minmax(160px,1fr)_84px_184px_96px_112px_150px_52px_28px] ' +
-  'lg:grid-cols-[minmax(140px,.55fr)_minmax(0,.9fr)_84px_184px_96px_112px_150px_52px_28px] ' +
-  'xl:grid-cols-[minmax(120px,.5fr)_minmax(0,.75fr)_84px_184px_96px_112px_minmax(64px,.35fr)_150px_52px_28px] ' +
+  'md:grid md:grid-cols-[minmax(150px,210px)_84px_minmax(180px,1fr)_92px_108px_150px_46px_28px] ' +
+  'lg:grid-cols-[minmax(150px,210px)_minmax(0,1fr)_84px_200px_92px_108px_150px_46px_28px] ' +
+  'xl:grid-cols-[minmax(160px,220px)_minmax(0,1fr)_84px_210px_92px_108px_minmax(110px,150px)_150px_46px_28px] ' +
   'md:items-center';
 
 const STAGE_HUES: Record<string, string> = {
@@ -121,7 +124,7 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
         <div className="flex items-center gap-2.5 mono text-[length:var(--t-label)] font-semibold text-zinc-200 basis-full md:basis-auto order-last md:order-none" title="features complete">
           <span className="tabular-nums shrink-0">{row.total > 0 ? `${row.done}/${row.total}` : '—'}</span>
           <span className="text-[length:var(--t-cap)] text-zinc-500 shrink-0">features</span>
-          <span className="h-1.5 flex-1 rounded-full bg-white/10 overflow-hidden">
+          <span className="h-2 flex-1 min-w-[48px] rounded-full bg-white/10 overflow-hidden">
             <span className="block h-full rounded-full" style={{ width: `${row.pct}%`, background: 'var(--accent)' }} />
           </span>
         </div>

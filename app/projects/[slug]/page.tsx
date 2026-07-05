@@ -244,7 +244,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
       name: r.name ?? 'Risk', category: r.category ?? '', severity: (r.sev ?? r.baseSev ?? 'medium'), status: r.status ?? 'open',
     })),
     // resources
-    docs: docs.map((d) => ({ name: d.doc_name })),
+    docs: docs.map((d) => ({ name: d.doc_name, body: d.body })),
     downloads: [{ label: 'Project spec (YAML)', href: `/api/projects/${slug}/yaml-mirror` }],
   };
 

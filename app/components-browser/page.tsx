@@ -5,13 +5,9 @@ import { asc } from 'drizzle-orm';
 import Link from 'next/link';
 import { getDb, schema } from '@/lib/db/client';
 import { getPreviewManifest } from '@/lib/previews';
-import { SpotlightCard } from '@/components/ui/SpotlightCard';
+import { TiltCard } from '@/components/ui/TiltCard';
 import { Badge } from '@/components/ui/Badge';
-import {
-  FilterBar,
-  FILTER_CONTROL_CLASSES,
-  PRIMARY_BUTTON_CLASSES,
-} from '@/components/ui/FilterBar';
+import { PRIMARY_BUTTON_CLASSES } from '@/components/ui/FilterBar';
 import { AddComponentModal } from '@/components/master-component/AddComponentModal';
 import { COMPONENT_CATEGORIES } from '@/lib/categories';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
@@ -19,6 +15,23 @@ import { BackButton } from '@/components/ui/BackButton';
 import { RATING_LABEL } from '@/components/master-component/RatingControl';
 
 const RATING_HUE: Record<string, string> = { A: 'var(--cyan)', B: 'var(--vio)', C: 'var(--amber)' };
+
+// Clean chevron-select styling for the filter toolbar (iter-16b).
+const SELECT_CLASSES =
+  'appearance-none cursor-pointer rounded-xl border border-white/10 bg-white/[0.03] py-3 pl-4 pr-9 ' +
+  'text-[length:var(--t-label)] text-zinc-200 transition-colors focus:border-cyan-500/50 focus:outline-none';
+
+function SelectChevron() {
+  return (
+    <svg
+      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500"
+      width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -99,32 +112,49 @@ export default async function ComponentsBrowser({
           </Link>
         </div>
 
-        <FilterBar>
-          <input
-            type="search"
-            name="q"
-            defaultValue={q ?? ''}
-            placeholder="Search by name, ID, description, or tag…"
-            className={FILTER_CONTROL_CLASSES + ' flex-1 min-w-[260px]'}
-          />
-          <select name="quality" defaultValue={quality ?? ''} className={FILTER_CONTROL_CLASSES}>
-            <option value="">— any rating —</option>
-            <option value="A">Standout</option>
-            <option value="B">Solid</option>
-            <option value="C">Fine</option>
-          </select>
-          <select name="tag" defaultValue={tag ?? ''} className={FILTER_CONTROL_CLASSES}>
-            <option value="">— any tag —</option>
-            {allTags.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-          <button type="submit" className={PRIMARY_BUTTON_CLASSES}>
-            Filter
+        {/* Search + filter toolbar (iter-16b redesign — the old boxed form
+            clashed with the rest of the site). Prominent search with an inline
+            icon; rating/tag as clean chevron-selects; subtle submit. */}
+        <form className="mb-9 flex flex-wrap items-center gap-2.5">
+          <div className="relative flex-1 min-w-[280px]">
+            <span className="pointer-events-none absolute inset-y-0 left-0 grid w-11 place-items-center text-zinc-500">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+              </svg>
+            </span>
+            <input
+              type="search"
+              name="q"
+              defaultValue={q ?? ''}
+              placeholder="Search components by name, tag, or description…"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-3 pl-11 pr-4 text-[length:var(--t-body)] text-zinc-100 placeholder:text-zinc-500 transition-colors focus:border-cyan-500/50 focus:bg-white/[0.05] focus:outline-none"
+            />
+          </div>
+          <div className="relative">
+            <select name="quality" defaultValue={quality ?? ''} className={SELECT_CLASSES}>
+              <option value="">Any rating</option>
+              <option value="A">Standout</option>
+              <option value="B">Solid</option>
+              <option value="C">Fine</option>
+            </select>
+            <SelectChevron />
+          </div>
+          <div className="relative">
+            <select name="tag" defaultValue={tag ?? ''} className={SELECT_CLASSES}>
+              <option value="">Any tag</option>
+              {allTags.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <SelectChevron />
+          </div>
+          <button
+            type="submit"
+            className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-5 py-3 text-[length:var(--t-label)] font-semibold text-cyan-100 transition-colors hover:border-cyan-400/50 hover:bg-cyan-500/20"
+          >
+            Search
           </button>
-        </FilterBar>
+        </form>
 
         {/* Category quick-jump chips (iter-16: empties hidden, restyled) */}
         <div className="mb-10 flex flex-wrap gap-2">
@@ -183,7 +213,7 @@ function ComponentCard({ component, hasShot, posterVer }: { component: typeof sc
   const quality = (component.quality_grade ?? '') as QualityGrade | '';
 
   return (
-    <SpotlightCard href={`/components-browser/${component.id}`}>
+    <TiltCard href={`/components-browser/${component.id}`}>
       {/* Static poster thumbnail (iter-15): posters are now CROPPED tight to the
           content by render.mjs, so object-contain shows the element clearly. */}
       <div className="mb-3 -mt-1 flex items-center justify-center overflow-hidden rounded-lg border border-zinc-800/80 bg-[#0b0b12] h-48 p-3">
@@ -243,6 +273,6 @@ function ComponentCard({ component, hasShot, posterVer }: { component: typeof sc
           </Badge>
         ))}
       </div>
-    </SpotlightCard>
+    </TiltCard>
   );
 }

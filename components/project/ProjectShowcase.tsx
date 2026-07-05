@@ -6,7 +6,8 @@
 // hero stats, numbered section structure (no more "randomly thrown" blocks),
 // fluid --t-* type tokens site-wide (nothing below the readability floor).
 
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
+import { marked } from 'marked';
 import { ShaderBackground } from './ShaderBackground';
 import { ReelCanvas } from './ReelCanvas';
 import { NumberTicker } from '@/components/ui/NumberTicker';
@@ -35,7 +36,7 @@ export interface ShowcaseData {
   journal: { date: string; title: string; tags: string[]; status: string; superseded: boolean }[];
   challenges: { problem: string; solved: string }[];
   risks: { name: string; category: string; severity: string; status: string }[];
-  docs: { name: string }[];
+  docs: { name: string; body: string }[];
   downloads: { label: string; href: string }[];
 }
 
@@ -92,6 +93,16 @@ type TabKey = (typeof TABS)[number]['k'];
 export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSlot: ReactNode }) {
   const [tab, setTab] = useState<TabKey>('overview');
   const d = data;
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Stat cards (iter-16b): FEATURES / DECISIONS jump to their tab + section.
+  function goTo(target: TabKey) {
+    setTab(target);
+    requestAnimationFrame(() =>
+      contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    );
+  }
+  const NUM_TARGET: Record<string, TabKey> = { FEATURES: 'overview', DECISIONS: 'engineering' };
 
   return (
     <div className="sc">
@@ -110,15 +121,10 @@ export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSl
                 <span className="stagepill mb-2">{d.stageLabel}</span>
               </div>
 
-              {/* tech chips — labeled so they read as the stack, not stray tokens */}
-              {d.tags.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 mt-4">
-                  <span className="mono text-[length:var(--t-cap)] tracking-[.18em] uppercase" style={{ color: DIM }}>built with</span>
-                  {d.tags.slice(0, 6).map((t) => <span key={t} className="chip">{t}</span>)}
-                </div>
-              )}
+              {/* "built with" tech chips removed for all projects (iter-16b owner) */}
 
-              <p className="mt-5 mb-7 leading-relaxed max-w-[70ch] text-[length:var(--t-lead)]" style={{ color: 'var(--ink)', opacity: 0.85 }}>
+              {/* intro no longer width-restricted (iter-16b: was max-w-[70ch]) */}
+              <p className="mt-5 mb-7 leading-relaxed text-[length:var(--t-lead)]" style={{ color: 'var(--ink)', opacity: 0.85 }}>
                 {d.hook}
               </p>
 
@@ -138,12 +144,23 @@ export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSl
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {d.numbers.map((num, i) => (
-                  <div key={num.l} className="numc" style={{ '--nc': NUM_HUES[i % NUM_HUES.length] } as React.CSSProperties}>
-                    <div className="n"><NumberTicker value={num.n} /></div>
-                    <div className="l">{num.l}</div>
-                  </div>
-                ))}
+                {d.numbers.map((num, i) => {
+                  const target = NUM_TARGET[num.l];
+                  const style = { '--nc': NUM_HUES[i % NUM_HUES.length] } as React.CSSProperties;
+                  const body = (
+                    <>
+                      <div className="n"><NumberTicker value={num.n} /></div>
+                      <div className="l">{num.l}{target && <span aria-hidden style={{ marginLeft: 6, opacity: 0.6 }}>↗</span>}</div>
+                    </>
+                  );
+                  return target ? (
+                    <button key={num.l} type="button" onClick={() => goTo(target)} className="numc cursor-pointer text-left" style={style} title={`Go to ${num.l.toLowerCase()}`}>
+                      {body}
+                    </button>
+                  ) : (
+                    <div key={num.l} className="numc" style={style}>{body}</div>
+                  );
+                })}
               </div>
             </div>
 
@@ -176,7 +193,7 @@ export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSl
         </div>
 
         {/* ── PANELS ── */}
-        <div key={tab} className="panel pb-4">
+        <div key={tab} ref={contentRef} className="panel pb-4 scroll-mt-24">
           {tab === 'overview' && <OverviewPanel d={d} />}
           {tab === 'engineering' && <EngineeringPanel d={d} archSlot={archSlot} />}
           {tab === 'development' && <DevelopmentPanel d={d} />}
@@ -508,6 +525,10 @@ function DevelopmentPanel({ d }: { d: ShowcaseData }) {
 
 // ── RESOURCES ──
 function ResourcesPanel({ d }: { d: ShowcaseData }) {
+  // iter-16b (owner: "are these placeholders?"): the docs are real mirrored
+  // public_docs — clicking one now opens a slide-over markdown reader instead of
+  // showing a dead ↗.
+  const [openDoc, setOpenDoc] = useState<{ name: string; body: string } | null>(null);
   return (
     <Section>
       <div className="grid gap-3.5 md:grid-cols-2">
@@ -516,9 +537,15 @@ function ResourcesPanel({ d }: { d: ShowcaseData }) {
           {d.docs.length > 0 ? (
             <div className="flex flex-col">
               {d.docs.map((doc, i) => (
-                <span key={i} className="flex items-center justify-between py-3 text-[length:var(--t-label)]" style={{ color: 'var(--ink)', borderTop: i ? '1px solid var(--line)' : 'none' }}>
-                  {doc.name}<span style={{ color: CYAN }}>↗</span>
-                </span>
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setOpenDoc(doc)}
+                  className="flex items-center justify-between py-3 text-left text-[length:var(--t-label)] transition-colors hover:text-cyan-200"
+                  style={{ color: 'var(--ink)', borderTop: i ? '1px solid var(--line)' : 'none' }}
+                >
+                  {doc.name}<span style={{ color: CYAN }}>→</span>
+                </button>
               ))}
             </div>
           ) : (
@@ -544,6 +571,37 @@ function ResourcesPanel({ d }: { d: ShowcaseData }) {
           )}
         </div>
       </div>
+
+      {/* Doc reader slide-over */}
+      {openDoc && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
+          onClick={() => setOpenDoc(null)}
+        >
+          <div
+            className="h-full w-full max-w-2xl overflow-y-auto border-l p-8 md:p-10"
+            style={{ background: '#0b0b12', borderColor: 'var(--line)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <h3 className="h2" style={{ fontSize: 'var(--t-title)' }}>{openDoc.name}</h3>
+              <button
+                type="button"
+                onClick={() => setOpenDoc(null)}
+                aria-label="Close"
+                className="grid size-8 shrink-0 place-items-center rounded-full text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100"
+              >
+                ✕
+              </button>
+            </div>
+            <div
+              className="doc-prose text-[length:var(--t-body)] leading-relaxed"
+              style={{ color: 'var(--ink)' }}
+              dangerouslySetInnerHTML={{ __html: marked.parse(openDoc.body, { async: false }) as string }}
+            />
+          </div>
+        </div>
+      )}
     </Section>
   );
 }
