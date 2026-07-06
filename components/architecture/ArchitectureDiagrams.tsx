@@ -145,7 +145,12 @@ export function ArchitectureView({ sections, details, decisions }: {
   decisions: DecisionEntry[];
 }) {
   const detailCount = details.reduce((n, s) => n + s.diagrams.length, 0);
+  // adr-021: the showcase page passes decisions=[] (the Decisions tab is their
+  // single home now) — hide the section instead of rendering an empty
+  // placeholder. The /architecture route still passes the full list.
+  const hasDecisions = decisions.length > 0;
   const decisionsIndex = sections.length + 1;
+  const detailBaseIndex = hasDecisions ? decisionsIndex + 1 : decisionsIndex;
 
   // Un-nested (owner feedback 2026-07-06): the pill jump-nav that used to sit
   // here read as a second tab layer under the page's Engineering tab. The layers
@@ -161,14 +166,16 @@ export function ArchitectureView({ sections, details, decisions }: {
       ))}
 
       {/* Decisions — why it is built this way */}
-      <section id="decisions" className="scroll-mt-24">
-        <SectionHeader
-          index={decisionsIndex}
-          label="Decisions"
-          desc="Why it is built this way — the calls that shaped the system."
-        />
-        <DecisionsBody decisions={decisions} />
-      </section>
+      {hasDecisions && (
+        <section id="decisions" className="scroll-mt-24">
+          <SectionHeader
+            index={decisionsIndex}
+            label="Decisions"
+            desc="Why it is built this way — the calls that shaped the system."
+          />
+          <DecisionsBody decisions={decisions} />
+        </section>
+      )}
 
       {/* Secondary diagrams, collapsed — details beyond the 90-second read */}
       {details.length > 0 && (
@@ -184,7 +191,7 @@ export function ArchitectureView({ sections, details, decisions }: {
             {details.map((s, i) => (
               <section key={s.kind}>
                 <SectionHeader
-                  index={decisionsIndex + 1 + i}
+                  index={detailBaseIndex + i}
                   label={s.label}
                   desc={s.desc}
                   legacy={s.legacy}

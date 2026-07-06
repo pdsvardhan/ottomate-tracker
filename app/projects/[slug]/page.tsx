@@ -1,15 +1,15 @@
-// Project overview — showcase page (prototype adoption, ui-overhaul).
+// Project overview — showcase page (adr-021 IA: hero + Overview / Engineering /
+// Decisions / Resources; Development dissolved).
 // Server component: pulls all real project data + shapes the architecture slot,
 // then hands a plain data object to the <ProjectShowcase> client shell (hero +
 // in-page act-tabs). No fabricated content — every section is DB-backed or omitted.
 
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { getDb, schema } from '@/lib/db/client';
 import { projectAccent } from '@/lib/project-accent';
 import {
   ArchitectureView,
-  type DecisionEntry,
   type DiagramSection,
 } from '@/components/architecture/ArchitectureDiagrams';
 import { ProjectShowcase, type ShowcaseData } from '@/components/project/ProjectShowcase';
@@ -77,8 +77,23 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
   const todos = db.select().from(schema.project_todos)
     .where(and(eq(schema.project_todos.project_slug, slug), eq(schema.project_todos.done, false)))
     .orderBy(asc(schema.project_todos.sort_order)).all();
-  const events = db.select().from(schema.skill_events).where(eq(schema.skill_events.project_slug, slug))
-    .orderBy(desc(schema.skill_events.event_at)).limit(8).all();
+  // adr-021: three previously-orphaned datasets surfaced on the showcase page.
+  const uiPlan = db.select().from(schema.ui_master_plans)
+    .where(eq(schema.ui_master_plans.project_slug, slug)).get();
+  const verifRows = db.select({ rec: schema.verification_reports.recommendation_overall })
+    .from(schema.verification_reports)
+    .where(eq(schema.verification_reports.project_slug, slug)).all();
+  const traceRows = db.select({
+    iterNum: schema.iterations.iteration_number,
+    title: schema.iteration_items.title,
+    description: schema.iteration_items.description,
+    proposed: schema.iteration_items.proposed_change,
+    verifier: schema.iteration_items.verifier_result,
+  }).from(schema.iteration_items)
+    .innerJoin(schema.iterations, eq(schema.iteration_items.iteration_id, schema.iterations.id))
+    .where(and(eq(schema.iterations.project_slug, slug), eq(schema.iteration_items.status, 'integrated')))
+    .orderBy(desc(schema.iterations.iteration_number), desc(schema.iteration_items.id))
+    .limit(6).all();
   // testing_libs JSON repaired iter-14 via the /tech-stack endpoint, so the plain
   // full-row select is safe again (was defensively split after the malformed-row
   // 500 in iter-13).
@@ -112,13 +127,12 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     const meta = ARCH_DETAIL[kind] ?? { label: kind.charAt(0).toUpperCase() + kind.slice(1), desc: 'Project-specific diagram.' };
     return toSection(kind, meta.label, meta.desc);
   });
-  const archDecisions: DecisionEntry[] = db.select().from(schema.adr_index)
-    .where(and(eq(schema.adr_index.project_slug, slug), eq(schema.adr_index.status, 'accepted'), isNull(schema.adr_index.superseded_by)))
-    .orderBy(desc(schema.adr_index.date)).all()
-    .map((d) => ({ id: d.id, title: d.title, date: ymd(d.date).slice(0, 7), tags: Array.isArray(d.tags) ? d.tags : [] }));
-  const hasArch = archSections.length > 0 || archDetails.length > 0 || archDecisions.length > 0;
+  // adr-021: decisions no longer render inside the Engineering architecture slot
+  // (they double-rendered with the Development journal) — the Decisions tab is
+  // now their single home. The /architecture route still passes them.
+  const hasArch = archSections.length > 0 || archDetails.length > 0;
   const archSlot = hasArch
-    ? <ArchitectureView sections={archSections} details={archDetails} decisions={archDecisions} />
+    ? <ArchitectureView sections={archSections} details={archDetails} decisions={[]} />
     : null;
 
   // ── Shaping ──
@@ -182,12 +196,72 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     for (const t of (tech.testing_libs ?? [])) stackChips.push(t);
   }
 
+  // ── adr-021 additions ──
+  // Visual identity strip (hero) from ui_master_plans — palette swatches are
+  // whatever hex strings the stored palette JSON carries; nothing is invented.
+  const hexRe = /^#[0-9a-fA-F]{3,8}$/;
+  function collectHex(value: unknown, out: string[]) {
+    if (typeof value === 'string') { if (hexRe.test(value.trim())) out.push(value.trim()); return; }
+    if (Array.isArray(value)) { for (const v of value) collectHex(v, out); return; }
+    if (value && typeof value === 'object') { for (const v of Object.values(value)) collectHex(v, out); }
+  }
+  let identity: { swatches: string[]; fonts: string[]; layout: string | null; motion: string | null } | null = null;
+  if (uiPlan) {
+    const swatches: string[] = [];
+    collectHex(uiPlan.palette_dark ?? uiPlan.palette_light, swatches);
+    const uniq = Array.from(new Set(swatches)).slice(0, 8);
+    const fonts = uiPlan.fonts && typeof uiPlan.fonts === 'object'
+      ? Array.from(new Set(Object.values(uiPlan.fonts as Record<string, unknown>).filter((f): f is string => typeof f === 'string')))
+      : [];
+    // layout_style can be an essay — the strip shows its leading clause only.
+    const layout = uiPlan.layout_style
+      ? uiPlan.layout_style.split(/[(:.]/, 1)[0]!.trim() || null
+      : null;
+    if (uniq.length || fonts.length || layout || uiPlan.animation_level) {
+      identity = { swatches: uniq, fonts, layout, motion: uiPlan.animation_level ?? null };
+    }
+  }
+
+  // Independent-verifier aggregate (Engineering) — real counts, no dressing.
+  const verifApproves = verifRows.filter((v) => v.rec === 'APPROVE').length;
+  const verification = verifRows.length > 0
+    ? { total: verifRows.length, approves: verifApproves }
+    : null;
+
+  // Decision → change → verified thread (Decisions tab): recent integrated
+  // Stage-4 items with their locked change + the verifier's actual verdict.
+  function jsonField(value: unknown, key: string): string | null {
+    try {
+      const obj = typeof value === 'string' ? JSON.parse(value) : value;
+      if (obj && typeof obj === 'object' && typeof (obj as Record<string, unknown>)[key] === 'string') {
+        return (obj as Record<string, string>)[key];
+      }
+    } catch { /* malformed rows render without that line rather than crashing */ }
+    return null;
+  }
+  const trace = traceRows.map((r) => ({
+    iter: r.iterNum,
+    title: r.title,
+    request: r.description ?? null,
+    change: jsonField(r.proposed, 'action_summary'),
+    verdict: jsonField(r.verifier, 'recommendation'),
+    reason: jsonField(r.verifier, 'reason'),
+  })).filter((t) => t.verdict !== null);
+
+  // Hero hook leads with the problem (adr-021) — first sentence, verbatim.
+  const firstSentence = (s: string) => {
+    const m = s.match(/^[\s\S]*?[.!?](?=\s|$)/);
+    return (m ? m[0] : s).trim();
+  };
+
   const data: ShowcaseData = {
     slug: project.slug,
     name: project.display_name,
     accent: projectAccent(project.slug),
     tagline: project.tagline ?? '',
-    hook: project.short_description ?? project.core_idea ?? project.tagline ?? '',
+    hook: project.problem_statement
+      ? firstSentence(project.problem_statement)
+      : (project.short_description ?? project.core_idea ?? project.tagline ?? ''),
     // personal/cv retired from display (owner decision 2026-07-04) — tech tags only
     tags: ((project.tags ?? []) as string[]).filter((t) => t !== 'personal' && t !== 'cv'),
     stageLabel: STAGE_LABEL[project.lifecycle_phase ?? 'building'] ?? 'BUILD',
@@ -224,11 +298,10 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
         }
       : null,
     hasArch,
-    // development
-    timeline: [
-      { date: ymd(project.created_at), label: 'Project created' },
-      ...events.map((e) => ({ date: ymd(e.event_at), label: e.notes ?? e.event_type })),
-    ].filter((t) => t.date).slice(0, 7),
+    identity,
+    verification,
+    trace,
+    // engineering (adr-021: tests moved out of the dissolved Development tab)
     tests: {
       flowsPassing, flowsTotal: flows.length, coveragePct,
       note: flows.length > 0
@@ -238,6 +311,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     journal: adrs.map((d) => ({
       date: ymd(d.date), title: d.title, tags: (Array.isArray(d.tags) ? d.tags : []).filter((t) => !t.startsWith('cat:') && t !== 'curated'),
       status: d.status ?? 'accepted', superseded: !!d.superseded_by,
+      curated: (Array.isArray(d.tags) ? d.tags : []).includes('curated'),
     })),
     challenges: resolvedRisks.map((r) => ({ problem: r.name ?? 'Risk', solved: r.resolution ?? '' })),
     risks: openRisks.map((r) => ({
