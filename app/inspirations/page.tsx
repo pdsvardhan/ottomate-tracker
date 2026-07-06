@@ -2,12 +2,15 @@
 // iter-7 #63: trimmed to a clean visual board. The matched-component machinery was
 // dropped (it held github URLs, not catalog ids, and Stage 2 never routed through it).
 
+import Link from 'next/link';
 import { asc } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { SpotlightCard } from '@/components/ui/SpotlightCard';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { BackButton } from '@/components/ui/BackButton';
+import { PRIMARY_BUTTON_CLASSES } from '@/components/ui/FilterBar';
+import { AddInspirationModal } from '@/components/inspiration/AddInspirationModal';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
 
 export const dynamic = 'force-dynamic';
@@ -51,15 +54,20 @@ export default async function InspirationsPage({
       <div className="sc-wrap px-6 md:px-10 py-10">
         {/* Header (iter-16): dropped the eyebrow, count line, and the whole
             filter form; added the shared back button left of the title. */}
-        <div className="mb-8 flex items-center gap-4 flex-wrap">
-          <BackButton href="/" label="Home" />
-          <h1 className="display pg leading-none">Inspirations</h1>
+        <div className="mb-8 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4">
+            <BackButton href="/" label="Home" />
+            <h1 className="display pg leading-none">Inspirations</h1>
+          </div>
+          <Link href="/inspirations?action=new" className={PRIMARY_BUTTON_CLASSES}>
+            + Add inspiration
+          </Link>
         </div>
 
       {filtered.length === 0 ? (
         <EmptyState
           title="No inspirations yet"
-          body="Add a new reference via POST /api/inspirations."
+          body="Use “+ Add inspiration” to add your first visual reference."
         />
       ) : (
         <div className="grid gap-x-8 gap-y-10 md:grid-cols-2 xl:grid-cols-3">
@@ -68,6 +76,9 @@ export default async function InspirationsPage({
           ))}
         </div>
       )}
+
+        {/* Add-inspiration modal — toggled by ?action=new */}
+        <AddInspirationModal />
       </div>
     </div>
   );

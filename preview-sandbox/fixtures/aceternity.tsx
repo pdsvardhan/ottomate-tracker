@@ -14,47 +14,52 @@ import {
   IconBoxAlignRightFilled,
   IconArrowWaveRightUp,
 } from '@tabler/icons-react';
+// mc-3d-card-effect parts, by absolute path — so the demo renders inside the real
+// CardContainer (perspective + mouse-tilt handlers), NOT the alphabetically-first
+// CardBody export the generic picker would grab. That mis-pick is why the tilt was
+// dead (CardBody has no perspective/handlers). Fix 2026-07-06.
+import { CardContainer, CardBody, CardItem } from '/mnt/storage/ottomate/assets/components/mc-3d-card-effect/3d-card';
 
 // Aceternity upstream-demo ports. aceternity demos are DARK -> theme:'dark'.
 // Background-effect components (aurora/lamp/spotlight/meteors/wavy/card-spotlight)
 // -> wrap:true with centered demo content so the effect has space to fill.
 
 // ---------------------------------------------------------------------------
-// mc-3d-card-effect - CardContainer is the picked export; build the demo body
-// as its children (an inline CardBody/CardItem stack from the upstream demo).
+// mc-3d-card-effect - full upstream demo built from the REAL exports so the
+// interactive tilt works: CardContainer (perspective + mousemove tilt) wraps
+// CardBody, with CardItems giving the child-parallax on hover. Rendered via the
+// fixture `element` escape hatch (not `children`) so the picker's mis-pick of
+// CardBody is bypassed entirely.
 // ---------------------------------------------------------------------------
-function ace3dChildren(): React.ReactNode {
-  const Body = ({ children }: any) => (
-    <div className="relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto sm:w-[24rem] h-auto rounded-xl p-6 border [transform-style:preserve-3d] [&>*]:[transform-style:preserve-3d]">
-      {children}
-    </div>
-  );
+function ace3dElement(): React.ReactNode {
   return (
-    <Body>
-      <div className="text-xl font-bold text-neutral-600 dark:text-white">
-        Make things float in air
-      </div>
-      <p className="text-neutral-500 text-sm max-w-sm mt-2 dark:text-neutral-300">
-        Hover over this card to unleash the power of CSS perspective
-      </p>
-      <div className="mt-4">
-        <img
-          src="https://picsum.photos/seed/aceternity3d/1000/600"
-          height="1000"
-          width="1000"
-          className="h-60 w-full object-cover rounded-xl group-hover/card:shadow-xl"
-          alt="thumbnail"
-        />
-      </div>
-      <div className="flex justify-between items-center mt-8">
-        <span className="px-4 py-2 rounded-xl text-xs font-normal dark:text-white">
-          Try now -&gt;
-        </span>
-        <span className="px-4 py-2 rounded-xl bg-black dark:bg-white dark:text-black text-white text-xs font-bold">
-          Sign up
-        </span>
-      </div>
-    </Body>
+    <CardContainer className="inter-var">
+      <CardBody className="relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto sm:w-[24rem] h-auto rounded-xl p-6 border">
+        <CardItem translateZ={50} className="text-xl font-bold text-neutral-600 dark:text-white">
+          Make things float in air
+        </CardItem>
+        <CardItem as="p" translateZ={60} className="text-neutral-500 text-sm max-w-sm mt-2 dark:text-neutral-300">
+          Hover over this card to unleash the power of CSS perspective
+        </CardItem>
+        <CardItem translateZ={100} className="w-full mt-4">
+          <img
+            src="https://picsum.photos/seed/aceternity3d/1000/600"
+            height="1000"
+            width="1000"
+            className="h-60 w-full object-cover rounded-xl group-hover/card:shadow-xl"
+            alt="thumbnail"
+          />
+        </CardItem>
+        <div className="flex justify-between items-center mt-8">
+          <CardItem translateZ={20} as="span" className="px-4 py-2 rounded-xl text-xs font-normal dark:text-white">
+            Try now -&gt;
+          </CardItem>
+          <CardItem translateZ={20} as="span" className="px-4 py-2 rounded-xl bg-black dark:bg-white dark:text-black text-white text-xs font-bold">
+            Sign up
+          </CardItem>
+        </div>
+      </CardBody>
+    </CardContainer>
   );
 }
 
@@ -217,7 +222,7 @@ function aceWavyChildren(): React.ReactNode {
 
 export const overrides: Record<string, any> = {
   // CardContainer is the picked export; demo body passed as children.
-  'mc-3d-card-effect': { children: ace3dChildren(), theme: 'dark' },
+  'mc-3d-card-effect': { element: ace3dElement(), theme: 'dark' },
   // Aurora fills its parent; heading/button live as its children.
   'mc-aurora-background': { children: aceAuroraChildren(), theme: 'dark' },
   // Full upstream 7-card bento demo.

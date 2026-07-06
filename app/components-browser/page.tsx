@@ -2,13 +2,10 @@
 // Spotlight Glass redesign (iteration #5 item 37). Uses components/ui/ primitives.
 
 import { asc } from 'drizzle-orm';
-import Link from 'next/link';
 import { getDb, schema } from '@/lib/db/client';
 import { getPreviewManifest } from '@/lib/previews';
 import { TiltCard } from '@/components/ui/TiltCard';
 import { Badge } from '@/components/ui/Badge';
-import { PRIMARY_BUTTON_CLASSES } from '@/components/ui/FilterBar';
-import { AddComponentModal } from '@/components/master-component/AddComponentModal';
 import { COMPONENT_CATEGORIES } from '@/lib/categories';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
 import { BackButton } from '@/components/ui/BackButton';
@@ -90,7 +87,6 @@ export default async function ComponentsBrowser({
   }
 
   // Derived
-  const libraries = Array.from(new Set(all.map((c) => c.library).filter(Boolean))).sort() as string[];
   const allTags = Array.from(new Set(all.flatMap((c) => (c.tags ?? []) as string[]))).sort();
   // Only categories that actually have components (iter-16): empty ones (e.g.
   // auth-screens) no longer render a chip or a hollow "no components" section.
@@ -105,14 +101,9 @@ export default async function ComponentsBrowser({
       <div className="sc-wrap px-6 md:px-10 py-10">
         {/* Header (iter-16): dropped the eyebrow + count line, added the shared
             back button to the left of the title. */}
-        <div className="mb-7 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <BackButton href="/" label="Home" />
-            <h1 className="display pg leading-none">Components</h1>
-          </div>
-          <Link href="/components-browser?action=new" className={PRIMARY_BUTTON_CLASSES}>
-            + Add component
-          </Link>
+        <div className="mb-7 flex items-center gap-4 flex-wrap">
+          <BackButton href="/" label="Home" />
+          <h1 className="display pg leading-none">Components</h1>
         </div>
 
         {/* Search + filter toolbar (iter-16b redesign — the old boxed form
@@ -201,11 +192,6 @@ export default async function ComponentsBrowser({
           })}
         </div>
 
-        {/* CRUD modals — mounted once; toggled by ?action= URL param */}
-        <AddComponentModal
-          categories={CATEGORY_ORDER.map((c) => c.id)}
-          libraries={libraries}
-        />
       </div>
     </div>
   );
