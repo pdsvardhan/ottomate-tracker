@@ -665,3 +665,40 @@ flows:
     edge_cases: []
     linked_features: []
     linked_pages: []
+  - id: flow-stage4-iteration-loop
+    title: Run a Stage-4 iteration (report to verified change)
+    type: mixed
+    priority: critical
+    test_status: passing
+    trigger: Owner submits raw feedback (chat or report) about a tracked project
+    expected_outcome: Every locked item is built, independently verified, integrated
+      and traceable back to the original words
+    linked_playwright_test: tests/e2e/iteration-bedrock.spec.ts
+    pre_conditions: []
+    steps:
+      - actor: user
+        action: Submits raw feedback - a bug report, batch of comments, or feature ask
+        result: Report stored verbatim; an iteration opens in classification
+      - actor: system
+        action: Skill classifies the raw text into typed items with confidence + source
+          substrings
+        result: Extracted items render at the lock-in gate, each traceable to the
+          original words
+      - actor: user
+        action: Reviews the gate - edits, rejects or approves items
+        result: Iteration locks; the item list is frozen as the build manifest
+      - actor: system
+        action: Builds exactly the locked items
+        result: Code changes land per item; nothing outside the manifest
+      - actor: system
+        action: Independent verifier checks each item (code-reality, stubs, data,
+          acceptance criteria)
+        result: Per-item APPROVE/ITERATE verdict with reasons; failures cannot be
+          silently claimed done
+      - actor: user
+        action: Reads the trace report and integrates
+        result: Raw text to locked items to built code to verdicts - the full chain
+          archived
+    edge_cases: []
+    linked_features: []
+    linked_pages: []

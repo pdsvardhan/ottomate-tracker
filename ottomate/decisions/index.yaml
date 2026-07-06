@@ -235,3 +235,24 @@ decisions:
       - curated
       - cat:reliability
     body_path: decisions/adr-020-preprod-ci-policy.md
+  - id: adr-021-showcase-ia-redesign
+    project_slug: ottomate
+    title: "Per-project showcase IA: hero + four tabs, verified-data-only (amends
+      adr-017)"
+    status: accepted
+    date: 2026-07-06T00:00:00.000Z
+    tags:
+      - curated
+      - cat:product
+      - showcase
+    body_path: decisions/adr-021-showcase-ia-redesign.md
+  - id: adr-022-self-site-sync
+    project_slug: ottomate
+    title: "Self site-sync pass: register, stale success criteria, canonical Stage-4
+      journey flow, dead code (#178)"
+    status: accepted
+    date: 2026-07-07T00:00:00.000Z
+    tags:
+      - curated
+      - cat:product
+    body_path: decisions/adr-022-self-site-sync.md

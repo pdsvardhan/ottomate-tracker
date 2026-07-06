@@ -2,6 +2,12 @@ slug: ottomate
 display_name: Ottomate
 summary:
   tagline: Web project pipeline companion to /ottomate skill
+  short_description: "The state-and-evidence half of the /ottomate skill pair: a
+    self-hosted tracker where every VAULT7A web project moves through a 5-stage
+    pipeline (idea to spec to design to build to iterate) behind lock-in gates,
+    an independent verifier and trace reports — plus a 116-component asset
+    library with live inline previews and a DB-to-YAML mirror, so a fresh
+    session picks up exactly where the last one left off."
   core_idea: "Ottomate is a website + skill pair that orchestrates web-project
     work across 5 stages (idea -> design -> build -> iterate -> mini-pipeline)
     on a home server. Anti-gaslighting bedrock: every iteration goes through a
@@ -32,15 +38,17 @@ non_goals:
 success_criteria:
   - "Anti-gaslighting bedrock works: every Stage 4 iteration shows trace report
     mapping raw text → locked items → built code → verifier verdict"
-  - "Tracker UI complete: project list, 11-tab project detail, lock-in gate,
+  - "Tracker UI complete: project register, per-project showcase (hero +
+    Overview/Engineering/Decisions/Resources per adr-021), lock-in gate,
     cross-cutting pages (inbox, coverage, risks, components, search)"
   - Verifier sub-agent runs independent of coder, hard-fails on stub detection
   - Bearer auth enforced on every mutation; localhost-bound 127.0.0.1:8110 +
     Cloudflare Tunnel for public
   - DB → YAML mirror sync at pack-up so project repos have human-readable
     narrative + git history
-  - Migration of all 13 existing web projects so tracker becomes single source
-    of truth
+  - All tracked web projects live in the tracker as the single source of truth
+    (9 active after the adr-019 narrowing; 9 inactive were removed with a DB
+    backup)
 preferences:
   likes:
     - dark mode
