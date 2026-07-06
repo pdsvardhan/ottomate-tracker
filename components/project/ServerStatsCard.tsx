@@ -52,7 +52,7 @@ function Gauge({ label, pct, value, hue }: { label: string; pct: number; value: 
 }
 
 export function ServerStatsCard({ stats }: { stats: ServerStats }) {
-  const CYAN = 'var(--cyan)', MAG = 'var(--mag)', VIO = 'var(--vio)', AMBER = 'var(--amber)', CORAL = 'var(--coral)';
+  const CYAN = 'var(--cyan)', MAG = 'var(--mag)', VIO = 'var(--vio)', CORAL = 'var(--coral)';
 
   // Live-ticking uptime: seconds since snapshot added to the server value.
   const [now, setNow] = useState(stats.snapshotMs);
@@ -77,23 +77,45 @@ export function ServerStatsCard({ stats }: { stats: ServerStats }) {
         </span>
       </div>
 
-      {/* Identity row */}
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-5">
+      {/* Identity: host + OS + CPU (CPU moved up from the chip row — iter 2026-07-06) */}
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-6">
         <span className="font-display font-extrabold text-[length:var(--t-title)] tracking-tight" style={{ color: 'var(--ink)' }}>
           VAULT7A
         </span>
         <span className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>{stats.os}</span>
+        <span className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>· {stats.cpuModel}</span>
       </div>
 
-      {/* What this box is + how the projects are hosted (iter-16 owner ask) */}
-      <p className="mb-3.5 text-[length:var(--t-label)] leading-relaxed" style={{ color: 'var(--ink)', opacity: 0.8 }}>
+      {/* ── LIVE telemetry: uptime + gauges (real /proc readings) ── */}
+      <div className="ss-lbl">Live</div>
+      <div className="mb-4 flex items-end gap-3.5 flex-wrap">
+        {[{ v: up.d, l: 'days' }, { v: up.h, l: 'hrs' }, { v: up.m, l: 'min' }].map((u, i) => (
+          <div key={u.l} className="flex items-end gap-1.5">
+            <span
+              className="font-display font-extrabold tabular-nums leading-none"
+              style={{ fontSize: 'clamp(22px,2.6vw,34px)', color: [CYAN, VIO, MAG][i], textShadow: `0 0 20px color-mix(in srgb, ${[CYAN, VIO, MAG][i]} 50%, transparent)` }}
+            >
+              {String(u.v).padStart(2, '0')}
+            </span>
+            <span className="mono text-[length:var(--t-cap)] mb-0.5" style={{ color: 'var(--dim)' }}>{u.l}</span>
+          </div>
+        ))}
+        <span className="mono text-[length:var(--t-cap)] mb-1 ml-1" style={{ color: 'var(--mute)' }}>uptime</span>
+      </div>
+      <div className="grid gap-3.5 sm:grid-cols-3 mb-6">
+        <Gauge label={`CPU · ${stats.cores} cores`} pct={loadPct} value={`${stats.load1.toFixed(2)} load`} hue={CORAL} />
+        <Gauge label="Memory" pct={memPct} value={`${stats.memUsedGB.toFixed(0)}/${stats.memTotalGB.toFixed(0)} GB`} hue={VIO} />
+        <Gauge label="Storage pool" pct={storagePct} value={`${stats.storageUsedTB.toFixed(1)}/${stats.storageTotalTB.toFixed(0)} TB`} hue={CYAN} />
+      </div>
+
+      {/* ── HOSTING: what this box is + how projects are served ── */}
+      <div className="ss-lbl">Hosting</div>
+      <p className="mb-3 text-[length:var(--t-label)] leading-relaxed" style={{ color: 'var(--ink)', opacity: 0.8 }}>
         One self-hosted box runs every project on this site. Public traffic enters through a Cloudflare
         Tunnel to <span className="mono" style={{ color: CYAN }}>&lt;project&gt;.vault7a.xyz</span>, gated by
         Authentik single sign-on — no open ports, no cloud bill.
       </p>
-
-      {/* Simple hosting diagram */}
-      <div className="mb-5 flex flex-wrap items-center gap-x-1.5 gap-y-2">
+      <div className="mb-6 flex flex-wrap items-center gap-x-1.5 gap-y-2">
         {['You', 'Cloudflare', 'Tunnel', 'Authentik SSO', 'Docker app'].map((node, i, arr) => (
           <span key={node} className="flex items-center gap-1.5">
             <span
@@ -112,44 +134,26 @@ export function ServerStatsCard({ stats }: { stats: ServerStats }) {
         ))}
       </div>
 
-      {/* Big uptime */}
-      <div className="mb-5 flex items-end gap-4 flex-wrap">
-        {[{ v: up.d, l: 'days' }, { v: up.h, l: 'hrs' }, { v: up.m, l: 'min' }].map((u, i) => (
-          <div key={u.l} className="flex items-end gap-1.5">
-            <span
-              className="font-display font-extrabold tabular-nums leading-none"
-              style={{ fontSize: 'clamp(30px,3.4vw,46px)', color: [CYAN, VIO, MAG][i], textShadow: `0 0 24px color-mix(in srgb, ${[CYAN, VIO, MAG][i]} 55%, transparent)` }}
-            >
-              {String(u.v).padStart(2, '0')}
-            </span>
-            <span className="mono text-[length:var(--t-cap)] mb-1" style={{ color: 'var(--dim)' }}>{u.l}</span>
-          </div>
-        ))}
-        <span className="mono text-[length:var(--t-cap)] mb-1.5 ml-1" style={{ color: 'var(--mute)' }}>uptime · live</span>
-      </div>
-
-      {/* Live gauges */}
-      <div className="grid gap-3.5 sm:grid-cols-3 mb-5">
-        <Gauge label={`CPU · ${stats.cores} cores`} pct={loadPct} value={`${stats.load1.toFixed(2)} load`} hue={CORAL} />
-        <Gauge label="Memory" pct={memPct} value={`${stats.memUsedGB.toFixed(0)}/${stats.memTotalGB.toFixed(0)} GB`} hue={VIO} />
-        <Gauge label="Storage pool" pct={storagePct} value={`${stats.storageUsedTB.toFixed(1)}/${stats.storageTotalTB.toFixed(0)} TB`} hue={CYAN} />
-      </div>
-
-      {/* Spec chips (static facts) */}
+      {/* ── SPEC: static host facts (dup RAM chip dropped; networks now labelled
+             + tooltipped — owner feedback 2026-07-06) ── */}
+      <div className="ss-lbl">Spec</div>
       <div className="flex flex-wrap gap-2">
         {[
-          stats.cpuModel,
-          `${stats.memTotalGB.toFixed(0)} GB RAM`,
-          `${stats.containers} containers`,
-          `${stats.networks} networks`,
-        ].map((s) => (
-          <span key={s} className="mono text-[length:var(--t-cap)] rounded-lg px-2.5 py-1" style={{ color: 'var(--ink)', background: 'rgba(12,11,28,.6)', border: '1px solid var(--line)' }}>
-            {s}
+          { label: `${stats.containers} containers`, title: `${stats.containers} Docker containers — the media stack, cloud apps, SSO, monitoring and every web project on this site.` },
+          { label: `${stats.networks} Docker networks`, title: 'Isolated Docker virtual networks (media-net, arr-net, authentik-net, cloud-net, projects-net…) that segment container groups from one another.' },
+        ].map((c) => (
+          <span key={c.label} title={c.title} className="mono text-[length:var(--t-cap)] rounded-lg px-2.5 py-1 cursor-help" style={{ color: 'var(--ink)', background: 'rgba(12,11,28,.6)', border: '1px solid var(--line)' }}>
+            {c.label}
           </span>
         ))}
       </div>
 
       <style jsx>{`
+        .ss-lbl {
+          font-family: var(--scmono); font-size: var(--t-cap);
+          letter-spacing: .16em; text-transform: uppercase;
+          color: var(--dim); opacity: .75; margin-bottom: 10px;
+        }
         .ss-led {
           width: 8px; height: 8px; border-radius: 999px;
           background: #34d399; box-shadow: 0 0 8px #34d399;

@@ -19,7 +19,10 @@ const RATING_HUE: Record<string, string> = { A: 'var(--cyan)', B: 'var(--vio)', 
 // Clean chevron-select styling for the filter toolbar (iter-16b).
 const SELECT_CLASSES =
   'appearance-none cursor-pointer rounded-xl border border-white/10 bg-white/[0.03] py-3 pl-4 pr-9 ' +
-  'text-[length:var(--t-label)] text-zinc-200 transition-colors focus:border-cyan-500/50 focus:outline-none';
+  'text-[length:var(--t-label)] text-zinc-200 transition-colors focus:border-cyan-500/50 focus:outline-none ' +
+  // native <option> popups inherit the OS palette, not the select — force a solid
+  // dark bg + light text so values aren't dark-on-dark (owner feedback 2026-07-06).
+  '[&>option]:bg-[#0b0e17] [&>option]:text-zinc-100';
 
 function SelectChevron() {
   return (

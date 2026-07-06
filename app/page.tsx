@@ -179,10 +179,6 @@ export default async function HomePage() {
     };
   });
 
-  const featuresShipped = rows.reduce((n, r) => n + r.done, 0);
-  const liveCount = rows.filter((r) => r.liveUrl).length;
-  const flowsPassing = rows.reduce((n, r) => n + r.flowsPassing, 0);
-
   const activity: ActivityLine[] = events
     .filter((e) => e.project_slug && nameBySlug.has(e.project_slug))
     .slice(0, 9)
@@ -206,7 +202,6 @@ export default async function HomePage() {
       <div className="sc-wrap px-6 md:px-10 py-10">
         <ProjectRegister
           rows={rows}
-          stats={{ projects: rows.length, featuresShipped, live: liveCount, flowsPassing }}
           activity={activity}
           serverStats={serverStats}
         />

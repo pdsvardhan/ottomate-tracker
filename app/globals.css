@@ -152,7 +152,9 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
   background:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px);}
 .sc-grain{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.045;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
-.sc-wrap{position:relative;z-index:1}
+/* max-width cap so ultrawide screens don't leave a dead gutter to the right of
+   the register (owner feedback 2026-07-06 — laptop widths are unaffected). */
+.sc-wrap{position:relative;z-index:1;width:100%;max-width:1600px;margin-inline:auto}
 
 /* hero display title with the multi-hue sweep (iter-13: was 7vw/84px — owner
    asked for smaller; still commanding, no longer dominating the viewport) */

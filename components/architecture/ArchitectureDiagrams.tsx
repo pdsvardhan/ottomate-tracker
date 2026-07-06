@@ -144,29 +144,14 @@ export function ArchitectureView({ sections, details, decisions }: {
   details: DiagramSection[];
   decisions: DecisionEntry[];
 }) {
-  const anchors = [
-    ...sections.map((s) => ({ id: s.kind, label: s.label })),
-    { id: 'decisions', label: 'Decisions' },
-  ];
   const detailCount = details.reduce((n, s) => n + s.diagrams.length, 0);
   const decisionsIndex = sections.length + 1;
 
+  // Un-nested (owner feedback 2026-07-06): the pill jump-nav that used to sit
+  // here read as a second tab layer under the page's Engineering tab. The layers
+  // already render as stacked sections below, so the nav is dropped entirely.
   return (
     <div className="space-y-10">
-      {/* In-page layer nav */}
-      <nav className="flex flex-wrap items-center gap-2" aria-label="Architecture layers">
-        {anchors.map((a, i) => (
-          <a
-            key={a.id}
-            href={`#${a.id}`}
-            className="inline-flex items-center gap-2 rounded-full border border-zinc-700/60 bg-zinc-900/40 px-4 py-2 text-[length:var(--t-label)] text-zinc-300 transition-all hover:border-cyan-700/60 hover:text-cyan-200"
-          >
-            <span className="font-mono text-[length:var(--t-cap)] text-zinc-500">{String(i + 1).padStart(2, '0')}</span>
-            <span className="font-medium">{a.label}</span>
-          </a>
-        ))}
-      </nav>
-
       {/* Primary layers: Workflow → System → Platform */}
       {sections.map((s, i) => (
         <section key={s.kind} id={s.kind} className="scroll-mt-24">

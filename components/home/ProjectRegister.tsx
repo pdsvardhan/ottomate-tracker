@@ -9,7 +9,6 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { accentStyle } from '@/lib/project-accent';
-import { NumberTicker } from '@/components/ui/NumberTicker';
 import { ServerStatsCard, type ServerStats } from '@/components/project/ServerStatsCard';
 
 export interface RegisterRow {
@@ -54,10 +53,13 @@ export interface ActivityLine {
 // PROGRESS and STACK, which absorb the leftover width in the middle-right so the
 // row fills evenly. STACK widened so "SQLite + Drizzle" / "FastAPI (Python)" no
 // longer truncate.
+// iter (2026-07-06 owner): HEALTH column removed. SUMMARY (lg/xl) and PROGRESS
+// (md, where SUMMARY is hidden) are now the 1fr flex tracks so the row always
+// fills its container edge-to-edge — no dead gutter on ultrawide.
 const COLS =
-  'md:grid md:grid-cols-[minmax(150px,210px)_minmax(80px,96px)_220px_minmax(88px,104px)_minmax(100px,116px)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
-  'lg:grid-cols-[minmax(150px,210px)_minmax(220px,440px)_minmax(80px,96px)_220px_minmax(88px,104px)_minmax(100px,116px)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
-  'xl:grid-cols-[minmax(160px,220px)_minmax(240px,460px)_minmax(80px,96px)_220px_minmax(88px,104px)_minmax(100px,116px)_minmax(150px,172px)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
+  'md:grid md:grid-cols-[minmax(150px,210px)_minmax(80px,96px)_minmax(200px,1fr)_minmax(88px,104px)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
+  'lg:grid-cols-[minmax(150px,210px)_minmax(220px,1fr)_minmax(80px,96px)_220px_minmax(88px,104px)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
+  'xl:grid-cols-[minmax(160px,220px)_minmax(240px,1fr)_minmax(80px,96px)_220px_minmax(88px,104px)_minmax(150px,172px)_minmax(150px,176px)_minmax(44px,56px)_28px] ' +
   'md:items-center';
 
 const STAGE_HUES: Record<string, string> = {
@@ -72,20 +74,12 @@ function href(url: string): string {
   return url.startsWith('http') ? url : `https://${url}`;
 }
 
-// HEALTH pill (iter-16): the old "◇ n/n  ⚑ n" symbols were unreadable (owner
-// feedback). One plain-word status pill driven by OPEN RISKS, with a tooltip that
-// spells out the raw numbers. Flows are NOT scored — most are simply untested
-// (not failing), so counting them would wrongly flag healthy projects red.
-function healthOf(row: RegisterRow): { label: string; hue: string; tip: string } {
-  const tip = `Flows passing ${row.flowsPassing}/${row.flowsTotal} · Open risks ${row.risksOpen}`;
-  if (row.risksOpen >= 5) return { label: 'At risk', hue: 'var(--coral)', tip };
-  if (row.risksOpen >= 2) return { label: 'Watch', hue: 'var(--amber)', tip };
-  return { label: 'Healthy', hue: '#34d399', tip };
-}
+// HEALTH column removed 2026-07-06 (owner): a risk-count-driven "health" pill read
+// as "this project is broken" on a portfolio showcase and its meaning wasn't
+// self-evident. Open risks stay captured as build-rails, just not surfaced here.
 
 function Row({ row, index }: { row: RegisterRow; index: number }) {
   const [open, setOpen] = useState(false);
-  const health = healthOf(row);
   return (
     <li
       className="a-fade-up reg-row group border-t border-white/[0.07] last:border-b transition-colors hover:bg-white/[0.025]"
@@ -140,18 +134,6 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
               : { color: 'var(--mute)', borderColor: 'var(--line)' }}
           >
             {row.isPublic ? 'public' : 'private'}
-          </span>
-        </div>
-
-        {/* HEALTH — single plain-word status pill (iter-16) */}
-        <div className="hidden md:flex items-center">
-          <span
-            className="inline-flex items-center gap-1.5 mono text-[length:var(--t-cap)] rounded-full border px-2.5 py-1 whitespace-nowrap"
-            style={{ color: health.hue, borderColor: `color-mix(in srgb, ${health.hue} 40%, transparent)`, background: `color-mix(in srgb, ${health.hue} 12%, transparent)` }}
-            title={health.tip}
-          >
-            <span className="size-1.5 rounded-full" style={{ background: health.hue, boxShadow: `0 0 7px ${health.hue}` }} />
-            {health.label}
           </span>
         </div>
 
@@ -236,12 +218,10 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
 
 export function ProjectRegister({
   rows,
-  stats,
   activity,
   serverStats,
 }: {
   rows: RegisterRow[];
-  stats: { projects: number; featuresShipped: number; live: number; flowsPassing: number };
   activity: ActivityLine[];
   serverStats: ServerStats;
 }) {
@@ -264,31 +244,14 @@ export function ProjectRegister({
     [rows, stage],
   );
 
-  const statCards = [
-    { n: stats.projects, l: 'PROJECTS', c: 'var(--mag)' },
-    { n: stats.featuresShipped, l: 'FEATURES SHIPPED', c: 'var(--cyan)' },
-    { n: stats.live, l: 'LIVE', c: 'var(--vio)' },
-    { n: stats.flowsPassing, l: 'FLOWS PASSING', c: 'var(--coral)' },
-  ];
-
   return (
     <div>
-      {/* ── HERO: title + tagline left, count-up stats right ── */}
-      <div className="mb-8 grid items-end gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
-        <div>
-          <h1 className="display pg">Projects</h1>
-          <p className="mt-3 text-[length:var(--t-lead)] leading-relaxed" style={{ color: 'var(--ink)', opacity: 0.82 }}>
-            Every VAULT7A build — spec through shipped, tracked end to end.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {statCards.map((s) => (
-            <div key={s.l} className="numc min-w-[128px]" style={{ '--nc': s.c } as React.CSSProperties}>
-              <div className="n"><NumberTicker value={s.n} /></div>
-              <div className="l">{s.l}</div>
-            </div>
-          ))}
-        </div>
+      {/* ── HERO: title + tagline (count-up stat band removed 2026-07-06, owner) ── */}
+      <div className="mb-8">
+        <h1 className="display pg">Projects</h1>
+        <p className="mt-3 text-[length:var(--t-lead)] leading-relaxed" style={{ color: 'var(--ink)', opacity: 0.82 }}>
+          Every VAULT7A build — spec through shipped, tracked end to end.
+        </p>
       </div>
 
       {/* ── Stage filter ── */}
@@ -322,7 +285,6 @@ export function ProjectRegister({
         <span>STAGE</span>
         <span>PROGRESS</span>
         <span>CATEGORY</span>
-        <span>HEALTH</span>
         <span className="hidden xl:block">STACK</span>
         <span>LINKS</span>
         <span className="text-right">AGE</span>
