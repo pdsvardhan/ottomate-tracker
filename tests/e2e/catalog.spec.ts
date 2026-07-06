@@ -7,7 +7,11 @@ import { test, expect } from '@playwright/test';
 test('flow-components-grid — catalog renders grouped components', async ({ page }) => {
   await page.goto('/components-browser');
   await expect(page.getByRole('heading', { name: 'Components', level: 1 })).toBeVisible();
-  await expect(page.getByText('Central asset library')).toBeVisible();
+  // #179: the "Central asset library" subtitle died in the iter-16b header
+  // redesign — assert durable structure instead of marketing copy: the search
+  // toolbar and at least one category section heading.
+  await expect(page.getByPlaceholder(/Search components/)).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2 }).first()).toBeVisible();
   // At least one component card links into a detail page.
   await expect(page.locator('a[href^="/components-browser/mc-"]').first()).toBeVisible();
 });
