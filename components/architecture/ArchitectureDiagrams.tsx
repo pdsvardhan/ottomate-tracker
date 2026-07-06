@@ -6,6 +6,8 @@
 // curated decisions are showcase content; rails stay hidden).
 
 import { MermaidView } from '@/components/architecture/MermaidView';
+import { FlowDiagramView } from '@/components/architecture/FlowDiagramView';
+import { mermaidToFlow } from '@/lib/diagrams/mermaid-to-flow';
 import { Badge } from '@/components/ui/Badge';
 
 export interface DiagramEntry {
@@ -127,14 +129,23 @@ function SectionHeader({ index, label, desc, legacy }: {
 }
 
 function DiagramList({ section }: { section: DiagramSection }) {
+  // #178 (c): flowchart sources render as branded interactive React Flow
+  // (owner bake-off pick, #175); anything the converter cannot parse 1:1
+  // (erDiagram, exotic syntax) keeps the Mermaid renderer — converted
+  // faithfully or not converted at all.
   return (
     <div className="space-y-4">
-      {section.diagrams.map((d, i) => (
-        <div key={`${section.kind}-${i}`}>
-          {d.caption && <p className="text-[length:var(--t-label)] text-zinc-400 mb-2 font-mono">{d.caption}</p>}
-          <MermaidView source={d.source} filename={d.caption ?? `${section.kind}-${i + 1}.mmd`} />
-        </div>
-      ))}
+      {section.diagrams.map((d, i) => {
+        const flow = mermaidToFlow(d.source);
+        return (
+          <div key={`${section.kind}-${i}`}>
+            {d.caption && <p className="text-[length:var(--t-label)] text-zinc-400 mb-2 font-mono">{d.caption}</p>}
+            {flow
+              ? <FlowDiagramView graph={flow} />
+              : <MermaidView source={d.source} filename={d.caption ?? `${section.kind}-${i + 1}.mmd`} />}
+          </div>
+        );
+      })}
     </div>
   );
 }
