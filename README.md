@@ -12,7 +12,7 @@ The full pipeline is in production use: SO1 spec capture + 5-pass verification, 
 plan + component picking against a cross-project asset library, Stage-3 scaffolding/codegen/verifier/
 E2E, and the Stage-4 mini-pipeline (intake → classify → lock-in → build → verifier → integrate +
 trace report). Cross-cutting systems running: sanity-check gates, the anti-gaslight violations
-engine, the ~89-component master library with self-hosted inline previews, per-project to-dos,
+engine, the 116-component master library (17 categories) with self-hosted inline previews, per-project to-dos,
 public-docs mirror, and the DB→YAML mirror recovery net.
 
 ## Stack
