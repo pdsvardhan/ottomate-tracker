@@ -33,6 +33,7 @@ export interface RegisterRow {
   stack: string[];
   tags: string[];
   lastChange: string | null;
+  reel: { url: string; kind: 'video' | 'image' } | null;
 }
 
 export interface ActivityLine {
@@ -191,10 +192,20 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           NOT push siblings. Opens on hover (desktop) / focus / tap (data-open). */}
       <div className="reg-pop">
         <div
-          className="reg-pop-reel"
+          className="reg-pop-reel relative overflow-hidden"
           style={{ background: 'radial-gradient(120% 120% at 30% 0%, var(--accent-bg), #0c0f16 65%)' }}
         >
-          <span className="mono text-[length:var(--t-cap)] tracking-widest text-zinc-500">{row.name} · REEL</span>
+          {/* #165: real media when a reel is uploaded; labeled gradient otherwise */}
+          {row.reel ? (
+            row.reel.kind === 'video' ? (
+              <video src={row.reel.url} className="absolute inset-0 h-full w-full object-cover" muted loop autoPlay playsInline preload="metadata" />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element — served from our own API route
+              <img src={row.reel.url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            )
+          ) : (
+            <span className="mono text-[length:var(--t-cap)] tracking-widest text-zinc-500">{row.name} · REEL</span>
+          )}
         </div>
         <div className="p-4">
           <div className="mono text-[length:var(--t-cap)] font-semibold tracking-widest text-zinc-500 mb-2">OVERVIEW</div>

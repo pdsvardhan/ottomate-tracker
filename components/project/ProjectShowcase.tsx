@@ -14,7 +14,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { marked } from 'marked';
 import { ShaderBackground } from './ShaderBackground';
-import { ReelCanvas } from './ReelCanvas';
+import { ReelMedia, type ReelInfo } from './ReelMedia';
 import { NumberTicker } from '@/components/ui/NumberTicker';
 
 export interface ShowcaseData {
@@ -37,6 +37,7 @@ export interface ShowcaseData {
   dataModel: { engine: string | null; storage: string | null; migration: string | null; sources: string[] } | null;
   hasArch: boolean;
   identity: { swatches: string[]; fonts: string[]; layout: string | null; motion: string | null } | null;
+  reel: ReelInfo | null;
   verification: { total: number; approves: number } | null;
   trace: { iter: number; title: string; request: string | null; change: string | null; verdict: string | null; reason: string | null }[];
   tests: { flowsPassing: number; flowsTotal: number; coveragePct: number; note: string };
@@ -200,9 +201,9 @@ export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSl
               )}
             </div>
 
-            {/* reel */}
+            {/* reel — real media when uploaded (#165), animated placeholder otherwise */}
             <div className="reel">
-              <ReelCanvas />
+              <ReelMedia slug={d.slug} reel={d.reel} />
               <div className="absolute inset-0 pointer-events-none p-4 flex flex-col">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ background: MAG }} />
@@ -212,7 +213,7 @@ export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSl
                 </div>
                 <div className="mt-auto">
                   <div className="font-display font-extrabold text-2xl text-white" style={{ textShadow: '0 2px 20px rgba(0,0,0,.8)' }}>{d.name}</div>
-                  <div className="mono text-[length:var(--t-cap)] mt-1 tracking-wide" style={{ color: 'var(--mute)' }}>media coming soon</div>
+                  {!d.reel && <div className="mono text-[length:var(--t-cap)] mt-1 tracking-wide" style={{ color: 'var(--mute)' }}>media coming soon</div>}
                 </div>
               </div>
             </div>

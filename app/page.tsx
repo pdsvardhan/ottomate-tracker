@@ -8,6 +8,7 @@ import os from 'node:os';
 import { statfs } from 'node:fs/promises';
 import { desc, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
+import { pickReel } from '@/lib/media';
 import { projectAccent } from '@/lib/project-accent';
 import { ProjectRegister, type RegisterRow, type ActivityLine } from '@/components/home/ProjectRegister';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
@@ -176,6 +177,8 @@ export default async function HomePage() {
       stack: stackMap.get(p.slug) ?? [],
       tags: tags.filter((t) => t !== 'personal' && t !== 'cv' && t !== 'public-facing').slice(0, 4),
       lastChange: changed?.text ?? null,
+      // #165: real reel media in the floating panel when uploaded
+      reel: (() => { const r = pickReel(p.slug); return r ? { url: r.url, kind: r.kind } : null; })(),
     };
   });
 

@@ -7,6 +7,7 @@
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { getDb, schema } from '@/lib/db/client';
+import { pickReel } from '@/lib/media';
 import { projectAccent } from '@/lib/project-accent';
 import {
   ArchitectureView,
@@ -299,6 +300,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
       : null,
     hasArch,
     identity,
+    reel: (() => { const r = pickReel(slug); return r ? { url: r.url, kind: r.kind, name: r.name } : null; })(),
     verification,
     trace,
     // engineering (adr-021: tests moved out of the dissolved Development tab)
