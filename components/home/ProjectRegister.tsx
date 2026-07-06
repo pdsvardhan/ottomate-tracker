@@ -201,7 +201,7 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
               <video src={row.reel.url} className="absolute inset-0 h-full w-full object-cover" muted loop autoPlay playsInline preload="metadata" />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element — served from our own API route
-              <img src={row.reel.url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              <img src={row.reel.url} alt="" className="absolute inset-0 h-full w-full object-cover object-left-top" />
             )
           ) : (
             <span className="mono text-[length:var(--t-cap)] tracking-widest text-zinc-500">{row.name} · REEL</span>

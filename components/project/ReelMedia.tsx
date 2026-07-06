@@ -56,7 +56,9 @@ export function ReelMedia({ slug, reel }: { slug: string; reel: ReelInfo | null 
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element — served from our own API route
-          <img src={reel.url} alt="" className="h-full w-full object-cover" />
+          // left-top anchor: screenshots keep their header/hero readable instead
+          // of an arbitrary center crop (#165 owner feedback 07-07)
+          <img src={reel.url} alt="" className="h-full w-full object-cover object-left-top" />
         )
       ) : (
         <ReelCanvas />
