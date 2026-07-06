@@ -9,7 +9,7 @@
 // Run from repo root:  node scripts/build-previews.mjs
 // Requires: node, docker (Playwright image), and the asset library volume.
 import { promises as fs } from 'node:fs';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
@@ -228,9 +228,41 @@ function pickPrimary(dir, declared) {
 // --- 2. component list -------------------------------------------------------
 const apiRes = await fetch(`${API}/api/master-components?limit=1000`);
 const allComponents = (await apiRes.json()).components.map((c) => ({ id: c.id, primary_file: c.primary_file, library: c.library, preview_url: c.preview_url }));
-const ONLY = process.env.COMP_ONLY ? new Set(process.env.COMP_ONLY.split(',').map((x) => x.trim())) : null;
+// --changed (iter 2026-07-06, closes todo #91's incremental intent): rebuild
+// only components whose source is newer than their published preview (or were
+// never published). Reuses the COMP_ONLY plumbing so the publish step MERGES
+// rather than wipes. Explicit COMP_ONLY still takes precedence. Detection is by
+// mtime: editing a component via POST /api/master-components rewrites its source
+// file(s) under COMP_ROOT/<id>/, bumping the dir's mtime above the published
+// index.html. Meant for the nightly cron (`--changed`) or a manual quick pass;
+// the per-edit CRUD trigger stays out of scope (app container has no docker
+// socket to invoke the Playwright render — see iter-36 #279).
+function changedComponentIds() {
+  const ids = new Set();
+  for (const c of allComponents) {
+    let srcMtime = 0;
+    try {
+      for (const f of readdirSync(path.join(COMP_ROOT, c.id))) {
+        srcMtime = Math.max(srcMtime, statSync(path.join(COMP_ROOT, c.id, f)).mtimeMs);
+      }
+    } catch { continue; } // no source dir on disk (render-inline-only) → skip
+    let pubMtime = 0;
+    try { pubMtime = statSync(path.join(PUBLISH, c.id, 'index.html')).mtimeMs; } catch { /* never published */ }
+    if (!pubMtime || srcMtime > pubMtime) ids.add(c.id);
+  }
+  return ids;
+}
+const WANT_CHANGED = process.argv.includes('--changed') || process.env.CHANGED === '1';
+const ONLY = process.env.COMP_ONLY
+  ? new Set(process.env.COMP_ONLY.split(',').map((x) => x.trim()))
+  : (WANT_CHANGED ? changedComponentIds() : null);
+const label = process.env.COMP_ONLY ? '(COMP_ONLY filtered)' : WANT_CHANGED ? '(--changed)' : '(full)';
 const components = ONLY ? allComponents.filter((c) => ONLY.has(c.id)) : allComponents;
-console.log('components:', components.length, ONLY ? '(COMP_ONLY filtered)' : '');
+console.log('components:', components.length, label);
+if (WANT_CHANGED && !process.env.COMP_ONLY && ONLY.size === 0) {
+  console.log('nothing changed since last publish — nothing to rebuild.');
+  process.exit(0);
+}
 
 await fs.rm(BUILD, { recursive: true, force: true });
 await fs.mkdir(BUILD, { recursive: true });
