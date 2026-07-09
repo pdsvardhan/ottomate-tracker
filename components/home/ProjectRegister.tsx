@@ -104,9 +104,10 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           <div className="font-display text-[length:var(--t-title)] font-bold text-zinc-50 truncate leading-tight">{row.name}</div>
         </div>
 
-        {/* SUMMARY — wraps to 2 lines instead of truncating (iter-16) */}
+        {/* SUMMARY — iter-16 (owner: text ends at '...'): clamp-2 -> clamp-3 so
+            the summary reads complete on the wider desktop layout. */}
         <div className="hidden lg:block min-w-0 pr-3">
-          <p className="text-[length:var(--t-label)] leading-snug text-zinc-300/90 line-clamp-2">{row.summary}</p>
+          <p className="text-[length:var(--t-label)] leading-snug text-zinc-300/90 line-clamp-3">{row.summary}</p>
         </div>
 
         {/* STAGE */}
@@ -209,8 +210,9 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
         </div>
         <div className="p-4">
           <div className="mono text-[length:var(--t-cap)] font-semibold tracking-widest text-zinc-500 mb-2">OVERVIEW</div>
-          {/* clamp long blurbs (iter-16) — concise per-project copy is a ph1 task */}
-          <p className="text-[length:var(--t-label)] leading-relaxed text-zinc-300 line-clamp-4">{row.blurb || row.summary || 'No summary yet.'}</p>
+          {/* iter-16 (owner: text ends at '...'): the hover popover has room, so
+              show the full blurb rather than clamping it. */}
+          <p className="text-[length:var(--t-label)] leading-relaxed text-zinc-300">{row.blurb || row.summary || 'No summary yet.'}</p>
           {row.tags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {row.tags.map((t) => (

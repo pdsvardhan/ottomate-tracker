@@ -21,17 +21,17 @@ import {
 import '@xyflow/react/dist/style.css';
 import type { LaidOutGraph, FlowNodeKind } from '@/lib/diagrams/mermaid-to-flow';
 
-const KIND_ACCENT: Record<FlowNodeKind, string> = {
-  rect: '#a855f7',      // violet — components / steps
-  decision: '#22d3ee',  // cyan — gates / branches
-  store: '#f5b23c',     // amber — data stores
-  rounded: '#34d399',   // emerald — endpoints / actors
-};
+// iter-16 (owner: "why just one colour?"): a linear pipeline is all one node
+// kind, so kind-based colouring rendered every box the same violet. Colour now
+// varies by lane/group when the diagram has groups, otherwise it cycles this
+// palette along the node sequence — so the graph always reads with variety.
+// Shape still tracks kind (pill for stores, diamond radius for decisions).
+const PALETTE = ['#a855f7', '#22d3ee', '#f5b23c', '#34d399', '#ff3d8b', '#ff8a5b'];
 
-type DiagNode = Node<{ label: string; sub?: string; group?: string; kind: FlowNodeKind; horizontal: boolean }, 'diag'>;
+type DiagNode = Node<{ label: string; sub?: string; group?: string; kind: FlowNodeKind; horizontal: boolean; accent: string }, 'diag'>;
 
 function DiagNodeView({ data }: NodeProps<DiagNode>) {
-  const accent = KIND_ACCENT[data.kind] ?? KIND_ACCENT.rect;
+  const accent = data.accent;
   const tPos = data.horizontal ? Position.Left : Position.Top;
   const sPos = data.horizontal ? Position.Right : Position.Bottom;
   return (
@@ -63,12 +63,18 @@ const nodeTypes = { diag: DiagNodeView };
 
 export function FlowDiagramView({ graph }: { graph: LaidOutGraph }) {
   const horizontal = graph.direction === 'LR';
-  const nodes: DiagNode[] = graph.nodes.map((n) => ({
-    id: n.id,
-    type: 'diag',
-    position: graph.positions[n.id] ?? { x: 0, y: 0 },
-    data: { label: n.label, sub: n.sub, group: n.group, kind: n.kind, horizontal },
-  }));
+  // Distinct lanes (groups), in first-seen order, so each lane gets its own hue.
+  const lanes = Array.from(new Set(graph.nodes.map((n) => n.group).filter(Boolean))) as string[];
+  const nodes: DiagNode[] = graph.nodes.map((n, i) => {
+    const li = n.group ? lanes.indexOf(n.group) : -1;
+    const accent = PALETTE[(li >= 0 ? li : i) % PALETTE.length];
+    return {
+      id: n.id,
+      type: 'diag',
+      position: graph.positions[n.id] ?? { x: 0, y: 0 },
+      data: { label: n.label, sub: n.sub, group: n.group, kind: n.kind, horizontal, accent },
+    };
+  });
   const edges: Edge[] = graph.edges.map((e, i) => ({
     id: `e${i}`,
     source: e.source,
