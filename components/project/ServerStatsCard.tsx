@@ -93,10 +93,12 @@ export function ServerStatsCard({ stats }: { stats: ServerStats }) {
         </span>
       </div>
 
-      {/* Identity: host + OS + CPU model */}
+      {/* Identity: the box's name + OS + CPU model. "VAULT7A" is the server's
+          identity (stats.host is the container hostname inside Docker, e.g.
+          7c1667dfbe03 — not what we want on the card). */}
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-4">
         <span className="font-display font-extrabold text-[length:var(--t-title)] tracking-tight" style={{ color: 'var(--ink)' }}>
-          {stats.host}
+          VAULT7A
         </span>
         <span className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>{stats.os}</span>
         <span className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>· {stats.cpuModel} · {stats.cores}C</span>
