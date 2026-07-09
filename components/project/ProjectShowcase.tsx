@@ -11,7 +11,7 @@
 // Hero gains a visual-identity strip (ui_master_plans); Engineering gains the
 // independent-verifier aggregate; Resources hides without real docs.
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { marked } from 'marked';
 import { ShaderBackground } from './ShaderBackground';
 import { ReelMedia, type ReelInfo } from './ReelMedia';
@@ -133,14 +133,12 @@ export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSl
                 <span className="stagepill mb-2">{d.stageLabel}</span>
               </div>
 
-              {/* "built with" tech chips removed for all projects (iter-16b owner) */}
+              {/* iter-15 Fix B: hero hook paragraph removed — the name, stage
+                  pill, live/repo link cards, stat tiles and identity strip carry
+                  the hero now. (Reverses iter-13's "wider hook"; owner-confirmed.)
+                  The hook text still lives on ShowcaseData for the Overview. */}
 
-              {/* intro no longer width-restricted (iter-16b: was max-w-[70ch]) */}
-              <p className="mt-5 mb-7 leading-relaxed text-[length:var(--t-lead)]" style={{ color: 'var(--ink)', opacity: 0.85 }}>
-                {d.hook}
-              </p>
-
-              <div className="flex flex-wrap gap-3.5 mb-8">
+              <div className="flex flex-wrap gap-3.5 mb-8 mt-6">
                 {d.liveUrl && (
                   <a href={ext(d.liveUrl)} target="_blank" rel="noopener" className="lc flex-1 min-w-[220px]">
                     <div className="k">live at ↗</div>
@@ -249,118 +247,108 @@ function Section({ children }: { children: ReactNode }) {
   return <div className="flex flex-col gap-12 pt-6">{children}</div>;
 }
 
-// ── OVERVIEW ──
+// ── OVERVIEW ── (iter-15 "split spine", winner 7c)
+// Sticky section rail (scrollspy nav + context key-values + done/wip/todo
+// counts) beside typographic sections with ghost numerals and hairline
+// dividers. Context moved out of the body INTO the rail; the hero hook (removed
+// from the hero, Fix B) now leads the "Why this exists" section so no content
+// is lost. Same ShowcaseData — no data change, presentation only.
 function OverviewPanel({ d }: { d: ShowcaseData }) {
-  let idx = 0;
-  return (
-    <Section>
-      {(d.problem || d.contextChips.length > 0) && (
-        <section>
-          <SectionHead index={++idx} title="Why this exists" tone={CORAL} />
-          <div className="grid gap-3.5 md:grid-cols-[1.3fr_1fr]">
-            {d.problem && (
-              <div className="card flat">
-                <Eye tone={CORAL}>The problem</Eye>
-                <p className="text-[length:var(--t-body)] leading-relaxed" style={{ color: 'var(--ink)' }}>{d.problem}</p>
-              </div>
-            )}
-            {d.contextChips.length > 0 && (
-              <div className="card flat">
-                <Eye tone={CYAN}>Context</Eye>
-                <div className="flex flex-col gap-3">
-                  {d.contextChips.map((c) => (
-                    <div key={c.k} className="flex items-center justify-between gap-3">
-                      <span className="mono text-[length:var(--t-cap)] tracking-wider" style={{ color: 'var(--dim)' }}>{c.k}</span>
-                      <span className="text-[length:var(--t-body)]" style={{ color: 'var(--ink)' }}>{c.v}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+  const secs: { id: string; title: string; tone: string; body: ReactNode }[] = [];
 
-      {(d.success.length > 0 || d.nonGoals.length > 0) && (
-        <section>
-          <SectionHead index={++idx} title="What success means" tone={CYAN} />
-          <div className="grid gap-3.5 md:grid-cols-2">
-            {d.success.length > 0 && (
-              <div className="card">
-                <Eye tone={CYAN}>Success criteria</Eye>
-                <ul className="flex flex-col gap-3">
-                  {d.success.map((s, i) => (
-                    <li key={i} className="flex gap-3 text-[length:var(--t-body)] leading-snug" style={{ color: 'var(--ink)' }}>
-                      <span className="mono text-[length:var(--t-label)] mt-0.5" style={{ color: CYAN }}>✓</span>{s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {d.nonGoals.length > 0 && (
-              <div className="card">
-                <Eye tone={VIO}>Non-goals <span style={{ color: 'var(--dim)', textTransform: 'none', letterSpacing: 0 }}>· deliberately not built</span></Eye>
-                <div className="flex flex-wrap gap-2">
-                  {d.nonGoals.map((n, i) => (
-                    <span key={i} className="text-[length:var(--t-label)] rounded-lg px-3 py-1.5 line-through" style={{ color: 'var(--mute)', background: 'rgba(12,11,28,.5)', border: '1px solid var(--line)', textDecorationColor: 'var(--dim)' }}>{n}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+  if (d.hook || d.problem) {
+    secs.push({
+      id: 'why', title: 'Why this exists', tone: CORAL,
+      body: (
+        <>
+          {d.hook && <p className="text-[length:var(--t-lead)] leading-relaxed mb-3" style={{ color: 'var(--ink)' }}>{d.hook}</p>}
+          {d.problem && <p className="text-[length:var(--t-body)] leading-relaxed" style={{ color: 'var(--mute)' }}>{d.problem}</p>}
+        </>
+      ),
+    });
+  }
 
-      {d.features.length > 0 && (
-        <section>
-          <div className="flex items-end justify-between flex-wrap gap-3">
-            <SectionHead index={++idx} title="What it does" tone={MAG} />
-            <div className="flex gap-4 mono text-[length:var(--t-label)] mb-5">
-              <span style={{ color: CYAN }}>{d.featureCounts.done} done</span>
-              <span style={{ color: AMBER }}>{d.featureCounts.wip} wip</span>
-              <span style={{ color: DIM }}>{d.featureCounts.todo} todo</span>
+  if (d.success.length > 0 || d.nonGoals.length > 0) {
+    secs.push({
+      id: 'success', title: 'What success means', tone: CYAN,
+      body: (
+        <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
+          {d.success.length > 0 && (
+            <div>
+              <Eye tone={CYAN}>Success criteria</Eye>
+              <ul className="flex flex-col gap-2.5">
+                {d.success.map((s, i) => (
+                  <li key={i} className="flex gap-3 text-[length:var(--t-body)] leading-snug" style={{ color: 'var(--ink)' }}>
+                    <span className="mono text-[length:var(--t-label)] mt-0.5" style={{ color: CYAN }}>✓</span>{s}
+                  </li>
+                ))}
+              </ul>
             </div>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {d.features.map((f, i) => {
-              const t = featTone(f.status);
-              return (
-                <div key={i} className="card" style={{ padding: '17px 18px' }}>
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: t.c, boxShadow: `0 0 10px ${t.c}` }} />
-                    <span className="font-semibold text-[length:var(--t-body)]" style={{ color: 'var(--ink)' }}>{f.title}</span>
-                    <span className="mono text-[length:var(--t-cap)] ml-auto shrink-0" style={{ color: t.c }}>{t.l}</span>
-                  </div>
-                  {f.why && <p className="text-[length:var(--t-label)] leading-snug" style={{ color: 'var(--mute)' }}>{f.why}</p>}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+          )}
+          {d.nonGoals.length > 0 && (
+            <div>
+              <Eye tone={VIO}>Never building</Eye>
+              <div className="flex flex-col gap-2">
+                {d.nonGoals.map((n, i) => (
+                  <span key={i} className="text-[length:var(--t-body)] leading-snug line-through" style={{ color: 'var(--mute)', textDecorationColor: 'var(--dim)' }}>{n}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ),
+    });
+  }
 
-      {(d.primaryFlow || d.flows.length > 0) && (
-        <section>
-          <SectionHead index={++idx} title="How it's used" tone={CYAN} />
-          <div className="card flat">
-            {d.primaryFlow && d.primaryFlow.steps.length > 0 && (
-              <>
-                <div className="mono text-[length:var(--t-cap)] mb-3" style={{ color: 'var(--dim)' }}>critical path · {d.primaryFlow.name}</div>
-                <div className="flex flex-wrap items-center gap-2.5 mb-5">
-                  {d.primaryFlow.steps.map((s, i) => (
-                    <span key={i} className="flex items-center gap-2.5">
-                      <span className="text-[length:var(--t-label)] rounded-lg px-3.5 py-2" style={{ color: 'var(--ink)', background: 'rgba(12,11,28,.6)', border: '1px solid var(--line)' }}>{s}</span>
-                      {i < d.primaryFlow!.steps.length - 1 && <span style={{ color: VIO }}>→</span>}
-                    </span>
-                  ))}
+  if (d.features.length > 0) {
+    secs.push({
+      id: 'does', title: 'What it does', tone: MAG,
+      body: (
+        <div className="grid gap-x-8 gap-y-1 md:grid-cols-2">
+          {d.features.map((f, i) => {
+            const t = featTone(f.status);
+            return (
+              <div key={i} className="flex items-start gap-3 py-2" style={{ borderTop: i > 1 ? '1px solid var(--line)' : undefined }}>
+                <span className="w-2 h-2 rounded-full shrink-0 mt-2" style={{ background: t.c, boxShadow: `0 0 8px ${t.c}` }} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="font-semibold text-[length:var(--t-body)]" style={{ color: 'var(--ink)' }}>{f.title}</span>
+                    <span className="mono text-[length:var(--t-cap)]" style={{ color: t.c }}>{t.l}</span>
+                  </div>
+                  {f.why && <p className="text-[length:var(--t-label)] leading-snug mt-0.5" style={{ color: 'var(--mute)' }}>{f.why}</p>}
                 </div>
-              </>
-            )}
-            <div className="flex flex-col" style={{ borderTop: '1px solid var(--line)' }}>
+              </div>
+            );
+          })}
+        </div>
+      ),
+    });
+  }
+
+  if (d.primaryFlow || d.flows.length > 0) {
+    secs.push({
+      id: 'used', title: "How it's used", tone: CYAN,
+      body: (
+        <>
+          {d.primaryFlow && d.primaryFlow.steps.length > 0 && (
+            <>
+              <div className="mono text-[length:var(--t-cap)] mb-3" style={{ color: 'var(--dim)' }}>critical path · {d.primaryFlow.name}</div>
+              <div className="flex flex-wrap items-center gap-2.5 mb-6">
+                {d.primaryFlow.steps.map((s, i) => (
+                  <span key={i} className="flex items-center gap-2.5">
+                    <span className="text-[length:var(--t-label)] rounded-lg px-3.5 py-2" style={{ color: 'var(--ink)', background: 'rgba(12,11,28,.6)', border: '1px solid var(--line)' }}>{s}</span>
+                    {i < d.primaryFlow!.steps.length - 1 && <span style={{ color: VIO }}>→</span>}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+          {d.flows.length > 0 && (
+            <div className="grid md:grid-cols-2 gap-x-8">
               {d.flows.slice(0, 8).map((f, i) => {
                 const t = flowTone(f.testStatus);
                 return (
-                  <div key={i} className="flex items-center gap-3.5 py-3" style={{ borderBottom: '1px solid var(--line)' }}>
+                  <div key={i} className="flex items-center gap-3 py-2.5" style={{ borderTop: '1px solid var(--line)' }}>
                     <span className="mono text-[length:var(--t-body)] w-4 shrink-0" style={{ color: t.c }}>{t.m}</span>
                     <span className="flex-1 text-[length:var(--t-label)]" style={{ color: 'var(--ink)' }}>{f.title}</span>
                     <span className="mono text-[length:var(--t-cap)] tracking-wide" style={{ color: t.c }}>{f.testStatus}</span>
@@ -368,23 +356,91 @@ function OverviewPanel({ d }: { d: ShowcaseData }) {
                 );
               })}
             </div>
-          </div>
-        </section>
-      )}
+          )}
+        </>
+      ),
+    });
+  }
 
-      {d.roadmap.length > 0 && (
-        <section>
-          <SectionHead index={++idx} title="What's next" tone={AMBER} />
-          <div className="card flat">
-            <ul className="flex flex-col gap-3">
-              {d.roadmap.map((r, i) => (
-                <li key={i} className="flex gap-3 text-[length:var(--t-body)]" style={{ color: 'var(--mute)' }}><span style={{ color: 'var(--dim)' }}>→</span>{r}</li>
+  if (d.roadmap.length > 0) {
+    secs.push({
+      id: 'next', title: "What's next", tone: AMBER,
+      body: (
+        <ul className="flex flex-col gap-2.5">
+          {d.roadmap.map((r, i) => (
+            <li key={i} className="flex gap-3 text-[length:var(--t-body)]" style={{ color: 'var(--mute)' }}><span style={{ color: 'var(--dim)' }}>→</span>{r}</li>
+          ))}
+        </ul>
+      ),
+    });
+  }
+
+  const [active, setActive] = useState(secs[0]?.id ?? '');
+  useEffect(() => {
+    const els = secs.map((s) => document.getElementById(`ov-${s.id}`)).filter(Boolean) as HTMLElement[];
+    if (els.length === 0) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const vis = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (vis[0]) setActive(vis[0].target.id.slice(3));
+      },
+      { rootMargin: '-30% 0px -55% 0px', threshold: 0 },
+    );
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secs.length]);
+
+  if (secs.length === 0) return null;
+
+  return (
+    <div className="ov-grid pt-6">
+      <aside className="ov-rail">
+        <div className="ov-rail-h">On this tab</div>
+        <nav className="ov-nav">
+          {secs.map((s, i) => (
+            <a
+              key={s.id}
+              href={`#ov-${s.id}`}
+              data-active={active === s.id ? 'true' : 'false'}
+              style={{ '--nc': s.tone } as React.CSSProperties}
+              onClick={() => setActive(s.id)}
+            >
+              <span className="oi">{String(i + 1).padStart(2, '0')}</span>{s.title}
+            </a>
+          ))}
+        </nav>
+
+        {d.contextChips.length > 0 && (
+          <div className="ov-railsec">
+            <div className="ov-rail-h" style={{ marginBottom: 10 }}>Context</div>
+            <div className="ov-kv">
+              {d.contextChips.map((c) => (
+                <div key={c.k}><span className="kk">{c.k}</span><span style={{ color: 'var(--ink)' }}>{c.v}</span></div>
               ))}
-            </ul>
+            </div>
           </div>
-        </section>
-      )}
-    </Section>
+        )}
+
+        <div className="ov-railsec">
+          <div className="ov-counts">
+            <span><b style={{ color: CYAN }}>{d.featureCounts.done}</b><span style={{ color: 'var(--dim)' }}>done</span></span>
+            <span><b style={{ color: AMBER }}>{d.featureCounts.wip}</b><span style={{ color: 'var(--dim)' }}>wip</span></span>
+            <span><b style={{ color: DIM }}>{d.featureCounts.todo}</b><span style={{ color: 'var(--dim)' }}>todo</span></span>
+          </div>
+        </div>
+      </aside>
+
+      <div className="ov-body">
+        {secs.map((s, i) => (
+          <section key={s.id} id={`ov-${s.id}`} className="ov-sec">
+            <span className="ov-ghost" style={{ color: s.tone }}>{String(i + 1).padStart(2, '0')}</span>
+            <h2 className="ov-h" style={{ color: s.tone }}>{s.title}</h2>
+            {s.body}
+          </section>
+        ))}
+      </div>
+    </div>
   );
 }
 

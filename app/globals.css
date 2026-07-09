@@ -233,7 +233,9 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
 .doc-prose hr{border:0;border-top:1px solid var(--line);margin:1.3em 0}
 .doc-prose table{border-collapse:collapse;margin:.9em 0}.doc-prose th,.doc-prose td{border:1px solid var(--line);padding:.4em .7em}
 
-.sc .reel{position:relative;border-radius:22px;overflow:hidden;min-height:340px;height:100%;
+/* iter-15 Fix A: locked to 16:9 (was min-height:340px/height:100% stretchy) so
+   site screenshots + mp4 reels render at their true aspect on every width. */
+.sc .reel{position:relative;border-radius:22px;overflow:hidden;aspect-ratio:16/9;
   border:1px solid rgba(168,85,247,.28);background:#05060f;box-shadow:0 24px 80px rgba(0,0,0,.6),0 0 60px rgba(168,85,247,.18)}
 
 .sc .eyebrow{font-family:var(--scmono);font-size:var(--t-label);letter-spacing:.22em;text-transform:uppercase;color:var(--cyan);display:flex;align-items:center;gap:12px;margin-bottom:14px}
@@ -259,6 +261,46 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
 /* stage-distribution strip (iter-12 below-fold) */
 .sc .dist{display:flex;height:14px;border-radius:999px;overflow:hidden;border:1px solid var(--line)}
 .sc .dist>span{display:block;height:100%;transition:flex .5s cubic-bezier(.2,.7,.2,1)}
+
+/* ═══ iter-15 · Overview "split spine" (winner 7c) ═══
+   Sticky section rail (scrollspy) + typographic sections with ghost numerals
+   and hairline dividers. Replaces the old card-in-card overview body. */
+.sc .ov-grid{display:grid;gap:34px;grid-template-columns:1fr;align-items:start}
+@media(min-width:1024px){.sc .ov-grid{grid-template-columns:212px minmax(0,1fr)}}
+.sc .ov-rail{align-self:start}
+@media(min-width:1024px){.sc .ov-rail{position:sticky;top:148px}}
+.sc .ov-rail-h{font-family:var(--scmono);font-size:var(--t-cap);letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+.sc .ov-nav{display:flex;flex-direction:column;gap:2px}
+.sc .ov-nav a{display:flex;gap:10px;align-items:baseline;padding:8px 12px;border-left:2px solid transparent;border-radius:0 9px 9px 0;color:var(--mute);font-size:var(--t-label);text-decoration:none;transition:color .25s,background .25s,border-color .25s}
+.sc .ov-nav a .oi{font-family:var(--scmono);font-size:var(--t-cap);opacity:.7}
+.sc .ov-nav a:hover{color:var(--ink)}
+.sc .ov-nav a[data-active="true"]{color:var(--ink);font-weight:600;border-left-color:var(--nc,var(--cyan));background:linear-gradient(90deg,color-mix(in srgb,var(--nc,var(--cyan)) 13%,transparent),transparent)}
+.sc .ov-railsec{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.sc .ov-kv{display:flex;flex-direction:column;gap:7px;font-family:var(--scmono);font-size:var(--t-cap)}
+.sc .ov-kv>div{display:flex;justify-content:space-between;gap:10px}
+.sc .ov-kv .kk{color:var(--dim)}
+.sc .ov-counts{display:flex;gap:18px;font-family:var(--scmono);font-size:var(--t-cap)}
+.sc .ov-counts b{display:block;font-size:19px;font-family:var(--font-display);line-height:1.1}
+.sc .ov-body{min-width:0;display:flex;flex-direction:column}
+.sc .ov-sec{position:relative;padding:26px 0;border-top:1px solid var(--line);scroll-margin-top:150px}
+.sc .ov-sec:first-child{border-top:0;padding-top:2px}
+.sc .ov-ghost{position:absolute;right:0;top:-8px;font-family:var(--font-display);font-weight:800;font-size:clamp(60px,8vw,104px);line-height:1;pointer-events:none;user-select:none;opacity:.08}
+.sc .ov-h{font-family:var(--disp);font-weight:800;letter-spacing:-.02em;font-size:clamp(20px,2.4vw,25px);line-height:1.06;margin-bottom:14px;position:relative}
+
+/* ═══ iter-15 · Components category "side rail" (winner 8a) ═══ */
+.sc .cat-grid{display:grid;gap:26px;grid-template-columns:1fr;align-items:start}
+@media(min-width:1024px){.sc .cat-grid{grid-template-columns:236px minmax(0,1fr)}}
+.sc .cat-rail{align-self:start}
+@media(min-width:1024px){.sc .cat-rail{position:sticky;top:24px;max-height:calc(100vh - 40px);overflow:auto;padding-right:4px}}
+.sc .cat-rail-h{font-family:var(--scmono);font-size:var(--t-cap);letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin:0 0 12px;padding:0 12px}
+.sc .cat-nav{display:flex;flex-direction:column;gap:2px}
+.sc .cat-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-left:2px solid transparent;border-radius:0 9px 9px 0;color:var(--mute);font-size:var(--t-label);text-decoration:none;transition:color .25s,background .25s,border-color .25s}
+.sc .cat-nav a .cg{width:18px;text-align:center;flex:none;font-weight:700}
+.sc .cat-nav a .cl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc .cat-nav a .cc{font-family:var(--scmono);font-size:var(--t-cap);color:var(--dim);flex:none}
+.sc .cat-nav a:hover{color:var(--ink)}
+.sc .cat-nav a[data-active="true"]{color:var(--ink);font-weight:600;border-left-color:var(--cg-hue,var(--cyan));background:linear-gradient(90deg,color-mix(in srgb,var(--cg-hue,var(--cyan)) 13%,transparent),transparent)}
+.sc .cat-nav a[data-active="true"] .cc{color:var(--cg-hue,var(--cyan))}
 
 @media (prefers-reduced-motion: reduce){
   .sc .display{animation:none}

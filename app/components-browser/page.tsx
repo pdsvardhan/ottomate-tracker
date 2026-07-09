@@ -10,6 +10,8 @@ import { COMPONENT_CATEGORIES } from '@/lib/categories';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
 import { BackButton } from '@/components/ui/BackButton';
 import { RATING_LABEL } from '@/components/master-component/RatingControl';
+import { CategorySideRail } from '@/components/master-component/CategorySideRail';
+import { RatingFilter } from '@/components/master-component/RatingFilter';
 
 const RATING_HUE: Record<string, string> = { A: 'var(--cyan)', B: 'var(--vio)', C: 'var(--amber)' };
 
@@ -89,8 +91,22 @@ export default async function ComponentsBrowser({
   // Derived
   const allTags = Array.from(new Set(all.flatMap((c) => (c.tags ?? []) as string[]))).sort();
   // Only categories that actually have components (iter-16): empty ones (e.g.
-  // auth-screens) no longer render a chip or a hollow "no components" section.
+  // auth-screens) no longer render a rail entry or a hollow "no components" section.
   const visibleCats = CATEGORY_ORDER.filter((cat) => (grouped.get(cat.id)?.length ?? 0) > 0);
+
+  // Rating distribution over the whole catalog — feeds the glass rating dropdown
+  // (iter-15). Counts are the catalog totals per grade, not the current filter.
+  const ratingCounts = {
+    any: all.length,
+    A: all.filter((c) => c.quality_grade === 'A').length,
+    B: all.filter((c) => c.quality_grade === 'B').length,
+    C: all.filter((c) => c.quality_grade === 'C').length,
+  };
+  const railCats = visibleCats.map((cat) => ({
+    id: cat.id,
+    label: cat.label,
+    count: grouped.get(cat.id)?.length ?? 0,
+  }));
 
   return (
     <div className="sc">
@@ -124,15 +140,7 @@ export default async function ComponentsBrowser({
               className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-3 pl-11 pr-4 text-[length:var(--t-body)] text-zinc-100 placeholder:text-zinc-500 transition-colors focus:border-cyan-500/50 focus:bg-white/[0.05] focus:outline-none"
             />
           </div>
-          <div className="relative">
-            <select name="quality" defaultValue={quality ?? ''} className={SELECT_CLASSES}>
-              <option value="">Any rating</option>
-              <option value="A">Standout</option>
-              <option value="B">Solid</option>
-              <option value="C">Fine</option>
-            </select>
-            <SelectChevron />
-          </div>
+          <RatingFilter value={quality ?? ''} counts={ratingCounts} />
           <div className="relative">
             <select name="tag" defaultValue={tag ?? ''} className={SELECT_CLASSES}>
               <option value="">Any tag</option>
@@ -150,25 +158,15 @@ export default async function ComponentsBrowser({
           </button>
         </form>
 
-        {/* Category quick-jump chips (iter-16: empties hidden, restyled) */}
-        <div className="mb-10 flex flex-wrap gap-2">
-          {visibleCats.map((cat) => {
-            const count = grouped.get(cat.id)?.length ?? 0;
-            return (
-              <a
-                key={cat.id}
-                href={`#cat-${cat.id}`}
-                className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-[length:var(--t-cap)] text-zinc-300 transition-colors hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-100"
-              >
-                {cat.label}
-                <span className="mono tabular-nums rounded-full bg-white/[0.06] px-1.5 text-[11px] text-zinc-400 group-hover:text-cyan-200">{count}</span>
-              </a>
-            );
-          })}
-        </div>
+        {/* iter-15 category "side rail" (winner 8a): a sticky, scrollspy-
+            highlighted category index beside the grid — replaces the old
+            wrapping chip row. Rail is desktop-only; on mobile the sections just
+            stack and the rail is hidden. */}
+        <div className="cat-grid">
+          <CategorySideRail cats={railCats} />
 
-        {/* Category sections (iter-16: only non-empty categories render) */}
-        <div className="space-y-12">
+          {/* Category sections (iter-16: only non-empty categories render) */}
+          <div className="min-w-0 space-y-12">
           {visibleCats.map((cat) => {
             const items = grouped.get(cat.id) ?? [];
             return (
@@ -190,6 +188,7 @@ export default async function ComponentsBrowser({
               </section>
             );
           })}
+          </div>
         </div>
 
       </div>
