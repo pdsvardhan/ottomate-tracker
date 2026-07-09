@@ -11,29 +11,9 @@ import { ShaderBackground } from '@/components/project/ShaderBackground';
 import { BackButton } from '@/components/ui/BackButton';
 import { RATING_LABEL } from '@/components/master-component/RatingControl';
 import { CategorySideRail } from '@/components/master-component/CategorySideRail';
-import { RatingFilter } from '@/components/master-component/RatingFilter';
+import { FilterDropdown } from '@/components/master-component/FilterDropdown';
 
 const RATING_HUE: Record<string, string> = { A: 'var(--cyan)', B: 'var(--vio)', C: 'var(--amber)' };
-
-// Clean chevron-select styling for the filter toolbar (iter-16b).
-const SELECT_CLASSES =
-  'appearance-none cursor-pointer rounded-xl border border-white/10 bg-white/[0.03] py-3 pl-4 pr-9 ' +
-  'text-[length:var(--t-label)] text-zinc-200 transition-colors focus:border-cyan-500/50 focus:outline-none ' +
-  // native <option> popups inherit the OS palette, not the select — force a solid
-  // dark bg + light text so values aren't dark-on-dark (owner feedback 2026-07-06).
-  '[&>option]:bg-[#0b0e17] [&>option]:text-zinc-100';
-
-function SelectChevron() {
-  return (
-    <svg
-      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500"
-      width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden
-    >
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  );
-}
 
 export const dynamic = 'force-dynamic';
 
@@ -140,16 +120,24 @@ export default async function ComponentsBrowser({
               className="w-full rounded-xl border border-white/10 bg-white/[0.03] py-3 pl-11 pr-4 text-[length:var(--t-body)] text-zinc-100 placeholder:text-zinc-500 transition-colors focus:border-cyan-500/50 focus:bg-white/[0.05] focus:outline-none"
             />
           </div>
-          <RatingFilter value={quality ?? ''} counts={ratingCounts} />
-          <div className="relative">
-            <select name="tag" defaultValue={tag ?? ''} className={SELECT_CLASSES}>
-              <option value="">Any tag</option>
-              {allTags.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-            <SelectChevron />
-          </div>
+          <FilterDropdown
+            paramName="quality"
+            value={quality ?? ''}
+            minWidth={190}
+            options={[
+              { value: '', label: 'Any rating', count: ratingCounts.any, hue: 'var(--dim)' },
+              { value: 'A', label: 'Standout', count: ratingCounts.A, hue: 'var(--cyan)' },
+              { value: 'B', label: 'Solid', count: ratingCounts.B, hue: 'var(--vio)' },
+              { value: 'C', label: 'Fine', count: ratingCounts.C, hue: 'var(--amber)' },
+            ]}
+          />
+          <FilterDropdown
+            paramName="tag"
+            value={tag ?? ''}
+            minWidth={170}
+            searchable
+            options={[{ value: '', label: 'Any tag' }, ...allTags.map((t) => ({ value: t, label: t }))]}
+          />
           <button
             type="submit"
             className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-5 py-3 text-[length:var(--t-label)] font-semibold text-cyan-100 transition-colors hover:border-cyan-400/50 hover:bg-cyan-500/20"

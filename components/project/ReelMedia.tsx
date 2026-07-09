@@ -56,9 +56,10 @@ export function ReelMedia({ slug, reel }: { slug: string; reel: ReelInfo | null 
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element — served from our own API route
-          // left-top anchor: screenshots keep their header/hero readable instead
-          // of an arbitrary center crop (#165 owner feedback 07-07)
-          <img src={reel.url} alt="" className="h-full w-full object-cover object-left-top" />
+          // iter-16 (owner: "this picture is cropped"): object-contain shows the
+          // whole screenshot inside the 16:9 frame (letterboxed on the dark reel
+          // bg) instead of cropping it to fill.
+          <img src={reel.url} alt="" className="h-full w-full object-contain" />
         )
       ) : (
         <ReelCanvas />

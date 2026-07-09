@@ -1,14 +1,16 @@
 'use client';
 
-// VAULT7A server telemetry card. iter-15 "rack blades" redesign (winner 2a from
-// the external design round): every subsystem reads as a 1U rack blade with a
-// status LED. Data is unchanged and still split honestly — LIVE readings
-// (load / memory / storage / uptime) are snapshotted server-side at request time
-// from /proc via node:os and passed in; uptime ticks client-side from that
-// snapshot so it feels alive without a polling endpoint. The COUNTS
-// (containers / networks) the container can't see, so they're labelled facts,
-// not dressed up as live. Presentation-only change — the ServerStats contract
-// and the home page's readServerStats() are untouched.
+// VAULT7A "machine behind it all" card. iter-16 redesign (owner rejected the
+// iter-15 rack-blades card; wanted this area to actually explain how the
+// services are set up and how access takes place). Owner picked "access flow":
+// the card now walks a request from a visitor to the running project, each hop
+// labelled in plain words, with the honest host spec demoted to a footer.
+//
+// Data is unchanged and still honest: the footer's load/mem/storage/uptime are
+// real /proc readings snapshotted server-side (page is force-dynamic); uptime
+// ticks client-side from the snapshot. Container/network COUNTS the container
+// can't see, so they stay plainly labelled. The ServerStats contract and the
+// home page's readServerStats() are untouched.
 
 import { useEffect, useState } from 'react';
 
@@ -28,122 +30,75 @@ export interface ServerStats {
   snapshotMs: number;      // Date.now() at render, for client uptime tick
 }
 
-function fmtUptime(totalSec: number): { d: number; h: number; m: number } {
-  const d = Math.floor(totalSec / 86400);
-  const h = Math.floor((totalSec % 86400) / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  return { d, h, m };
-}
-
-// One rack blade: LED · label · body · optional right-aligned value.
-function Blade({
-  hue, label, children, value, valueHue,
-}: {
-  hue: string; label: string; children: React.ReactNode; value?: React.ReactNode; valueHue?: string;
-}) {
-  return (
-    <div className="ss-blade" data-hasvalue={value !== undefined ? 'true' : 'false'}>
-      <span className="ss-dot" style={{ background: hue, boxShadow: `0 0 9px ${hue}` }} />
-      <span className="ss-key">{label}</span>
-      <span className="ss-body">{children}</span>
-      {value !== undefined && (
-        <span className="ss-val mono" style={{ color: valueHue ?? 'var(--ink)' }}>{value}</span>
-      )}
-    </div>
-  );
-}
-
-// Thin glow meter (memory / storage).
-function Meter({ pct, hue }: { pct: number; hue: string }) {
-  const w = Math.max(0, Math.min(100, pct));
-  return (
-    <span className="ss-meter">
-      <span style={{ width: `${w}%`, background: `linear-gradient(90deg, ${hue}, color-mix(in srgb, ${hue} 55%, #fff 12%))`, boxShadow: `0 0 10px ${hue}` }} />
-    </span>
-  );
-}
+const HOPS = [
+  { name: 'Visitor', caption: 'opens a project link', hue: 'var(--ink)' },
+  { name: 'Cloudflare', caption: 'DNS · CDN · hides home IP', hue: 'var(--amber)' },
+  { name: 'Tunnel', caption: 'outbound-only · 0 open ports', hue: 'var(--vio)' },
+  { name: 'Authentik', caption: 'login for private apps', hue: 'var(--mag)' },
+  { name: 'The project', caption: 'Docker container on VAULT7A', hue: 'var(--cyan)', last: true },
+] as const;
 
 export function ServerStatsCard({ stats }: { stats: ServerStats }) {
-  const CYAN = 'var(--cyan)', MAG = 'var(--mag)', VIO = 'var(--vio)', CORAL = 'var(--coral)', AMBER = 'var(--amber)', GREEN = '#34d399';
-
-  // Live-ticking uptime: seconds since snapshot added to the server value.
+  // Live-ticking uptime from the server snapshot.
   const [now, setNow] = useState(stats.snapshotMs);
   useEffect(() => {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
-  const liveUptime = stats.uptimeSeconds + Math.max(0, Math.floor((now - stats.snapshotMs) / 1000));
-  const up = fmtUptime(liveUptime);
+  const upSec = stats.uptimeSeconds + Math.max(0, Math.floor((now - stats.snapshotMs) / 1000));
+  const upD = Math.floor(upSec / 86400);
+  const upH = Math.floor((upSec % 86400) / 3600);
 
-  const memPct = (stats.memUsedGB / stats.memTotalGB) * 100;
-  const storagePct = (stats.storageUsedTB / stats.storageTotalTB) * 100;
-
-  // CPU as per-core segments: floor(load) full, one partial for the fraction.
-  const full = Math.floor(stats.load1);
-  const frac = stats.load1 - full;
-  const segs = Array.from({ length: stats.cores }, (_, i) => (i < full ? 1 : i === full ? Math.max(0.4, frac) : 0));
+  const spec = [
+    `${stats.cpuModel} · ${stats.cores}C`,
+    `${stats.memUsedGB.toFixed(0)}/${stats.memTotalGB.toFixed(0)} GB`,
+    `${stats.storageUsedTB.toFixed(1)}/${stats.storageTotalTB.toFixed(0)} TB`,
+    `up ${upD}d ${String(upH).padStart(2, '0')}h`,
+    `${stats.containers} containers · ${stats.networks} networks`,
+  ];
 
   return (
     <div className="card flat" style={{ overflow: 'hidden' }}>
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="eyebrow" style={{ color: CYAN, margin: 0 }}>The machine behind it all</div>
+      <div className="flex items-center justify-between gap-3 mb-1.5">
+        <div className="eyebrow" style={{ color: 'var(--cyan)', margin: 0 }}>The machine behind it all</div>
         <span className="inline-flex items-center gap-2 mono text-[length:var(--t-cap)]" style={{ color: 'var(--mute)' }}>
           <span className="ss-led" /> online
         </span>
       </div>
+      <p className="text-[length:var(--t-label)] leading-relaxed mb-5" style={{ color: 'var(--ink)', opacity: 0.82 }}>
+        Every project on this site runs on one self-hosted box. Here&apos;s how a request actually reaches one:
+      </p>
 
-      {/* Identity: the box's name + OS + CPU model. "VAULT7A" is the server's
-          identity (stats.host is the container hostname inside Docker, e.g.
-          7c1667dfbe03 — not what we want on the card). */}
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-4">
-        <span className="font-display font-extrabold text-[length:var(--t-title)] tracking-tight" style={{ color: 'var(--ink)' }}>
-          VAULT7A
-        </span>
-        <span className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>{stats.os}</span>
-        <span className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>· {stats.cpuModel} · {stats.cores}C</span>
+      {/* ── access flow ── */}
+      <div className="ss-flow">
+        {HOPS.map((h, i) => (
+          <div key={h.name} className="ss-flow-item">
+            <div className="ss-hop" data-last={'last' in h && h.last ? 'true' : 'false'} style={{ ['--hop' as string]: h.hue }}>
+              <div className="ss-hop-top">
+                <span className="ss-hop-n mono">{i + 1}</span>
+                <span className="ss-hop-name">{h.name}</span>
+              </div>
+              <div className="ss-hop-cap mono">{h.caption}</div>
+            </div>
+            {i < HOPS.length - 1 && <span className="ss-arrow" aria-hidden>→</span>}
+          </div>
+        ))}
       </div>
 
-      {/* ── the rack ── */}
-      <div className="ss-rack">
-        <Blade hue={GREEN} label="UPTIME" value={<span style={{ color: 'var(--dim)' }}>no restarts</span>}>
-          <span className="ss-uptime mono" style={{ color: GREEN }}>
-            {String(up.d).padStart(2, '0')}<i>d</i> {String(up.h).padStart(2, '0')}<i>h</i> {String(up.m).padStart(2, '0')}<i>m</i>
-          </span>
-        </Blade>
+      <p className="text-[length:var(--t-cap)] leading-relaxed mt-3.5" style={{ color: 'var(--mute)' }}>
+        Public projects load straight through; private ones sit behind the Authentik login. No ports are ever
+        opened on the box, and there&apos;s <span style={{ color: 'var(--cyan)' }}>$0/mo</span> of cloud bill.
+      </p>
 
-        <Blade hue={CORAL} label="CPU" value={<>{stats.load1.toFixed(2)} <span style={{ color: 'var(--dim)' }}>/ {stats.cores} cores</span></>} valueHue={CORAL}>
-          <span className="ss-cores">
-            {segs.map((v, i) => (
-              <span key={i} style={{ background: v ? `color-mix(in srgb, ${CORAL} ${Math.round(v * 100)}%, transparent)` : 'rgba(255,255,255,.07)', boxShadow: v ? `0 0 8px color-mix(in srgb, ${CORAL} ${Math.round(v * 60)}%, transparent)` : 'none' }} />
-            ))}
-          </span>
-        </Blade>
-
-        <Blade hue={VIO} label="MEMORY" value={`${stats.memUsedGB.toFixed(0)}/${stats.memTotalGB.toFixed(0)} GB`} valueHue={VIO}>
-          <Meter pct={memPct} hue={VIO} />
-        </Blade>
-
-        <Blade hue={CYAN} label="STORAGE" value={`${stats.storageUsedTB.toFixed(1)}/${stats.storageTotalTB.toFixed(0)} TB`} valueHue={CYAN}>
-          <Meter pct={storagePct} hue={CYAN} />
-        </Blade>
-
-        <Blade hue={MAG} label="INGRESS">
-          <span className="ss-chain">
-            {['You', 'Cloudflare', 'Tunnel', 'Authentik', 'Docker'].map((node, i, arr) => (
-              <span key={node} className="flex items-center gap-1.5">
-                <span className="ss-node" data-last={i === arr.length - 1 ? 'true' : 'false'}>{node}</span>
-                {i < arr.length - 1 && <span aria-hidden style={{ color: 'var(--dim)' }}>→</span>}
-              </span>
-            ))}
-          </span>
-        </Blade>
-
-        <Blade hue={AMBER} label="FLEET" value={<span style={{ color: GREEN }}>0 open ports</span>}>
-          <span className="mono text-[length:var(--t-label)]" style={{ color: 'var(--ink)' }} title="Docker containers and isolated virtual networks segmenting them">
-            {stats.containers} containers · {stats.networks} networks
-          </span>
-        </Blade>
+      {/* ── honest host spec footer ── */}
+      <div className="ss-spec">
+        <span className="ss-spec-host font-display">VAULT7A</span>
+        <span className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>{stats.os}</span>
+        {spec.map((s) => (
+          <span key={s} className="ss-spec-chip mono">{s}</span>
+        ))}
+        <span className="ss-spec-chip mono" style={{ color: 'var(--done)', borderColor: 'color-mix(in srgb, var(--done) 35%, transparent)' }}>0 open ports</span>
       </div>
 
       <style jsx>{`
@@ -153,38 +108,42 @@ export function ServerStatsCard({ stats }: { stats: ServerStats }) {
           animation: ssPulse 2s ease-in-out infinite;
         }
         @keyframes ssPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
-        .ss-rack { display: flex; flex-direction: column; gap: 8px; }
-        .ss-blade {
-          display: grid;
-          grid-template-columns: 10px 74px 1fr auto;
-          gap: 8px 14px; align-items: center;
-          border: 1px solid var(--line);
-          border-radius: 9px;
-          background: linear-gradient(180deg, rgba(18,16,38,.8), rgba(10,9,22,.8));
-          padding: 11px 15px;
+        .ss-flow { display: flex; align-items: stretch; gap: 6px; }
+        .ss-flow-item { display: contents; }
+        .ss-hop {
+          flex: 1 1 0; min-width: 0;
+          border: 1px solid color-mix(in srgb, var(--hop) 32%, transparent);
+          border-radius: 11px;
+          background: linear-gradient(180deg, rgba(18,16,38,.75), rgba(10,9,22,.75));
+          padding: 11px 12px;
         }
-        .ss-blade[data-hasvalue='false'] { grid-template-columns: 10px 74px 1fr; }
-        .ss-dot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
-        .ss-key {
-          font-family: var(--scmono); font-size: var(--t-cap);
-          letter-spacing: .14em; color: var(--dim);
+        .ss-hop[data-last='true'] {
+          background: linear-gradient(180deg, color-mix(in srgb, var(--cyan) 16%, transparent), rgba(10,9,22,.75));
+          border-color: color-mix(in srgb, var(--cyan) 55%, transparent);
         }
-        .ss-body { min-width: 0; display: flex; align-items: center; }
-        .ss-val { font-size: var(--t-label); font-weight: 600; white-space: nowrap; text-align: right; }
-        .ss-uptime { font-size: clamp(17px, 2.1vw, 21px); font-weight: 700; letter-spacing: .01em; text-shadow: 0 0 14px color-mix(in srgb, #34d399 40%, transparent); font-variant-numeric: tabular-nums; }
-        .ss-uptime i { font-style: normal; font-size: .62em; color: var(--dim); margin: 0 1px 0 .5px; }
-        .ss-cores { display: flex; gap: 3px; width: 100%; }
-        .ss-cores > span { flex: 1; height: 10px; border-radius: 2px; display: block; }
-        .ss-meter { display: block; width: 100%; height: 10px; border-radius: 999px; background: rgba(255,255,255,.07); overflow: hidden; }
-        .ss-meter > span { display: block; height: 100%; border-radius: 999px; }
-        .ss-chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-family: var(--scmono); font-size: var(--t-cap); }
-        .ss-node { border: 1px solid var(--line); border-radius: 5px; padding: 2px 8px; color: var(--ink); }
-        .ss-node[data-last='true'] { background: var(--cyan); color: #070811; font-weight: 700; border-color: transparent; }
+        .ss-hop-top { display: flex; align-items: center; gap: 8px; }
+        .ss-hop-n {
+          width: 18px; height: 18px; flex: none; border-radius: 999px;
+          display: grid; place-items: center; font-size: 11px; font-weight: 700;
+          color: #070811; background: var(--hop);
+        }
+        .ss-hop-name { font-size: var(--t-label); font-weight: 600; color: var(--ink); line-height: 1.15; }
+        .ss-hop-cap { font-size: var(--t-cap); color: var(--mute); margin-top: 6px; line-height: 1.3; }
+        .ss-arrow { align-self: center; color: var(--dim); flex: none; font-size: 14px; }
+        .ss-spec {
+          display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+          margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line);
+        }
+        .ss-spec-host { font-weight: 800; font-size: var(--t-label); color: var(--ink); letter-spacing: -.01em; }
+        .ss-spec-chip {
+          font-size: var(--t-cap); color: var(--ink);
+          border: 1px solid var(--line); border-radius: 7px; padding: 3px 9px;
+          background: rgba(12,11,28,.55);
+        }
         @media (prefers-reduced-motion: reduce) { .ss-led { animation: none; } }
-        @media (max-width: 520px) {
-          .ss-blade, .ss-blade[data-hasvalue='false'] { grid-template-columns: 10px 1fr; }
-          .ss-key { display: none; }
-          .ss-val { grid-column: 2; text-align: left; }
+        @media (max-width: 720px) {
+          .ss-flow { flex-direction: column; }
+          .ss-arrow { transform: rotate(90deg); align-self: flex-start; margin-left: 8px; }
         }
       `}</style>
     </div>

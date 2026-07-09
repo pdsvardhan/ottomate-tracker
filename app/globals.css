@@ -152,9 +152,10 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
   background:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px);}
 .sc-grain{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.045;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
-/* max-width cap so ultrawide screens don't leave a dead gutter to the right of
-   the register (owner feedback 2026-07-06 — laptop widths are unaffected). */
-.sc-wrap{position:relative;z-index:1;width:100%;max-width:1600px;margin-inline:auto}
+/* max-width cap. iter-16 (owner: desktop shows huge L/R gutters on every page):
+   raised 1600 -> 2040 so wide desktops fill much better. Laptop (<=2040) is
+   unaffected — width:100% still fills it edge to edge. */
+.sc-wrap{position:relative;z-index:1;width:100%;max-width:2040px;margin-inline:auto}
 
 /* hero display title with the multi-hue sweep (iter-13: was 7vw/84px — owner
    asked for smaller; still commanding, no longer dominating the viewport) */
@@ -287,11 +288,39 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
 .sc .ov-ghost{position:absolute;right:0;top:-8px;font-family:var(--font-display);font-weight:800;font-size:clamp(60px,8vw,104px);line-height:1;pointer-events:none;user-select:none;opacity:.08}
 .sc .ov-h{font-family:var(--disp);font-weight:800;letter-spacing:-.02em;font-size:clamp(20px,2.4vw,25px);line-height:1.06;margin-bottom:14px;position:relative}
 
+/* iter-16: numbered critical-path stepper ('How it's used') */
+.sc .ov-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.sc .ov-step{position:relative;display:flex;gap:14px;padding:0 0 18px}
+.sc .ov-step:last-child{padding-bottom:0}
+.sc .ov-step::before{content:"";position:absolute;left:13px;top:28px;bottom:-2px;width:2px;background:linear-gradient(180deg,var(--cyan),transparent)}
+.sc .ov-step:last-child::before{display:none}
+.sc .ov-step-n{flex:none;width:28px;height:28px;border-radius:999px;display:grid;place-items:center;font-family:var(--scmono);font-size:12px;font-weight:700;color:#070811;background:var(--cyan);box-shadow:0 0 14px color-mix(in srgb,var(--cyan) 45%,transparent)}
+.sc .ov-step-t{padding-top:4px;font-size:var(--t-body);color:var(--ink);line-height:1.4}
+
+/* iter-16: 'What's next' upcoming cards */
+.sc .ov-next{display:grid;gap:10px;grid-template-columns:1fr}
+@media(min-width:640px){.sc .ov-next{grid-template-columns:1fr 1fr}}
+.sc .ov-next-card{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;background:var(--scard);padding:13px 15px;transition:transform .3s,border-color .3s}
+.sc .ov-next-card:hover{border-color:color-mix(in srgb,var(--amber) 45%,transparent);transform:translateY(-2px)}
+.sc .ov-next-n{flex:none;font-family:var(--scmono);font-size:var(--t-cap);font-weight:700;color:var(--amber);border:1px solid color-mix(in srgb,var(--amber) 35%,transparent);border-radius:7px;padding:2px 8px}
+.sc .ov-next-t{font-size:var(--t-label);color:var(--ink);line-height:1.4}
+
+/* iter-16: third-party service cards */
+.sc .svc-grid{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:640px){.sc .svc-grid{grid-template-columns:1fr 1fr}}
+.sc .svc-card{border:1px solid var(--line);border-radius:12px;background:var(--scard);padding:14px 16px;transition:transform .3s,border-color .3s}
+.sc .svc-card:hover{border-color:var(--amber);transform:translateY(-2px)}
+.sc .svc-name{font-size:var(--t-body);font-weight:600;color:var(--ink)}
+.sc .svc-purpose{font-size:var(--t-label);color:var(--mute);line-height:1.45;margin-top:4px}
+
 /* ═══ iter-15 · Components category "side rail" (winner 8a) ═══ */
 .sc .cat-grid{display:grid;gap:26px;grid-template-columns:1fr;align-items:start}
 @media(min-width:1024px){.sc .cat-grid{grid-template-columns:236px minmax(0,1fr)}}
 .sc .cat-rail{align-self:start}
-@media(min-width:1024px){.sc .cat-rail{position:sticky;top:24px;max-height:calc(100vh - 40px);overflow:auto;padding-right:4px}}
+/* iter-16 (owner: rail sticks too late, first category scrolls off first):
+   pin just below the sticky global nav (top-0, ~64px) so it engages with far
+   less scroll travel and never slides under the nav. */
+@media(min-width:1024px){.sc .cat-rail{position:sticky;top:80px;max-height:calc(100vh - 96px);overflow:auto;padding-right:4px}}
 .sc .cat-rail-h{font-family:var(--scmono);font-size:var(--t-cap);letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin:0 0 12px;padding:0 12px}
 .sc .cat-nav{display:flex;flex-direction:column;gap:2px}
 .sc .cat-nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-left:2px solid transparent;border-radius:0 9px 9px 0;color:var(--mute);font-size:var(--t-label);text-decoration:none;transition:color .25s,background .25s,border-color .25s}

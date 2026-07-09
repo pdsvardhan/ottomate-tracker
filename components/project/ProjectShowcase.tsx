@@ -173,47 +173,59 @@ export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSl
                 })}
               </div>
 
-              {/* Visual identity strip (adr-021): the project's own design
-                  system as data — palette, type, layout, motion. First-
-                  impression signal, so it lives in the hero, not Engineering. */}
+              {/* Design-system-at-a-glance (adr-021 identity, iter-16 redesign:
+                  owner wanted it to actually read as something). A titled mini
+                  panel with labelled facets — palette / type / layout / motion —
+                  so a visitor understands it's the project's own design system. */}
               {d.identity && (
-                <div className="card flat mt-3.5 flex flex-wrap items-center gap-x-6 gap-y-3" style={{ padding: '14px 18px' }}>
-                  <span className="mono text-[length:var(--t-cap)] tracking-[.14em] uppercase" style={{ color: 'var(--dim)' }}>identity</span>
-                  {d.identity.swatches.length > 0 && (
-                    <span className="flex items-center gap-1.5">
-                      {d.identity.swatches.map((hex) => (
-                        <span key={hex} title={hex} className="w-5 h-5 rounded-md shrink-0" style={{ background: hex, border: '1px solid rgba(255,255,255,.18)' }} />
-                      ))}
-                    </span>
-                  )}
-                  {d.identity.fonts.length > 0 && (
-                    <span className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--mute)' }}>{d.identity.fonts.join(' · ')}</span>
-                  )}
-                  {d.identity.layout && (
-                    <span className="text-[length:var(--t-cap)]" style={{ color: 'var(--ink)' }}>{d.identity.layout}</span>
-                  )}
-                  {d.identity.motion && (
-                    <span className="mono text-[length:var(--t-cap)] rounded px-2 py-0.5" style={{ color: CYAN, border: '1px solid var(--line2)' }}>motion · {d.identity.motion}</span>
-                  )}
+                <div className="card flat mt-3.5" style={{ padding: '15px 18px' }}>
+                  <div className="mono text-[length:var(--t-cap)] tracking-[.16em] uppercase mb-3" style={{ color: 'var(--dim)' }}>Design system</div>
+                  <div className="flex flex-wrap gap-x-9 gap-y-3.5">
+                    {d.identity.swatches.length > 0 && (
+                      <div>
+                        <div className="mono text-[length:var(--t-cap)] mb-1.5" style={{ color: 'var(--dim)' }}>palette</div>
+                        <div className="flex items-center gap-1.5">
+                          {d.identity.swatches.map((hex) => (
+                            <span key={hex} title={hex} className="w-5 h-5 rounded-md shrink-0" style={{ background: hex, border: '1px solid rgba(255,255,255,.18)' }} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {d.identity.fonts.length > 0 && (
+                      <div>
+                        <div className="mono text-[length:var(--t-cap)] mb-1.5" style={{ color: 'var(--dim)' }}>type</div>
+                        <div className="text-[length:var(--t-label)]" style={{ color: 'var(--ink)' }}>{d.identity.fonts.join(' · ')}</div>
+                      </div>
+                    )}
+                    {d.identity.layout && (
+                      <div>
+                        <div className="mono text-[length:var(--t-cap)] mb-1.5" style={{ color: 'var(--dim)' }}>layout</div>
+                        <div className="text-[length:var(--t-label)]" style={{ color: 'var(--ink)' }}>{d.identity.layout}</div>
+                      </div>
+                    )}
+                    {d.identity.motion && (
+                      <div>
+                        <div className="mono text-[length:var(--t-cap)] mb-1.5" style={{ color: 'var(--dim)' }}>motion</div>
+                        <div className="text-[length:var(--t-label)]" style={{ color: CYAN }}>{d.identity.motion}</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* reel — real media when uploaded (#165), animated placeholder otherwise */}
+            {/* reel — real media when uploaded (#165), animated placeholder otherwise.
+                iter-16 (owner): dropped the traffic-light dots + 'reel' badge chrome;
+                only a subtle name label remains (and only over the placeholder, so a
+                real screenshot isn't covered). */}
             <div className="reel">
               <ReelMedia slug={d.slug} reel={d.reel} />
-              <div className="absolute inset-0 pointer-events-none p-4 flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: MAG }} />
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: AMBER }} />
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: CYAN }} />
-                  <span className="ml-auto mono text-[length:var(--t-cap)] tracking-[.14em] uppercase px-2 py-1 rounded-md" style={{ color: CYAN, border: '1px solid var(--line2)', background: 'rgba(5,6,15,.6)' }}>reel</span>
-                </div>
-                <div className="mt-auto">
+              {!d.reel && (
+                <div className="absolute inset-0 pointer-events-none p-4 flex flex-col justify-end">
                   <div className="font-display font-extrabold text-2xl text-white" style={{ textShadow: '0 2px 20px rgba(0,0,0,.8)' }}>{d.name}</div>
-                  {!d.reel && <div className="mono text-[length:var(--t-cap)] mt-1 tracking-wide" style={{ color: 'var(--mute)' }}>media coming soon</div>}
+                  <div className="mono text-[length:var(--t-cap)] mt-1 tracking-wide" style={{ color: 'var(--mute)' }}>media coming soon</div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </header>
@@ -332,15 +344,15 @@ function OverviewPanel({ d }: { d: ShowcaseData }) {
         <>
           {d.primaryFlow && d.primaryFlow.steps.length > 0 && (
             <>
-              <div className="mono text-[length:var(--t-cap)] mb-3" style={{ color: 'var(--dim)' }}>critical path · {d.primaryFlow.name}</div>
-              <div className="flex flex-wrap items-center gap-2.5 mb-6">
+              <div className="mono text-[length:var(--t-cap)] mb-4" style={{ color: 'var(--dim)' }}>critical path · {d.primaryFlow.name}</div>
+              <ol className="ov-steps mb-7">
                 {d.primaryFlow.steps.map((s, i) => (
-                  <span key={i} className="flex items-center gap-2.5">
-                    <span className="text-[length:var(--t-label)] rounded-lg px-3.5 py-2" style={{ color: 'var(--ink)', background: 'rgba(12,11,28,.6)', border: '1px solid var(--line)' }}>{s}</span>
-                    {i < d.primaryFlow!.steps.length - 1 && <span style={{ color: VIO }}>→</span>}
-                  </span>
+                  <li key={i} className="ov-step">
+                    <span className="ov-step-n">{i + 1}</span>
+                    <span className="ov-step-t">{s}</span>
+                  </li>
                 ))}
-              </div>
+              </ol>
             </>
           )}
           {d.flows.length > 0 && (
@@ -366,11 +378,14 @@ function OverviewPanel({ d }: { d: ShowcaseData }) {
     secs.push({
       id: 'next', title: "What's next", tone: AMBER,
       body: (
-        <ul className="flex flex-col gap-2.5">
+        <div className="ov-next">
           {d.roadmap.map((r, i) => (
-            <li key={i} className="flex gap-3 text-[length:var(--t-body)]" style={{ color: 'var(--mute)' }}><span style={{ color: 'var(--dim)' }}>→</span>{r}</li>
+            <div key={i} className="ov-next-card">
+              <span className="ov-next-n">{String(i + 1).padStart(2, '0')}</span>
+              <span className="ov-next-t">{r}</span>
+            </div>
           ))}
-        </ul>
+        </div>
       ),
     });
   }
@@ -411,24 +426,9 @@ function OverviewPanel({ d }: { d: ShowcaseData }) {
           ))}
         </nav>
 
-        {d.contextChips.length > 0 && (
-          <div className="ov-railsec">
-            <div className="ov-rail-h" style={{ marginBottom: 10 }}>Context</div>
-            <div className="ov-kv">
-              {d.contextChips.map((c) => (
-                <div key={c.k}><span className="kk">{c.k}</span><span style={{ color: 'var(--ink)' }}>{c.v}</span></div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="ov-railsec">
-          <div className="ov-counts">
-            <span><b style={{ color: CYAN }}>{d.featureCounts.done}</b><span style={{ color: 'var(--dim)' }}>done</span></span>
-            <span><b style={{ color: AMBER }}>{d.featureCounts.wip}</b><span style={{ color: 'var(--dim)' }}>wip</span></span>
-            <span><b style={{ color: DIM }}>{d.featureCounts.todo}</b><span style={{ color: 'var(--dim)' }}>todo</span></span>
-          </div>
-        </div>
+        {/* iter-16 (owner marked both 'delete'): the Context key-values and the
+            done/wip/todo counts were removed from the rail; it now carries only
+            the section nav. */}
       </aside>
 
       <div className="ov-body">
@@ -494,15 +494,15 @@ function EngineeringPanel({ d, archSlot }: { d: ShowcaseData; archSlot: ReactNod
       {d.services.length > 0 && (
         <section>
           <SectionHead index={++idx} title="Third-party services" tone={AMBER} />
-          <div className="card flat">
-            <div className="grid gap-2.5 md:grid-cols-2">
-              {d.services.map((s, i) => (
-                <div key={i} className="flex items-baseline gap-2 text-[length:var(--t-label)]">
-                  <span className="font-medium" style={{ color: 'var(--ink)' }}>{s.name}</span>
-                  {s.purpose && <span className="truncate" style={{ color: 'var(--mute)' }}>— {s.purpose}</span>}
-                </div>
-              ))}
-            </div>
+          {/* iter-16 (owner: 'show these better'): each service is its own card
+              with the full purpose (no more truncated one-liners). */}
+          <div className="svc-grid">
+            {d.services.map((s, i) => (
+              <div key={i} className="svc-card">
+                <div className="svc-name">{s.name}</div>
+                {s.purpose && <div className="svc-purpose">{s.purpose}</div>}
+              </div>
+            ))}
           </div>
         </section>
       )}
