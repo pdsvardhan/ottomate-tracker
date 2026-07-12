@@ -6,6 +6,7 @@
 // carries the Cyber-Den look from the winning lab prototype; scroll is never
 // hijacked (no zoom/pan-on-scroll on an embedded canvas).
 
+import { useEffect, useRef, type RefObject } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -14,12 +15,36 @@ import {
   Handle,
   Position,
   MarkerType,
+  useReactFlow,
   type Edge,
   type Node,
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { LaidOutGraph, FlowNodeKind } from '@/lib/diagrams/mermaid-to-flow';
+
+// iter-65 #515: diagrams mounted inside a collapsed <details> (the "More
+// detail" section) initialise at zero size, so the initial fitView misses and
+// the graph sits tiny in a corner once revealed. Refit whenever the canvas
+// gains or changes real width — covers the reveal AND window resizes.
+function AutoRefit({ container }: { container: RefObject<HTMLDivElement | null> }) {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    const el = container.current;
+    if (!el) return;
+    let last = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      const w = el.clientWidth;
+      if (w > 0 && w !== last) {
+        last = w;
+        requestAnimationFrame(() => { fitView({ padding: 0.14 }); });
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [container, fitView]);
+  return null;
+}
 
 // iter-16 (owner: "why just one colour?"): a linear pipeline is all one node
 // kind, so kind-based colouring rendered every box the same violet. Colour now
@@ -62,6 +87,7 @@ function DiagNodeView({ data }: NodeProps<DiagNode>) {
 const nodeTypes = { diag: DiagNodeView };
 
 export function FlowDiagramView({ graph }: { graph: LaidOutGraph }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
   const horizontal = graph.direction === 'LR';
   // Distinct lanes (groups), in first-seen order, so each lane gets its own hue.
   const lanes = Array.from(new Set(graph.nodes.map((n) => n.group).filter(Boolean))) as string[];
@@ -96,7 +122,7 @@ export function FlowDiagramView({ graph }: { graph: LaidOutGraph }) {
   const height = Math.min(720, Math.max(260, graph.height + 60));
 
   return (
-    <div style={{ height }} className="rounded-2xl border border-zinc-800/80 bg-zinc-950/50 overflow-hidden">
+    <div ref={wrapRef} style={{ height }} className="rounded-2xl border border-zinc-800/80 bg-zinc-950/50 overflow-hidden">
       <ReactFlowProvider>
         <ReactFlow
           nodes={nodes}
@@ -114,6 +140,7 @@ export function FlowDiagramView({ graph }: { graph: LaidOutGraph }) {
           zoomOnScroll={false}
           preventScrolling={false}
         >
+          <AutoRefit container={wrapRef} />
           <Background gap={22} color="#1c1c2b" />
           <Controls showInteractive={false} />
         </ReactFlow>
