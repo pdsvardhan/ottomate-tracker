@@ -8,9 +8,14 @@
 // hate everything" — neighborhoods grid + spec strip dropped).
 //
 // Motion: a glow cascade walks the request path hop by hop (pure CSS delays);
-// prefers-reduced-motion gets a static card. Container count in the header is
-// the only live stat still rendered; the ServerStats contract stays intact so
-// readServerStats() and the page wiring are untouched.
+// prefers-reduced-motion gets a static card.
+// iter-65 rework (owner comments 2026-07-13): hops no longer stretch to the
+// fork's height ("way too tall" — align-items:center, content-sized boxes);
+// fork tags get a fixed width so both branch boxes align; hop names wrap
+// instead of truncating ("straight to the proj…"); and the honest spec strip
+// is BACK as a one-line footer ("show server stats na?") with ticking uptime.
+
+import { useEffect, useState } from 'react';
 
 export interface ServerStats {
   host: string;
@@ -36,6 +41,25 @@ const HOPS = [
 ] as const;
 
 export function ServerStatsCard({ stats }: { stats: ServerStats }) {
+  // Live-ticking uptime from the server snapshot (restored with the spec strip).
+  const [now, setNow] = useState(stats.snapshotMs);
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const upSec = stats.uptimeSeconds + Math.max(0, Math.floor((now - stats.snapshotMs) / 1000));
+  const upD = Math.floor(upSec / 86400);
+  const upH = Math.floor((upSec % 86400) / 3600);
+  const upM = Math.floor((upSec % 3600) / 60);
+
+  const spec = [
+    `${stats.cpuModel} · ${stats.cores}C`,
+    `${stats.memUsedGB.toFixed(0)}/${stats.memTotalGB.toFixed(0)} GB RAM`,
+    `${stats.storageUsedTB.toFixed(1)}/${stats.storageTotalTB.toFixed(0)} TB`,
+    `up ${upD}d ${String(upH).padStart(2, '0')}h ${String(upM).padStart(2, '0')}m`,
+  ];
+
   return (
     <div className="card flat" style={{ overflow: 'hidden' }}>
       <div className="flex items-center justify-between gap-3 mb-1.5">
@@ -74,7 +98,7 @@ export function ServerStatsCard({ stats }: { stats: ServerStats }) {
           <div className="ss-branch">
             <span className="ss-tag" style={{ ['--hop' as string]: 'var(--done, #34d399)' }}>public</span>
             <div className="ss-hop" style={{ ['--hop' as string]: 'var(--done, #34d399)', ['--d' as string]: '3s' }}>
-              <div className="ss-hop-top"><span className="ss-hop-name">straight to the project</span></div>
+              <div className="ss-hop-top"><span className="ss-hop-name">Straight to the project</span></div>
               <div className="ss-hop-cap mono">stateofus · mapsofbharat · portfolio …</div>
             </div>
           </div>
@@ -88,6 +112,16 @@ export function ServerStatsCard({ stats }: { stats: ServerStats }) {
         </div>
       </div>
 
+      {/* ── honest spec strip (restored per owner: "show server stats na?") ── */}
+      <div className="ss-spec">
+        <span className="ss-spec-host font-display">VAULT7A</span>
+        <span className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>{stats.os}</span>
+        {spec.map((s) => (
+          <span key={s} className="ss-spec-chip mono">{s}</span>
+        ))}
+        <span className="ss-spec-chip mono" style={{ color: 'var(--cyan)', borderColor: 'color-mix(in srgb, var(--cyan) 35%, transparent)' }}>$0/mo cloud</span>
+      </div>
+
       <style jsx>{`
         .ss-led {
           width: 8px; height: 8px; border-radius: 999px;
@@ -96,7 +130,9 @@ export function ServerStatsCard({ stats }: { stats: ServerStats }) {
         }
         @keyframes ssPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
 
-        .ss-flow { display: flex; align-items: stretch; gap: 8px; }
+        /* align-items:center — hops size to their content instead of
+           stretching to the fork column ("way too tall" on wide monitors) */
+        .ss-flow { display: flex; align-items: center; gap: 8px; }
         .ss-flow-item { display: contents; }
         .ss-hop {
           flex: 1 1 0; min-width: 0;
@@ -113,24 +149,38 @@ export function ServerStatsCard({ stats }: { stats: ServerStats }) {
         }
         .ss-hop-top { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
         .ss-hop-ic { color: var(--hop); flex: 0 0 auto; }
-        .ss-hop-name { font-weight: 650; font-size: var(--t-label); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* names wrap — ellipsis cut "straight to the proj…" (owner) */
+        .ss-hop-name { font-weight: 650; font-size: var(--t-label); color: var(--ink); line-height: 1.3; }
         .ss-hop-cap { font-size: var(--t-cap); color: var(--dim); margin-top: 3px; }
         .ss-arrow { align-self: center; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0; color: var(--dim); }
         .ss-arrow b { font-weight: 400; font-size: 15px; line-height: 1; }
         .ss-arrow i { font-style: normal; font-size: 9.5px; letter-spacing: .06em; }
 
         .ss-fork { display: flex; flex-direction: column; gap: 8px; flex: 1.55 1 0; min-width: 0; }
-        .ss-branch { display: flex; align-items: stretch; gap: 8px; }
+        .ss-branch { display: flex; align-items: center; gap: 8px; }
         .ss-branch .ss-hop { flex: 1; }
+        /* fixed tag width — 'public' vs 'private' widths were skewing the two
+           branch boxes out of alignment (owner) */
         .ss-tag {
-          align-self: center; flex: 0 0 auto;
+          flex: 0 0 62px; text-align: center; box-sizing: border-box;
           font-family: var(--scmono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
           color: var(--hop); border: 1px solid color-mix(in srgb, var(--hop) 40%, transparent);
-          border-radius: 999px; padding: 2px 8px; white-space: nowrap;
+          border-radius: 999px; padding: 2px 0; white-space: nowrap;
+        }
+
+        .ss-spec {
+          display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+          margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line);
+        }
+        .ss-spec-host { font-size: 13px; font-weight: 800; letter-spacing: .07em; color: var(--ink); }
+        .ss-spec-chip {
+          font-size: var(--t-cap); color: var(--mute);
+          border: 1px solid var(--line); border-radius: 8px; padding: 2.5px 9px;
+          font-variant-numeric: tabular-nums;
         }
 
         @media (max-width: 1023px) {
-          .ss-flow { flex-direction: column; }
+          .ss-flow { flex-direction: column; align-items: stretch; }
           .ss-arrow { flex-direction: row; align-self: flex-start; margin-left: 16px; gap: 6px; }
           .ss-arrow b { transform: rotate(90deg); }
         }

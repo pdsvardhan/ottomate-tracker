@@ -7,6 +7,7 @@
 
 import { MermaidView } from '@/components/architecture/MermaidView';
 import { FlowDiagramView } from '@/components/architecture/FlowDiagramView';
+import { DetailsReveal } from '@/components/architecture/DetailsReveal';
 import { mermaidToFlow } from '@/lib/diagrams/mermaid-to-flow';
 import { Badge } from '@/components/ui/Badge';
 
@@ -188,16 +189,23 @@ export function ArchitectureView({ sections, details, decisions }: {
         </section>
       )}
 
-      {/* Secondary diagrams, collapsed — details beyond the 90-second read */}
+      {/* Secondary diagrams, collapsed — details beyond the 90-second read.
+          iter-65: DetailsReveal mounts the canvases on first open so React Flow
+          initialises at real size (zero-size mounts broke fitView — owner
+          screenshot 2026-07-13). */}
       {details.length > 0 && (
-        <details className="group rounded-xl border border-zinc-800/60 bg-zinc-900/30">
-          <summary className="cursor-pointer select-none px-4 py-3.5 text-[length:var(--t-label)] text-zinc-300 transition-colors hover:text-zinc-100">
-            <span className="font-medium">More detail</span>
-            <span className="text-zinc-600">
-              {' '}— {details.map((s) => s.label).join(' · ')} ({detailCount}{' '}
-              {detailCount === 1 ? 'diagram' : 'diagrams'})
-            </span>
-          </summary>
+        <DetailsReveal
+          className="group rounded-xl border border-zinc-800/60 bg-zinc-900/30"
+          summary={
+            <summary className="cursor-pointer select-none px-4 py-3.5 text-[length:var(--t-label)] text-zinc-300 transition-colors hover:text-zinc-100">
+              <span className="font-medium">More detail</span>
+              <span className="text-zinc-600">
+                {' '}— {details.map((s) => s.label).join(' · ')} ({detailCount}{' '}
+                {detailCount === 1 ? 'diagram' : 'diagrams'})
+              </span>
+            </summary>
+          }
+        >
           <div className="space-y-10 px-4 pb-5 pt-2">
             {details.map((s, i) => (
               <section key={s.kind}>
@@ -211,7 +219,7 @@ export function ArchitectureView({ sections, details, decisions }: {
               </section>
             ))}
           </div>
-        </details>
+        </DetailsReveal>
       )}
     </div>
   );
