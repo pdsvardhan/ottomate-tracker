@@ -316,7 +316,9 @@ export function parseMermaidErDiagram(src: string): ParsedGraph | null {
   }
 
   if (nodes.size < 2) return null;
-  return { direction: 'TB', nodes: Array.from(nodes.values()), edges };
+  // ER graphs fan wide, not deep — LR keeps a 10-entity model readable inside
+  // the height-capped canvas (TB rendered at min-zoom, unreadably small).
+  return { direction: 'LR', nodes: Array.from(nodes.values()), edges };
 }
 
 // ── layout ──
