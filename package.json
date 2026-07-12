@@ -17,7 +17,8 @@
     "mirror:write": "tsx scripts/write-yaml-mirror.ts",
     "build:previews": "node scripts/build-previews.mjs",
     "test": "vitest --run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "capture:reels": "node scripts/capture-reels.mjs"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",

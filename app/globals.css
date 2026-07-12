@@ -111,7 +111,10 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
   overflow: hidden;
   transition: opacity .2s ease, transform .24s cubic-bezier(.2, .8, .2, 1);
 }
-.reg-pop-reel { height: 168px; display: grid; place-items: center; border-bottom: 1px solid var(--color-border); }
+/* iter-65 #505 (owner: "these arent 16:9 ratio… cropped in a bad way"): the
+   popover media slot is now a true 16:9 frame — captured reels are 1920×1080,
+   so object-cover fills it edge-to-edge with zero cropping. */
+.reg-pop-reel { aspect-ratio: 16 / 9; display: grid; place-items: center; border-bottom: 1px solid var(--color-border); }
 /* iter-65 #510 (owner: hover effect stuck after clicking the chevron):
    :focus-within kept the popover/bar/chev lit after a mouse click because the
    chevron button retains focus once the panel is closed again. :has(:focus-visible)
