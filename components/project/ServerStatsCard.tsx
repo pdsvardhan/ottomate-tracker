@@ -1,18 +1,16 @@
 'use client';
 
-// VAULT7A "machine behind it all" card. iter-16 redesign (owner rejected the
-// iter-15 rack-blades card; wanted this area to actually explain how the
-// services are set up and how access takes place). Owner picked "access flow":
-// the card now walks a request from a visitor to the running project, each hop
-// labelled in plain words, with the honest host spec demoted to a footer.
+// VAULT7A "machine behind it all" card — iter-65 #504 rebuild (3rd redesign of
+// this slot; owner approved exactly ONE row of the researched proposal: "HOW A
+// REQUEST GETS IN"). The card is now purely the ingress flow — You → Cloudflare
+// → Tunnel → Reverse proxy → the public/private fork — with the security facts
+// woven into the node captions instead of a spec footer (owner: "below that
+// hate everything" — neighborhoods grid + spec strip dropped).
 //
-// Data is unchanged and still honest: the footer's load/mem/storage/uptime are
-// real /proc readings snapshotted server-side (page is force-dynamic); uptime
-// ticks client-side from the snapshot. Container/network COUNTS the container
-// can't see, so they stay plainly labelled. The ServerStats contract and the
-// home page's readServerStats() are untouched.
-
-import { useEffect, useState } from 'react';
+// Motion: a glow cascade walks the request path hop by hop (pure CSS delays);
+// prefers-reduced-motion gets a static card. Container count in the header is
+// the only live stat still rendered; the ServerStats contract stays intact so
+// readServerStats() and the page wiring are untouched.
 
 export interface ServerStats {
   host: string;
@@ -24,81 +22,70 @@ export interface ServerStats {
   memUsedGB: number;
   storageTotalTB: number;
   storageUsedTB: number;
-  uptimeSeconds: number;   // snapshot at request time
-  containers: number;      // static fact
-  networks: number;        // static fact
-  snapshotMs: number;      // Date.now() at render, for client uptime tick
+  uptimeSeconds: number;
+  containers: number;
+  networks: number;
+  snapshotMs: number;
 }
 
 const HOPS = [
-  { name: 'Visitor', caption: 'opens a project link', hue: 'var(--ink)' },
-  { name: 'Cloudflare', caption: 'DNS · CDN · hides home IP', hue: 'var(--amber)' },
-  { name: 'Tunnel', caption: 'outbound-only · 0 open ports', hue: 'var(--vio)' },
-  { name: 'Authentik', caption: 'login for private apps', hue: 'var(--mag)' },
-  { name: 'The project', caption: 'Docker container on VAULT7A', hue: 'var(--cyan)', last: true },
+  { name: 'You', caption: 'anywhere on the internet', hue: 'var(--ink)', icon: '◉', edge: null },
+  { name: 'Cloudflare edge', caption: 'DNS · CDN · home IP hidden', hue: 'var(--amber)', icon: '◈', edge: 'https' },
+  { name: 'Tunnel', caption: 'dials OUT from the box · 0 open ports', hue: 'var(--vio)', icon: '⇄', edge: 'tunnel' },
+  { name: 'Reverse proxy', caption: '*.vault7a.xyz → the right container', hue: 'var(--cyan)', icon: '⌥', edge: 'host' },
 ] as const;
 
 export function ServerStatsCard({ stats }: { stats: ServerStats }) {
-  // Live-ticking uptime from the server snapshot.
-  const [now, setNow] = useState(stats.snapshotMs);
-  useEffect(() => {
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const upSec = stats.uptimeSeconds + Math.max(0, Math.floor((now - stats.snapshotMs) / 1000));
-  const upD = Math.floor(upSec / 86400);
-  const upH = Math.floor((upSec % 86400) / 3600);
-
-  const spec = [
-    `${stats.cpuModel} · ${stats.cores}C`,
-    `${stats.memUsedGB.toFixed(0)}/${stats.memTotalGB.toFixed(0)} GB`,
-    `${stats.storageUsedTB.toFixed(1)}/${stats.storageTotalTB.toFixed(0)} TB`,
-    `up ${upD}d ${String(upH).padStart(2, '0')}h`,
-    `${stats.containers} containers · ${stats.networks} networks`,
-  ];
-
   return (
     <div className="card flat" style={{ overflow: 'hidden' }}>
       <div className="flex items-center justify-between gap-3 mb-1.5">
         <div className="eyebrow" style={{ color: 'var(--cyan)', margin: 0 }}>The machine behind it all</div>
         <span className="inline-flex items-center gap-2 mono text-[length:var(--t-cap)]" style={{ color: 'var(--mute)' }}>
-          <span className="ss-led" /> online
+          <span className="ss-led" /> {stats.containers} services online
         </span>
       </div>
-      <p className="text-[length:var(--t-label)] leading-relaxed mb-5" style={{ color: 'var(--ink)', opacity: 0.82 }}>
-        Every project on this site runs on one self-hosted box. Here&apos;s how a request actually reaches one:
+      <p className="mono text-[length:var(--t-cap)] tracking-[.14em] uppercase mb-4" style={{ color: 'var(--dim)' }}>
+        How a request gets in
       </p>
 
-      {/* ── access flow ── */}
       <div className="ss-flow">
         {HOPS.map((h, i) => (
           <div key={h.name} className="ss-flow-item">
-            <div className="ss-hop" data-last={'last' in h && h.last ? 'true' : 'false'} style={{ ['--hop' as string]: h.hue }}>
+            {h.edge && (
+              <span className="ss-arrow mono" aria-hidden>
+                <b>→</b>
+                <i>{h.edge}</i>
+              </span>
+            )}
+            <div className="ss-hop" style={{ ['--hop' as string]: h.hue, ['--d' as string]: `${i * 0.75}s` }}>
               <div className="ss-hop-top">
-                <span className="ss-hop-n mono">{i + 1}</span>
+                <span className="ss-hop-ic" aria-hidden>{h.icon}</span>
                 <span className="ss-hop-name">{h.name}</span>
               </div>
               <div className="ss-hop-cap mono">{h.caption}</div>
             </div>
-            {i < HOPS.length - 1 && <span className="ss-arrow" aria-hidden>→</span>}
           </div>
         ))}
-      </div>
 
-      <p className="text-[length:var(--t-cap)] leading-relaxed mt-3.5" style={{ color: 'var(--mute)' }}>
-        Public projects load straight through; private ones sit behind the Authentik login. No ports are ever
-        opened on the box, and there&apos;s <span style={{ color: 'var(--cyan)' }}>$0/mo</span> of cloud bill.
-      </p>
+        <span className="ss-arrow mono" aria-hidden><b>→</b></span>
 
-      {/* ── honest host spec footer ── */}
-      <div className="ss-spec">
-        <span className="ss-spec-host font-display">VAULT7A</span>
-        <span className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>{stats.os}</span>
-        {spec.map((s) => (
-          <span key={s} className="ss-spec-chip mono">{s}</span>
-        ))}
-        <span className="ss-spec-chip mono" style={{ color: 'var(--done)', borderColor: 'color-mix(in srgb, var(--done) 35%, transparent)' }}>0 open ports</span>
+        {/* the fork: public sails through, private stops at the SSO gate */}
+        <div className="ss-fork">
+          <div className="ss-branch">
+            <span className="ss-tag" style={{ ['--hop' as string]: 'var(--done, #34d399)' }}>public</span>
+            <div className="ss-hop" style={{ ['--hop' as string]: 'var(--done, #34d399)', ['--d' as string]: '3s' }}>
+              <div className="ss-hop-top"><span className="ss-hop-name">straight to the project</span></div>
+              <div className="ss-hop-cap mono">stateofus · mapsofbharat · portfolio …</div>
+            </div>
+          </div>
+          <div className="ss-branch">
+            <span className="ss-tag" style={{ ['--hop' as string]: 'var(--mag)' }}>private</span>
+            <div className="ss-hop" style={{ ['--hop' as string]: 'var(--mag)', ['--d' as string]: '3s' }}>
+              <div className="ss-hop-top"><span className="ss-hop-name">Authentik login first</span></div>
+              <div className="ss-hop-cap mono">SSO gate · then media · photos · tools</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <style jsx>{`
@@ -108,42 +95,47 @@ export function ServerStatsCard({ stats }: { stats: ServerStats }) {
           animation: ssPulse 2s ease-in-out infinite;
         }
         @keyframes ssPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
-        .ss-flow { display: flex; align-items: stretch; gap: 6px; }
+
+        .ss-flow { display: flex; align-items: stretch; gap: 8px; }
         .ss-flow-item { display: contents; }
         .ss-hop {
           flex: 1 1 0; min-width: 0;
           border: 1px solid color-mix(in srgb, var(--hop) 32%, transparent);
           border-radius: 11px;
           background: linear-gradient(180deg, rgba(18,16,38,.75), rgba(10,9,22,.75));
-          padding: 11px 12px;
+          padding: 10px 12px;
+          animation: ssHop 4.5s ease-in-out infinite;
+          animation-delay: var(--d, 0s);
         }
-        .ss-hop[data-last='true'] {
-          background: linear-gradient(180deg, color-mix(in srgb, var(--cyan) 16%, transparent), rgba(10,9,22,.75));
-          border-color: color-mix(in srgb, var(--cyan) 55%, transparent);
+        @keyframes ssHop {
+          0%, 24%, 100% { border-color: color-mix(in srgb, var(--hop) 32%, transparent); box-shadow: none; }
+          10% { border-color: color-mix(in srgb, var(--hop) 85%, transparent); box-shadow: 0 0 18px -4px var(--hop); }
         }
-        .ss-hop-top { display: flex; align-items: center; gap: 8px; }
-        .ss-hop-n {
-          width: 18px; height: 18px; flex: none; border-radius: 999px;
-          display: grid; place-items: center; font-size: 11px; font-weight: 700;
-          color: #070811; background: var(--hop);
+        .ss-hop-top { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+        .ss-hop-ic { color: var(--hop); flex: 0 0 auto; }
+        .ss-hop-name { font-weight: 650; font-size: var(--t-label); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ss-hop-cap { font-size: var(--t-cap); color: var(--dim); margin-top: 3px; }
+        .ss-arrow { align-self: center; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 0; color: var(--dim); }
+        .ss-arrow b { font-weight: 400; font-size: 15px; line-height: 1; }
+        .ss-arrow i { font-style: normal; font-size: 9.5px; letter-spacing: .06em; }
+
+        .ss-fork { display: flex; flex-direction: column; gap: 8px; flex: 1.55 1 0; min-width: 0; }
+        .ss-branch { display: flex; align-items: stretch; gap: 8px; }
+        .ss-branch .ss-hop { flex: 1; }
+        .ss-tag {
+          align-self: center; flex: 0 0 auto;
+          font-family: var(--scmono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+          color: var(--hop); border: 1px solid color-mix(in srgb, var(--hop) 40%, transparent);
+          border-radius: 999px; padding: 2px 8px; white-space: nowrap;
         }
-        .ss-hop-name { font-size: var(--t-label); font-weight: 600; color: var(--ink); line-height: 1.15; }
-        .ss-hop-cap { font-size: var(--t-cap); color: var(--mute); margin-top: 6px; line-height: 1.3; }
-        .ss-arrow { align-self: center; color: var(--dim); flex: none; font-size: 14px; }
-        .ss-spec {
-          display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-          margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line);
-        }
-        .ss-spec-host { font-weight: 800; font-size: var(--t-label); color: var(--ink); letter-spacing: -.01em; }
-        .ss-spec-chip {
-          font-size: var(--t-cap); color: var(--ink);
-          border: 1px solid var(--line); border-radius: 7px; padding: 3px 9px;
-          background: rgba(12,11,28,.55);
-        }
-        @media (prefers-reduced-motion: reduce) { .ss-led { animation: none; } }
-        @media (max-width: 720px) {
+
+        @media (max-width: 1023px) {
           .ss-flow { flex-direction: column; }
-          .ss-arrow { transform: rotate(90deg); align-self: flex-start; margin-left: 8px; }
+          .ss-arrow { flex-direction: row; align-self: flex-start; margin-left: 16px; gap: 6px; }
+          .ss-arrow b { transform: rotate(90deg); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ss-led, .ss-hop { animation: none; }
         }
       `}</style>
     </div>

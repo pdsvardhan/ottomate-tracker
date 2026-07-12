@@ -334,38 +334,26 @@ function OverviewPanel({ d }: { d: ShowcaseData }) {
     });
   }
 
-  if (d.primaryFlow || d.flows.length > 0) {
+  // iter-65 #516 (owner: "did you mix two things together?" — yes: the usage
+  // narrative and the flow-test inventory shared one section). Overview now
+  // tells only the usage story; the per-flow test states moved to Engineering's
+  // Tests & verification section where they belong.
+  if (d.primaryFlow && d.primaryFlow.steps.length > 0) {
     secs.push({
       id: 'used', title: "How it's used", tone: CYAN,
       body: (
         <>
-          {d.primaryFlow && d.primaryFlow.steps.length > 0 && (
-            <>
-              <div className="mono text-[length:var(--t-cap)] mb-4" style={{ color: 'var(--dim)' }}>critical path · {d.primaryFlow.name}</div>
-              <ol className="ov-steps mb-7">
-                {d.primaryFlow.steps.map((s, i) => (
-                  <li key={i} className="ov-step">
-                    <span className="ov-step-n">{i + 1}</span>
-                    <span className="ov-step-t">{s}</span>
-                  </li>
-                ))}
-              </ol>
-            </>
-          )}
-          {d.flows.length > 0 && (
-            <div className="grid md:grid-cols-2 gap-x-8">
-              {d.flows.slice(0, 8).map((f, i) => {
-                const t = flowTone(f.testStatus);
-                return (
-                  <div key={i} className="flex items-center gap-3 py-2.5" style={{ borderTop: '1px solid var(--line)' }}>
-                    <span className="mono text-[length:var(--t-body)] w-4 shrink-0" style={{ color: t.c }}>{t.m}</span>
-                    <span className="flex-1 text-[length:var(--t-label)]" style={{ color: 'var(--ink)' }}>{f.title}</span>
-                    <span className="mono text-[length:var(--t-cap)] tracking-wide" style={{ color: t.c }}>{f.testStatus}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <p className="text-[length:var(--t-label)] mb-4" style={{ color: 'var(--mute)' }}>
+            The core loop — <span style={{ color: 'var(--ink)' }}>{d.primaryFlow.name}</span> — step by step:
+          </p>
+          <ol className="ov-steps">
+            {d.primaryFlow.steps.map((s, i) => (
+              <li key={i} className="ov-step">
+                <span className="ov-step-n">{i + 1}</span>
+                <span className="ov-step-t">{s}</span>
+              </li>
+            ))}
+          </ol>
         </>
       ),
     });
@@ -522,6 +510,22 @@ function EngineeringPanel({ d, archSlot }: { d: ShowcaseData; archSlot: ReactNod
               Every built change is checked by an independent verifier (separate from the coder) across code-reality, stub-detection, data-correctness and acceptance-criteria passes.
             </p>
           )}
+          {/* iter-65 #516: per-flow test states moved here from the Overview's
+              "How it's used" section — they're engineering evidence, not usage. */}
+          {d.flows.length > 0 && (
+            <div className="mt-5 grid md:grid-cols-2 gap-x-8">
+              {d.flows.slice(0, 10).map((f, i) => {
+                const t = flowTone(f.testStatus);
+                return (
+                  <div key={i} className="flex items-center gap-3 py-2.5" style={{ borderTop: '1px solid var(--line)' }}>
+                    <span className="mono text-[length:var(--t-body)] w-4 shrink-0" style={{ color: t.c }}>{t.m}</span>
+                    <span className="flex-1 text-[length:var(--t-label)]" style={{ color: 'var(--ink)' }}>{f.title}</span>
+                    <span className="mono text-[length:var(--t-cap)] tracking-wide" style={{ color: t.c }}>{f.testStatus}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
     </Section>
@@ -575,52 +579,58 @@ function DecisionsPanel({ d }: { d: ShowcaseData }) {
         </section>
       )}
 
-      {d.trace.length > 0 && (
-        <section>
-          <SectionHead
-            index={++idx}
-            title="Decision → change → verified"
-            tone={CYAN}
-            sub="Recent built changes traced end-to-end: what was asked, what got locked in, what the independent verifier actually said. The only outcome claimed is the verified change."
-          />
-          <div className="flex flex-col gap-3">
-            {d.trace.map((t, i) => (
-              <details key={i} className="card flat group" style={{ padding: 0 }}>
-                <summary className="flex items-center gap-3.5 cursor-pointer select-none list-none px-[18px] py-4">
-                  <span className="mono text-[length:var(--t-cap)] shrink-0" style={{ color: 'var(--dim)' }}>iter {t.iter}</span>
-                  <span className="flex-1 min-w-0 text-[length:var(--t-label)] font-medium" style={{ color: 'var(--ink)' }}>{t.title}</span>
-                  <span className="mono text-[length:var(--t-cap)] rounded-full px-2.5 py-0.5 shrink-0" style={t.verdict === 'APPROVE'
-                    ? { color: CYAN, border: '1px solid rgba(34,211,238,.4)', background: 'rgba(34,211,238,.08)' }
-                    : { color: AMBER, border: '1px solid var(--line2)' }}>
-                    {t.verdict === 'APPROVE' ? '✓ approve' : t.verdict?.toLowerCase()}
-                  </span>
-                  <span className="shrink-0 transition-transform group-open:rotate-90" style={{ color: 'var(--dim)' }}>▸</span>
-                </summary>
-                <div className="px-[18px] pb-4 flex flex-col gap-2.5" style={{ borderTop: '1px solid var(--line)', paddingTop: 14 }}>
-                  {t.request && (
-                    <div className="grid grid-cols-[86px_1fr] gap-3 text-[length:var(--t-label)]">
-                      <span className="mono text-[length:var(--t-cap)] uppercase tracking-wide" style={{ color: 'var(--dim)' }}>request</span>
-                      <span style={{ color: 'var(--mute)' }}>{t.request}</span>
-                    </div>
-                  )}
-                  {t.change && (
-                    <div className="grid grid-cols-[86px_1fr] gap-3 text-[length:var(--t-label)]">
-                      <span className="mono text-[length:var(--t-cap)] uppercase tracking-wide" style={{ color: VIO }}>locked</span>
-                      <span style={{ color: 'var(--ink)' }}>{t.change}</span>
-                    </div>
-                  )}
-                  {t.reason && (
-                    <div className="grid grid-cols-[86px_1fr] gap-3 text-[length:var(--t-label)]">
-                      <span className="mono text-[length:var(--t-cap)] uppercase tracking-wide" style={{ color: CYAN }}>verified</span>
-                      <span style={{ color: 'var(--mute)' }}>{t.reason}</span>
-                    </div>
-                  )}
+      {/* iter-65 #520 (owner ×2: "whats the point of this section?"): the
+          abstract trace list is gone. One REAL example now tells the whole
+          story — what was asked, what got locked at the gate, what the
+          independent verifier ruled — because that loop is this system's
+          entire reason to exist. */}
+      {d.trace.length > 0 && (() => {
+        const hero = d.trace.find((t) => t.verdict === 'APPROVE' && t.request && t.reason)
+          ?? d.trace.find((t) => t.verdict === 'APPROVE')
+          ?? d.trace[0];
+        const rest = d.trace.filter((t) => t !== hero);
+        return (
+          <section>
+            <SectionHead
+              index={++idx}
+              title="How a change actually ships"
+              tone={CYAN}
+              sub="No claim survives here without a verifier's verdict. One real change from this project, traced end-to-end:"
+            />
+            <div className="card flat">
+              <div className="mono text-[length:var(--t-cap)] mb-4" style={{ color: 'var(--dim)' }}>
+                iteration {hero.iter} · {hero.title}
+              </div>
+              <div className="trace-story">
+                <div className="trace-step" style={{ ['--tc' as string]: CORAL }}>
+                  <div className="trace-k mono">1 · the ask</div>
+                  <p className="trace-t">{hero.request ?? hero.title}</p>
                 </div>
-              </details>
-            ))}
-          </div>
-        </section>
-      )}
+                <span className="trace-arrow" aria-hidden>→</span>
+                <div className="trace-step" style={{ ['--tc' as string]: VIO }}>
+                  <div className="trace-k mono">2 · locked at the gate</div>
+                  <p className="trace-t">{hero.change ?? 'Change locked before any code was written.'}</p>
+                </div>
+                <span className="trace-arrow" aria-hidden>→</span>
+                <div className="trace-step" style={{ ['--tc' as string]: CYAN }}>
+                  <div className="trace-k mono">3 · verifier ruled</div>
+                  <p className="trace-t">
+                    <span className="mono font-bold" style={{ color: hero.verdict === 'APPROVE' ? CYAN : AMBER }}>
+                      {hero.verdict === 'APPROVE' ? '✓ APPROVE' : hero.verdict}
+                    </span>
+                    {hero.reason && <> — {hero.reason}</>}
+                  </p>
+                </div>
+              </div>
+              {rest.length > 0 && (
+                <p className="mt-4 text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>
+                  + {rest.length} more change{rest.length > 1 ? 's' : ''} shipped through the same gate-and-verify loop.
+                </p>
+              )}
+            </div>
+          </section>
+        );
+      })()}
 
       {(d.risks.length > 0 || d.challenges.length > 0) && (
         <section>

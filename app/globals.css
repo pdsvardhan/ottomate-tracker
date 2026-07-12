@@ -274,12 +274,22 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
 @media(min-width:1024px){.sc .ov-grid{grid-template-columns:212px minmax(0,1fr)}}
 .sc .ov-rail{align-self:start}
 @media(min-width:1024px){.sc .ov-rail{position:sticky;top:148px}}
-.sc .ov-rail-h{font-family:var(--scmono);font-size:var(--t-cap);letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
-.sc .ov-nav{display:flex;flex-direction:column;gap:2px}
-.sc .ov-nav a{display:flex;gap:10px;align-items:baseline;padding:8px 12px;border-left:2px solid transparent;border-radius:0 9px 9px 0;color:var(--mute);font-size:var(--t-label);text-decoration:none;transition:color .25s,background .25s,border-color .25s}
-.sc .ov-nav a .oi{font-family:var(--scmono);font-size:var(--t-cap);opacity:.7}
+/* iter-65 #514 (owner: rail "vertically cramped… font size small and font style
+   weird"): header dropped the shouty mono/uppercase/tracking, links moved up a
+   type size with real line-height and breathing room between entries. */
+.sc .ov-rail-h{font-size:var(--t-label);font-weight:600;letter-spacing:.02em;color:var(--dim);margin-bottom:14px}
+.sc .ov-nav{display:flex;flex-direction:column;gap:7px}
+.sc .ov-nav a{display:flex;gap:12px;align-items:baseline;padding:9px 14px;line-height:1.45;border-left:2px solid transparent;border-radius:0 9px 9px 0;color:var(--mute);font-size:var(--t-body);text-decoration:none;transition:color .25s,background .25s,border-color .25s}
+.sc .ov-nav a .oi{font-family:var(--scmono);font-size:var(--t-label);opacity:.7}
 .sc .ov-nav a:hover{color:var(--ink)}
 .sc .ov-nav a[data-active="true"]{color:var(--ink);font-weight:600;border-left-color:var(--nc,var(--cyan));background:linear-gradient(90deg,color-mix(in srgb,var(--nc,var(--cyan)) 13%,transparent),transparent)}
+/* iter-65 #520 — one-change trace story (Decisions tab) */
+.sc .trace-story{display:flex;align-items:stretch;gap:10px}
+.sc .trace-step{flex:1 1 0;min-width:0;border:1px solid color-mix(in srgb,var(--tc,var(--cyan)) 30%,transparent);border-radius:11px;background:linear-gradient(180deg,rgba(18,16,38,.7),rgba(10,9,22,.7));padding:13px 15px}
+.sc .trace-k{font-size:var(--t-cap);letter-spacing:.12em;text-transform:uppercase;color:var(--tc,var(--cyan));margin-bottom:7px}
+.sc .trace-t{font-size:var(--t-label);line-height:1.5;color:var(--ink)}
+.sc .trace-arrow{align-self:center;color:var(--dim);flex:0 0 auto}
+@media(max-width:767px){.sc .trace-story{flex-direction:column}.sc .trace-arrow{transform:rotate(90deg);align-self:flex-start;margin-left:18px}}
 .sc .ov-railsec{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
 .sc .ov-kv{display:flex;flex-direction:column;gap:7px;font-family:var(--scmono);font-size:var(--t-cap)}
 .sc .ov-kv>div{display:flex;justify-content:space-between;gap:10px}

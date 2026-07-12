@@ -265,8 +265,10 @@ export function ProjectRegister({
       </ul>
 
       {/* ── BELOW THE FOLD: the machine (LEFT) + recent activity (RIGHT) ──
-          Swapped per owner feedback iter-16 (server card moved to the left). */}
-      <div className="mt-12 grid gap-4 lg:grid-cols-[1fr_1fr] items-start">
+          Swapped per owner feedback iter-16 (server card moved to the left).
+          iter-65 #504: 60/40 split — the ingress-flow diagram needs the room
+          (owner: "use 60-70%, the other use for recent activity"). */}
+      <div className="mt-12 grid gap-4 lg:grid-cols-[1.6fr_1fr] items-start">
         <ServerStatsCard stats={serverStats} />
 
         <div className="card flat">

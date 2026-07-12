@@ -42,10 +42,11 @@ const STAGE_LABEL: Record<string, string> = {
 
 // VAULT7A host facts the container can't introspect (no docker socket / host df).
 // Refreshed manually; rendered as plain labelled facts, never as fake-live values.
+// iter-65: re-verified over SSH 2026-07-13 — 46 running containers, 15 user networks.
 const HOST_FACTS = {
   cpuModel: 'Intel Core i5-14600K',
-  containers: 53,
-  networks: 18,
+  containers: 46,
+  networks: 15,
   storageTotalTB: 21,
 };
 
