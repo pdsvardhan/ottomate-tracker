@@ -263,6 +263,9 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     hook: project.problem_statement
       ? firstSentence(project.problem_statement)
       : (project.short_description ?? project.core_idea ?? project.tagline ?? ''),
+    // problem below carries only the REMAINDER — the hook already leads with
+    // the first sentence, and repeating it verbatim read as broken copy
+    // (iter-65 #521 pilot finding, visible on every project).
     // personal/cv retired from display (owner decision 2026-07-04) — tech tags only
     tags: ((project.tags ?? []) as string[]).filter((t) => t !== 'personal' && t !== 'cv'),
     stageLabel: STAGE_LABEL[project.lifecycle_phase ?? 'building'] ?? 'BUILD',
@@ -273,7 +276,9 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     numbers,
     featureCounts: { done: fDone, wip: fWip, todo: fTodo },
     // overview
-    problem: project.problem_statement ?? '',
+    problem: project.problem_statement
+      ? project.problem_statement.slice(firstSentence(project.problem_statement).length).trim()
+      : '',
     contextChips,
     success: success.map((s) => s.content),
     nonGoals: nonGoals.map((n) => n.content),
@@ -304,11 +309,13 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     verification,
     trace,
     // engineering (adr-021: tests moved out of the dissolved Development tab)
+    // iter-65 #521: builder-speak ("the true ratio reads as credible") leaked
+    // to visitors — the note now just states the facts.
     tests: {
       flowsPassing, flowsTotal: flows.length, coveragePct,
       note: flows.length > 0
-        ? `${flowsPassing} / ${flows.length} flows passing · every shipped feature independently verified. The true ratio reads as credible.`
-        : 'No flow tests recorded yet — the honest ratio will show here once flows are exercised.',
+        ? `${flowsPassing} of ${flows.length} user flows pass automated end-to-end tests today — live counts from the test runner, not a vanity number.`
+        : 'No automated flow tests recorded yet.',
     },
     journal: adrs.map((d) => ({
       date: ymd(d.date), title: d.title, tags: (Array.isArray(d.tags) ? d.tags : []).filter((t) => !t.startsWith('cat:') && t !== 'curated'),
