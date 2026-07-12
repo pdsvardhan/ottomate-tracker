@@ -12,7 +12,6 @@
 // independent-verifier aggregate; Resources hides without real docs.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { marked } from 'marked';
 import { ShaderBackground } from './ShaderBackground';
 import { ReelMedia, type ReelInfo } from './ReelMedia';
 import { NumberTicker } from '@/components/ui/NumberTicker';
@@ -44,8 +43,6 @@ export interface ShowcaseData {
   journal: { date: string; title: string; tags: string[]; status: string; superseded: boolean; curated: boolean }[];
   challenges: { problem: string; solved: string }[];
   risks: { name: string; category: string; severity: string; status: string }[];
-  docs: { name: string; body: string }[];
-  downloads: { label: string; href: string }[];
 }
 
 const MAG = 'var(--mag)', VIO = 'var(--vio)', CYAN = 'var(--cyan)', CORAL = 'var(--coral)', AMBER = 'var(--amber)', DIM = 'var(--dim)';
@@ -90,11 +87,13 @@ function SectionHead({ index, title, tone, sub }: { index: number; title: string
   );
 }
 
+// iter-65 #509 (owner: 'delete this tab'): Resources dropped from the IA —
+// mirrored docs live in each repo; the showcase carries Overview / Engineering /
+// Decisions only.
 const TABS = [
   { k: 'overview', label: 'Overview' },
   { k: 'engineering', label: 'Engineering' },
   { k: 'decisions', label: 'Decisions' },
-  { k: 'resources', label: 'Resources' },
 ] as const;
 type TabKey = (typeof TABS)[number]['k'];
 
@@ -103,9 +102,7 @@ export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSl
   const d = data;
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // adr-021: Resources is kept-but-conditional — it hides entirely when a
-  // project has no real mirrored docs (never a hollow tab).
-  const tabs = TABS.filter((t) => t.k !== 'resources' || d.docs.length > 0);
+  const tabs = TABS;
 
   // Stat cards (iter-16b): FEATURES / DECISIONS / ITERATIONS jump to their tab.
   function goTo(target: TabKey) {
@@ -193,7 +190,8 @@ export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSl
                     )}
                     {d.identity.fonts.length > 0 && (
                       <div>
-                        <div className="mono text-[length:var(--t-cap)] mb-1.5" style={{ color: 'var(--dim)' }}>type</div>
+                        {/* iter-65 #519 (owner: "whats type?"): relabelled */}
+                        <div className="mono text-[length:var(--t-cap)] mb-1.5" style={{ color: 'var(--dim)' }}>typography</div>
                         <div className="text-[length:var(--t-label)]" style={{ color: 'var(--ink)' }}>{d.identity.fonts.join(' · ')}</div>
                       </div>
                     )}
@@ -244,7 +242,6 @@ export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSl
           {tab === 'overview' && <OverviewPanel d={d} />}
           {tab === 'engineering' && <EngineeringPanel d={d} archSlot={archSlot} />}
           {tab === 'decisions' && <DecisionsPanel d={d} />}
-          {tab === 'resources' && <ResourcesPanel d={d} />}
         </div>
 
         <div className="mt-10 pb-14 text-center mono text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>
@@ -467,26 +464,17 @@ function EngineeringPanel({ d, archSlot }: { d: ShowcaseData; archSlot: ReactNod
           </div>
         </section>
       )}
+      {/* iter-65 #518 (owner: "is this necessary at all?" → trim): the full
+          Security & data section collapsed to a two-line fact row — auth model
+          and where the data lives, nothing more. */}
       <section>
         <SectionHead index={++idx} title="Security & data" tone={CYAN} />
-        <div className="grid gap-3.5 md:grid-cols-2 items-start">
-          <div className="card">
-            <Eye tone={CYAN}>Security</Eye>
-            <ul className="flex flex-col gap-3">
-              {d.security.map((s, i) => (
-                <li key={i} className="flex gap-3 text-[length:var(--t-label)] leading-snug" style={{ color: 'var(--ink)' }}><span style={{ color: CYAN }}>◈</span>{s}</li>
-              ))}
-            </ul>
-          </div>
+        <div className="card flat mono text-[length:var(--t-label)] flex flex-col gap-2" style={{ color: 'var(--ink)' }}>
+          <div><span style={{ color: CYAN }}>◈ </span>{d.security.slice(0, 2).join(' · ')}</div>
           {d.dataModel && (
-            <div className="card">
-              <Eye tone={VIO}>Data model</Eye>
-              <div className="flex flex-col gap-2.5 mono text-[length:var(--t-label)]" style={{ color: 'var(--ink)' }}>
-                {d.dataModel.engine && <div>engine · {d.dataModel.engine}</div>}
-                {d.dataModel.storage && <div>storage · {d.dataModel.storage}</div>}
-                {d.dataModel.migration && <div>migrations · {d.dataModel.migration}</div>}
-                {d.dataModel.sources.length > 0 && <div style={{ color: 'var(--mute)' }}>sources · {d.dataModel.sources.join(', ')}</div>}
-              </div>
+            <div style={{ color: 'var(--mute)' }}>
+              <span style={{ color: VIO }}>◈ </span>
+              {[d.dataModel.engine, d.dataModel.storage].filter(Boolean).join(' · ') || 'data model unrecorded'}
             </div>
           )}
         </div>
@@ -679,85 +667,6 @@ function DecisionsPanel({ d }: { d: ShowcaseData }) {
   );
 }
 
-// ── RESOURCES ──
-function ResourcesPanel({ d }: { d: ShowcaseData }) {
-  // iter-16b (owner: "are these placeholders?"): the docs are real mirrored
-  // public_docs — clicking one now opens a slide-over markdown reader instead of
-  // showing a dead ↗.
-  const [openDoc, setOpenDoc] = useState<{ name: string; body: string } | null>(null);
-  return (
-    <Section>
-      <div className="grid gap-3.5 md:grid-cols-2">
-        <div className="card flat">
-          <Eye tone={CYAN}>Documentation</Eye>
-          {d.docs.length > 0 ? (
-            <div className="flex flex-col">
-              {d.docs.map((doc, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setOpenDoc(doc)}
-                  className="flex items-center justify-between py-3 text-left text-[length:var(--t-label)] transition-colors hover:text-cyan-200"
-                  style={{ color: 'var(--ink)', borderTop: i ? '1px solid var(--line)' : 'none' }}
-                >
-                  {doc.name}<span style={{ color: CYAN }}>→</span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[length:var(--t-label)]" style={{ color: 'var(--dim)' }}>No public docs mirrored yet.</p>
-          )}
-        </div>
-        <div className="flex flex-col gap-3.5">
-          <div className="card flat">
-            <Eye tone={AMBER}>Downloads</Eye>
-            <div className="flex flex-wrap gap-2.5">
-              {d.downloads.map((dl, i) => (
-                <a key={i} href={dl.href} target="_blank" rel="noopener" className="mono text-[length:var(--t-label)] rounded-lg px-3.5 py-2 transition-colors" style={{ color: 'var(--ink)', background: 'rgba(12,11,28,.6)', border: '1px solid var(--line)' }}>↓ {dl.label}</a>
-              ))}
-            </div>
-          </div>
-          {d.repoUrl && (
-            <a href={ext(d.repoUrl)} target="_blank" rel="noopener" className="lc repo flex items-center justify-between">
-              <div>
-                <div className="k">source ↗</div>
-                <div className="v">{d.repoUrl.replace(/^https?:\/\//, '')}</div>
-              </div>
-            </a>
-          )}
-        </div>
-      </div>
-
-      {/* Doc reader slide-over */}
-      {openDoc && (
-        <div
-          className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
-          onClick={() => setOpenDoc(null)}
-        >
-          <div
-            className="h-full w-full max-w-2xl overflow-y-auto border-l p-8 md:p-10"
-            style={{ background: '#0b0b12', borderColor: 'var(--line)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-6 flex items-center justify-between gap-4">
-              <h3 className="h2" style={{ fontSize: 'var(--t-title)' }}>{openDoc.name}</h3>
-              <button
-                type="button"
-                onClick={() => setOpenDoc(null)}
-                aria-label="Close"
-                className="grid size-8 shrink-0 place-items-center rounded-full text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100"
-              >
-                ✕
-              </button>
-            </div>
-            <div
-              className="doc-prose text-[length:var(--t-body)] leading-relaxed"
-              style={{ color: 'var(--ink)' }}
-              dangerouslySetInnerHTML={{ __html: marked.parse(openDoc.body.replace(/^﻿?---\r?\n[\s\S]*?\r?\n---\r?\n/, ''), { async: false }) as string }}
-            />
-          </div>
-        </div>
-      )}
-    </Section>
-  );
-}
+// ResourcesPanel removed iter-65 #509 (owner: 'delete this tab') — mirrored
+// public_docs remain in each project repo; the YAML-mirror download endpoint
+// (/api/projects/<slug>/yaml-mirror) is still served for direct links.

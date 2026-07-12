@@ -16,6 +16,13 @@ export const InspirationCreateSchema = z.object({
   style_tags: z.array(z.string()).nullish(),
   // Accepts an absolute URL or a relative serve path (e.g. /api/inspirations/<id>/thumbnail).
   thumbnail_url: z.string().max(500).nullish(),
+  // iter-65 #524: direct image upload as a data URL — the POST handler stores it
+  // to /asset-library/inspirations/<id>.<ext> and sets thumbnail_url to the local
+  // serve path. ~12MB string cap ≈ 9MB decoded image.
+  image_base64: z.string()
+    .regex(/^data:image\/(png|jpe?g|webp|gif|avif);base64,/, 'must be a data:image/… base64 URL')
+    .max(12_000_000)
+    .nullish(),
   notes: z.string().max(2000).nullish(),
   matched_master_component_ids: z.array(z.string()).nullish(),
   match_confidence: confidenceEnum.nullish(),
@@ -23,5 +30,7 @@ export const InspirationCreateSchema = z.object({
 });
 
 // PATCH: same minus id, all optional. Lets a caller update one field (e.g. thumbnail_url)
-// or clear matches (matched_master_component_ids: []).
-export const InspirationPatchSchema = InspirationCreateSchema.omit({ id: true }).partial();
+// or clear matches (matched_master_component_ids: []). image_base64 excluded —
+// the PATCH handler spreads straight into .set() and it isn't a column; upload
+// replacement can become a PATCH feature later if needed.
+export const InspirationPatchSchema = InspirationCreateSchema.omit({ id: true, image_base64: true }).partial();

@@ -112,16 +112,20 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
   transition: opacity .2s ease, transform .24s cubic-bezier(.2, .8, .2, 1);
 }
 .reg-pop-reel { height: 168px; display: grid; place-items: center; border-bottom: 1px solid var(--color-border); }
-.reg-row:hover, .reg-row:focus-within, .reg-row[data-open="true"] { z-index: 30; }
+/* iter-65 #510 (owner: hover effect stuck after clicking the chevron):
+   :focus-within kept the popover/bar/chev lit after a mouse click because the
+   chevron button retains focus once the panel is closed again. :has(:focus-visible)
+   preserves the keyboard-nav affordance while ignoring lingering mouse focus. */
+.reg-row:hover, .reg-row:has(:focus-visible), .reg-row[data-open="true"] { z-index: 30; }
 .reg-row:hover .reg-pop,
-.reg-row:focus-within .reg-pop,
+.reg-row:has(:focus-visible) .reg-pop,
 .reg-row[data-open="true"] .reg-pop { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
 /* accent bar sweeps in along the row bottom on hover/open */
 .reg-bar { transform: scaleX(0); transform-origin: left; transition: transform .5s cubic-bezier(.2, .8, .2, 1); }
-.reg-row:hover .reg-bar, .reg-row:focus-within .reg-bar, .reg-row[data-open="true"] .reg-bar { transform: scaleX(1); }
+.reg-row:hover .reg-bar, .reg-row:has(:focus-visible) .reg-bar, .reg-row[data-open="true"] .reg-bar { transform: scaleX(1); }
 /* chevron brightens on hover/open (opacity only — rotate is applied separately) */
 .reg-chev { opacity: .5; transition: opacity .22s ease; }
-.reg-row:hover .reg-chev, .reg-row:focus-within .reg-chev, .reg-row[data-open="true"] .reg-chev { opacity: 1; }
+.reg-row:hover .reg-chev, .reg-row:has(:focus-visible) .reg-chev, .reg-row[data-open="true"] .reg-chev { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   .reg-pop { transition: opacity .2s ease; transform: none; }

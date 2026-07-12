@@ -49,15 +49,19 @@ export default async function InspirationDetail({
           </div>
         </header>
 
-        {/* Thumbnail panel */}
+        {/* Thumbnail panel — iter-65 #525 (owner: 'show it in 16:9, half the image
+            is cutoff'): fixed 16:9 frame + object-contain so the full reference is
+            always visible, letterboxed on the panel gradient instead of cropped. */}
         <div className="mb-8 rounded-2xl overflow-hidden border border-[var(--line)] bg-gradient-to-br from-violet-500/10 via-zinc-900/30 to-cyan-500/10 backdrop-blur-xl">
           {insp.thumbnail_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={insp.thumbnail_url}
-              alt={insp.title}
-              className="w-full max-h-[520px] object-cover"
-            />
+            <div className="aspect-video w-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={insp.thumbnail_url}
+                alt={insp.title}
+                className="w-full h-full object-contain"
+              />
+            </div>
           ) : (
             <div className="h-64 flex items-center justify-center text-[length:var(--t-cap)] uppercase tracking-wider text-zinc-600">
               {insp.source_type} · thumbnail not stored locally

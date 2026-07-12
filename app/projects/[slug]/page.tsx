@@ -74,7 +74,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
   const adrs = db.select().from(schema.adr_index).where(eq(schema.adr_index.project_slug, slug))
     .orderBy(desc(schema.adr_index.date)).all();
   const iterations = db.select().from(schema.iterations).where(eq(schema.iterations.project_slug, slug)).all();
-  const docs = db.select().from(schema.project_docs).where(eq(schema.project_docs.project_slug, slug)).all();
+  // project_docs pull removed iter-65 #509 with the Resources tab.
   const todos = db.select().from(schema.project_todos)
     .where(and(eq(schema.project_todos.project_slug, slug), eq(schema.project_todos.done, false)))
     .orderBy(asc(schema.project_todos.sort_order)).all();
@@ -319,9 +319,6 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     risks: openRisks.map((r) => ({
       name: r.name ?? 'Risk', category: r.category ?? '', severity: (r.sev ?? r.baseSev ?? 'medium'), status: r.status ?? 'open',
     })),
-    // resources
-    docs: docs.map((d) => ({ name: d.doc_name, body: d.body })),
-    downloads: [{ label: 'Project spec (YAML)', href: `/api/projects/${slug}/yaml-mirror` }],
   };
 
   return <ProjectShowcase data={data} archSlot={archSlot} />;

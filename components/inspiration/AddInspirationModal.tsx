@@ -7,6 +7,11 @@
 // URL host (shown as a small overridable chip). The live preview on the right no
 // longer clips. Still POSTs to /api/inspirations with the bearer token, then
 // refreshes the gallery.
+// iter-65 #523/#524 (owner: "i can only upload the image, not the link" + "the
+// image i upload should be shown here"): the link field now accepts scheme-less
+// pastes (type=url rejected them silently pre-submit), and the image can be a
+// real FILE upload — stored server-side via image_base64 → /asset-library, so
+// the gallery card actually shows it (dribbble hotlinks are blocked upstream).
 
 import { useState, useEffect, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -54,6 +59,8 @@ export function AddInspirationModal() {
 
   const [sourceUrl, setSourceUrl] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [titleManual, setTitleManual] = useState(false);
   const [sourceType, setSourceType] = useState<SourceType>('other');
@@ -75,8 +82,18 @@ export function AddInspirationModal() {
     if (!open) {
       setSourceUrl(''); setThumbnailUrl(''); setTitle(''); setTitleManual(false);
       setSourceType('other'); setTypeManual(false); setError(null);
+      setImageFile(null);
+      setImagePreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
     }
   }, [open]);
+
+  function pickImageFile(f: File | null) {
+    setImageFile(f);
+    setImagePreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return f ? URL.createObjectURL(f) : null;
+    });
+  }
 
   function close() {
     const next = new URLSearchParams(searchParams.toString());
@@ -90,13 +107,27 @@ export function AddInspirationModal() {
     setSubmitting(true);
     try {
       const token = typeof window !== 'undefined' ? window.sessionStorage.getItem('ottomate_token') : null;
+      // #523: accept scheme-less pastes — the API's z.string().url() needs a scheme.
+      const normalizedUrl = sourceUrl.trim().startsWith('http')
+        ? sourceUrl.trim()
+        : `https://${sourceUrl.trim()}`;
       const body: Record<string, unknown> = {
-        id: slugId(title, sourceUrl),
-        title: title.trim() || titleFromUrl(sourceUrl) || 'Untitled inspiration',
-        source_url: sourceUrl,
+        id: slugId(title, normalizedUrl),
+        title: title.trim() || titleFromUrl(normalizedUrl) || 'Untitled inspiration',
+        source_url: normalizedUrl,
         source_type: sourceType,
       };
-      if (thumbnailUrl.trim()) body.thumbnail_url = thumbnailUrl.trim();
+      if (imageFile) {
+        // #524: real file upload — shipped as a data URL, stored server-side.
+        body.image_base64 = await new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result));
+          r.onerror = () => reject(new Error('could not read the image file'));
+          r.readAsDataURL(imageFile);
+        });
+      } else if (thumbnailUrl.trim()) {
+        body.thumbnail_url = thumbnailUrl.trim();
+      }
 
       const res = await fetch('/api/inspirations', {
         method: 'POST',
@@ -130,25 +161,46 @@ export function AddInspirationModal() {
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <label className="block">
               <span className="block text-[length:var(--t-cap)] mb-1" style={{ color: 'var(--mute)' }}>Link to the site *</span>
+              {/* #523: type="text" — type="url" silently rejected scheme-less
+                  pastes like dribbble.com/shots/…; we normalize on submit. */}
               <input
-                required type="url" autoFocus
+                required type="text" autoFocus
                 value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)}
-                placeholder="https://dribbble.com/shots/…"
+                placeholder="dribbble.com/shots/… (https:// optional)"
                 className="w-full rounded-lg border px-3 py-2 text-[length:var(--t-label)] outline-none"
                 style={FIELD_STYLE}
               />
             </label>
 
-            <label className="block">
-              <span className="block text-[length:var(--t-cap)] mb-1" style={{ color: 'var(--mute)' }}>Image of the site</span>
-              <input
-                type="url"
-                value={thumbnailUrl} onChange={(e) => setThumbnailUrl(e.target.value)}
-                placeholder="https://…/screenshot.png"
-                className="w-full rounded-lg border px-3 py-2 text-[length:var(--t-label)] outline-none"
+            <div className="block">
+              <span className="block text-[length:var(--t-cap)] mb-1" style={{ color: 'var(--mute)' }}>Image of the site — upload a screenshot</span>
+              <label
+                className="flex items-center gap-3 rounded-lg border px-3 py-2 cursor-pointer text-[length:var(--t-label)]"
                 style={FIELD_STYLE}
-              />
-            </label>
+              >
+                <input
+                  type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                  className="hidden"
+                  onChange={(e) => pickImageFile(e.target.files?.[0] ?? null)}
+                />
+                <span className="mono rounded px-2 py-0.5 text-[10.5px] border shrink-0" style={{ borderColor: 'var(--line)', color: 'var(--cyan)' }}>choose file</span>
+                <span className="truncate" style={{ color: imageFile ? 'var(--ink)' : 'var(--dim)' }}>
+                  {imageFile ? imageFile.name : 'stored on the server — survives dead links'}
+                </span>
+                {imageFile && (
+                  <button type="button" onClick={(e) => { e.preventDefault(); pickImageFile(null); }} className="ml-auto shrink-0" style={{ color: 'var(--mute)' }}>✕</button>
+                )}
+              </label>
+              {!imageFile && (
+                <input
+                  type="text"
+                  value={thumbnailUrl} onChange={(e) => setThumbnailUrl(e.target.value)}
+                  placeholder="…or paste a direct image URL"
+                  className="mt-1.5 w-full rounded-lg border px-3 py-2 text-[length:var(--t-label)] outline-none"
+                  style={FIELD_STYLE}
+                />
+              )}
+            </div>
 
             <label className="block">
               <span className="block text-[length:var(--t-cap)] mb-1" style={{ color: 'var(--mute)' }}>Title <span style={{ color: 'var(--dim)' }}>· auto-filled, edit if you like</span></span>
@@ -200,9 +252,9 @@ export function AddInspirationModal() {
             <div className="mono text-[10px] tracking-[.2em] uppercase mb-2.5" style={{ color: 'var(--dim)' }}>Live preview</div>
             <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--line)', background: 'rgba(18,16,38,.6)' }}>
               <div className="grid place-items-center" style={{ aspectRatio: '16 / 10', background: 'linear-gradient(135deg,rgba(168,85,247,.15),rgba(18,16,38,.7),rgba(34,211,238,.15))' }}>
-                {thumbnailUrl.trim() ? (
+                {imagePreview || thumbnailUrl.trim() ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                  <img src={imagePreview ?? thumbnailUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <span className="mono text-[9.5px] tracking-[.1em] uppercase" style={{ color: 'var(--dim)' }}>{sourceType}</span>
                 )}

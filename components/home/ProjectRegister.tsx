@@ -6,7 +6,7 @@
 // COMPACT floating panel (reel + overview) instead of a full-width drawer.
 // Fluid --t-* type throughout. Below the fold: activity + VAULT7A server card.
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { accentStyle } from '@/lib/project-accent';
 import { ServerStatsCard, type ServerStats } from '@/components/project/ServerStatsCard';
@@ -31,7 +31,6 @@ export interface RegisterRow {
   age: string;
   blurb: string;
   stack: string[];
-  tags: string[];
   lastChange: string | null;
   reel: { url: string; kind: 'video' | 'image' } | null;
 }
@@ -213,13 +212,7 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           {/* iter-16 (owner: text ends at '...'): the hover popover has room, so
               show the full blurb rather than clamping it. */}
           <p className="text-[length:var(--t-label)] leading-relaxed text-zinc-300">{row.blurb || row.summary || 'No summary yet.'}</p>
-          {row.tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {row.tags.map((t) => (
-                <span key={t} className="mono text-[length:var(--t-cap)] text-zinc-300 rounded border border-white/10 bg-black/25 px-2 py-0.5">{t}</span>
-              ))}
-            </div>
-          )}
+          {/* iter-65 #506 (owner: 'delete'): tags chip row removed from the popover. */}
         </div>
       </div>
 
@@ -238,25 +231,6 @@ export function ProjectRegister({
   activity: ActivityLine[];
   serverStats: ServerStats;
 }) {
-  const [stage, setStage] = useState<string>('ALL');
-
-  const stageChips = useMemo(() => {
-    const present = Array.from(new Set(rows.map((r) => r.stageLabel)));
-    const order = ['SPEC', 'BUILD', 'SHIPPED', 'MAINT', 'ARCHIVED'];
-    return [
-      { key: 'ALL', count: rows.length },
-      ...order.filter((s) => present.includes(s)).map((s) => ({
-        key: s,
-        count: rows.filter((r) => r.stageLabel === s).length,
-      })),
-    ];
-  }, [rows]);
-
-  const filtered = useMemo(
-    () => (stage === 'ALL' ? rows : rows.filter((r) => r.stageLabel === stage)),
-    [rows, stage],
-  );
-
   return (
     <div>
       {/* ── HERO: title + tagline (count-up stat band removed 2026-07-06, owner) ── */}
@@ -267,29 +241,9 @@ export function ProjectRegister({
         </p>
       </div>
 
-      {/* ── Stage filter ── */}
-      <div className="mb-5 flex flex-wrap gap-2.5">
-        {stageChips.map((c) => {
-          const active = stage === c.key;
-          const hue = STAGE_HUES[c.key];
-          return (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => setStage(c.key)}
-              className={
-                'mono text-[length:var(--t-label)] font-semibold tracking-wide rounded-lg px-4 py-2 border transition-colors ' +
-                (active
-                  ? 'text-zinc-50 border-white/20 bg-white/[0.08]'
-                  : 'text-zinc-400 border-white/[0.08] hover:text-zinc-100 hover:border-white/20')
-              }
-            >
-              {hue && <span className="mr-2 inline-block size-2 rounded-full align-middle" style={{ background: hue }} />}
-              {c.key}<span className="ml-2 opacity-55 tabular-nums">{c.count}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* iter-65 #508 (owner: 'delete'): the ALL/BUILD/SHIPPED/MAINT stage-filter
+          chip strip is gone — 9 rows don't need a filter, the STAGE column
+          already answers the question at a glance. */}
 
       {/* Column header (desktop only) */}
       <div className={`hidden ${COLS} gap-x-4 px-4 pb-3 mono text-[length:var(--t-cap)] font-bold tracking-widest text-zinc-400`}>
@@ -305,14 +259,10 @@ export function ProjectRegister({
       </div>
 
       <ul>
-        {filtered.map((row, i) => (
+        {rows.map((row, i) => (
           <Row key={row.slug} row={row} index={i} />
         ))}
       </ul>
-
-      {filtered.length === 0 && (
-        <p className="mt-6 text-center text-[length:var(--t-body)] text-zinc-500">No projects in this stage.</p>
-      )}
 
       {/* ── BELOW THE FOLD: the machine (LEFT) + recent activity (RIGHT) ──
           Swapped per owner feedback iter-16 (server card moved to the left). */}

@@ -175,7 +175,7 @@ export default async function HomePage() {
       age: timeAgo(changeAt),
       blurb: p.short_description ?? p.core_idea ?? p.tagline ?? '',
       stack: stackMap.get(p.slug) ?? [],
-      tags: tags.filter((t) => t !== 'personal' && t !== 'cv' && t !== 'public-facing').slice(0, 4),
+      // iter-65 #506: tags no longer rendered anywhere on the register
       lastChange: changed?.text ?? null,
       // #165: real reel media in the floating panel when uploaded
       reel: (() => { const r = pickReel(p.slug); return r ? { url: r.url, kind: r.kind } : null; })(),

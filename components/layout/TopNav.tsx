@@ -1,9 +1,9 @@
 // Global top navigation (prototype adoption — replaces the left sidebar).
-// Server component: imports the server-side PaletteHost (DB-backed ⌘K) directly;
 // active-link highlighting lives in the client <NavLinks> child.
+// iter-65 #507 (owner: 'delete'): the Search ⌘K button + command palette host
+// are gone — the showcase is 9 projects deep, browsing beats searching.
 
 import Link from 'next/link';
-import { PaletteHost } from '@/components/cmdk/PaletteHost';
 import { NavLinks } from './NavLinks';
 
 export function TopNav() {
@@ -17,7 +17,6 @@ export function TopNav() {
           <NavLinks />
         </div>
         <div className="flex items-center gap-3.5 shrink-0">
-          <PaletteHost />
           <span className="hidden md:inline-flex items-center gap-2 text-[length:var(--t-cap)] text-zinc-400">
             <span className="size-2 rounded-full bg-emerald-400" />
             live
