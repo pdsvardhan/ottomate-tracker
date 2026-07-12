@@ -220,8 +220,103 @@ export function parseMermaidFlowchart(src: string): ParsedGraph | null {
     }
   }
 
-  if (!direction || nodes.size < 2 || edges.length === 0) return null;
-  return { direction, nodes: Array.from(nodes.values()), edges };
+  // iter-65 #515: edge-less diagrams are valid when they carry group structure
+  // (e.g. the API-surface map: routes grouped by stage, no arrows). They get the
+  // grouped-grid layout instead of dagre. Ungrouped edge-less soups stay on the
+  // Mermaid fallback — there's no structure to lay out.
+  const nodeArr = Array.from(nodes.values());
+  if (!direction || nodes.size < 2) return null;
+  if (edges.length === 0 && !nodeArr.some((n) => n.group)) return null;
+  return { direction, nodes: nodeArr, edges };
+}
+
+// ── erDiagram (iter-65 #515) ──
+// Entity-relationship diagrams (the per-project data models) previously always
+// fell back to the Mermaid renderer. Parses the subset in diagram_artifacts:
+//   ENTITY ||--o{ OTHER : "label"     (all crow's-foot cardinality pairs)
+//   ENTITY { type field PK ... }      (attribute blocks)
+// Entities render as store-kind nodes with their first attributes as the sub
+// line; relationships become labelled edges with a cardinality hint.
+
+const CARD_HINT: Record<string, string> = {
+  '||': '1', '|o': '0..1', 'o|': '0..1', 'o{': 'N', '}o': 'N', '|{': '1..N', '}|': '1..N', '}{': 'N',
+};
+
+export function parseMermaidErDiagram(src: string): ParsedGraph | null {
+  const lines = normalizeQuotedNewlines(src).split('\n');
+  if (!/^\s*erDiagram\b/.test(src.trim())) return null;
+  const nodes = new Map<string, ParsedNode>();
+  const edges: ParsedEdge[] = [];
+
+  const ensure = (id: string) => {
+    if (!nodes.has(id)) nodes.set(id, { id, label: id, kind: 'store' });
+    return nodes.get(id)!;
+  };
+
+  const REL_RE = new RegExp(`^(${ID_RE})\\s+([|o}{]{2})(?:--|\\.\\.)([|o}{]{2})\\s+(${ID_RE})\\s*:\\s*(.+)$`);
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i]!.trim();
+    i++;
+    if (!line || line.startsWith('%%') || /^erDiagram\b/.test(line)) continue;
+
+    const rel = line.match(REL_RE);
+    if (rel) {
+      const [, a, cardA, cardB, b, rawLabel] = rel;
+      ensure(a!); ensure(b!);
+      const hintA = CARD_HINT[cardA!] ?? '';
+      const hintB = CARD_HINT[cardB!] ?? '';
+      const hint = hintA && hintB ? ` ${hintA}:${hintB}` : '';
+      edges.push({
+        source: a!, target: b!,
+        label: `${rawLabel!.replace(/^"|"$/g, '').trim()}${hint}`,
+        dotted: line.includes('..'),
+      });
+      continue;
+    }
+
+    // single-line attribute block: ENTITY { type name type name ... }
+    const inlineBlock = line.match(new RegExp(`^(${ID_RE})\\s*\\{(.+)\\}$`));
+    if (inlineBlock) {
+      const node = ensure(inlineBlock[1]!);
+      const tokens = inlineBlock[2]!.trim().split(/\s+/);
+      const fields: string[] = [];
+      for (let t = 1; t < tokens.length; t += 2) fields.push(tokens[t]!); // type name pairs → names
+      if (fields.length > 0) {
+        node.sub = fields.slice(0, 4).join(' · ') + (fields.length > 4 ? ' · …' : '');
+      }
+      continue;
+    }
+
+    const block = line.match(new RegExp(`^(${ID_RE})\\s*\\{$`));
+    if (block) {
+      const node = ensure(block[1]!);
+      const fields: string[] = [];
+      while (i < lines.length && !/^\s*\}\s*$/.test(lines[i]!)) {
+        const f = lines[i]!.trim();
+        i++;
+        if (!f || f.startsWith('%%')) continue;
+        // "type name PK|FK|UK ..." → keep the name, star the keys
+        const parts = f.split(/\s+/);
+        if (parts.length >= 2) fields.push(/\bPK\b/.test(f) ? `${parts[1]}★` : parts[1]!);
+        else if (parts.length === 1) fields.push(parts[0]!);
+      }
+      i++; // consume '}'
+      if (fields.length > 0) {
+        node.sub = fields.slice(0, 4).join(' · ') + (fields.length > 4 ? ' · …' : '');
+      }
+      continue;
+    }
+
+    // bare entity mention on its own line
+    const bare = line.match(BARE_RE);
+    if (bare) { ensure(bare[1]!); continue; }
+
+    return null; // unknown statement → faithful conversion impossible, fall back
+  }
+
+  if (nodes.size < 2) return null;
+  return { direction: 'TB', nodes: Array.from(nodes.values()), edges };
 }
 
 // ── layout ──
@@ -232,7 +327,36 @@ function nodeHeight(n: ParsedNode): number {
   return 42 + subLines * 14 + (n.group ? 16 : 0);
 }
 
+// iter-65 #515: layout for edge-less grouped graphs (e.g. API-surface maps).
+// dagre with no edges piles everything into one rank; instead each group
+// becomes a column with its nodes stacked, columns flowing left to right.
+const COL_GAP = 36;
+const ROW_GAP = 14;
+const GROUP_HEAD = 34;
+
+function layoutGroupedGrid(g: ParsedGraph): LaidOutGraph {
+  const groups = new Map<string, ParsedNode[]>();
+  for (const n of g.nodes) {
+    const key = n.group ?? '·';
+    (groups.get(key) ?? groups.set(key, []).get(key)!).push(n);
+  }
+  const positions: Record<string, { x: number; y: number }> = {};
+  let x = 12;
+  let maxY = 0;
+  for (const [, members] of groups) {
+    let y = 12 + GROUP_HEAD;
+    for (const n of members) {
+      positions[n.id] = { x, y };
+      y += nodeHeight(n) + ROW_GAP;
+    }
+    maxY = Math.max(maxY, y);
+    x += NODE_W + COL_GAP;
+  }
+  return { ...g, positions, width: x - COL_GAP + 12, height: maxY + 12 };
+}
+
 export function layoutGraph(g: ParsedGraph): LaidOutGraph {
+  if (g.edges.length === 0) return layoutGroupedGrid(g);
   const dg = new dagre.graphlib.Graph();
   dg.setGraph({ rankdir: g.direction, nodesep: 26, ranksep: g.direction === 'LR' ? 70 : 54, marginx: 12, marginy: 12 });
   dg.setDefaultEdgeLabel(() => ({}));
@@ -254,7 +378,9 @@ export function layoutGraph(g: ParsedGraph): LaidOutGraph {
 /** One-call convenience: parse + layout, or null (caller falls back to Mermaid). */
 export function mermaidToFlow(src: string): LaidOutGraph | null {
   try {
-    const parsed = parseMermaidFlowchart(src);
+    const parsed = /^\s*erDiagram\b/.test(src.trim())
+      ? parseMermaidErDiagram(src)   // iter-65 #515: data models convert too
+      : parseMermaidFlowchart(src);
     return parsed ? layoutGraph(parsed) : null;
   } catch {
     return null;

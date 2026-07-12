@@ -585,7 +585,8 @@ function DecisionsPanel({ d }: { d: ShowcaseData }) {
           independent verifier ruled — because that loop is this system's
           entire reason to exist. */}
       {d.trace.length > 0 && (() => {
-        const hero = d.trace.find((t) => t.verdict === 'APPROVE' && t.request && t.reason)
+        const hero = d.trace.find((t) => t.verdict === 'APPROVE' && t.request && t.change && t.reason)
+          ?? d.trace.find((t) => t.verdict === 'APPROVE' && t.request && t.reason)
           ?? d.trace.find((t) => t.verdict === 'APPROVE')
           ?? d.trace[0];
         const rest = d.trace.filter((t) => t !== hero);
