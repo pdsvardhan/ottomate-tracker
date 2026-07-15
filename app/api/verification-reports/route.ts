@@ -3,6 +3,13 @@
 // stage-3-feature report — only the Stage-4 iteration path could. This closes that
 // gap so an independent verifier sub-agent can record APPROVE/BLOCK with evidence.
 // Bearer required (it is a mutation). The 4-pass columns mirror the schema.
+//
+// Single-write boundary (2026-07-16): this endpoint is the SOLE writer for
+// stage-3-feature reports only. Stage-4 iteration-item reports are written
+// exclusively by POST /api/iterations/[id]/items/[itemId]/verifier-result, which
+// inserts the report AND links it to the item in one call and returns its id.
+// Accepting stage-4-iteration-item here duplicated that row (two near-identical
+// reports per item verification, e.g. mapsofbharat iter 78/79). It is now rejected.
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -52,6 +59,20 @@ export async function POST(req: Request) {
   const parsed = await readAuthBody(req, ReportCreateSchema);
   if (!parsed.ok) return parsed.res;
   const data = parsed.data;
+
+  // Single-write guard: Stage-4 item reports belong to verifier-result, not here.
+  if (data.target_kind === 'stage-4-iteration-item') {
+    return NextResponse.json(
+      {
+        error:
+          'stage-4-iteration-item reports must be written via ' +
+          'POST /api/iterations/[id]/items/[itemId]/verifier-result (single-write design). ' +
+          'That endpoint inserts the report, links it to the item, and returns ' +
+          'verification_report.id for feature-claim reconciliation.',
+      },
+      { status: 400 },
+    );
+  }
 
   const db = await getDb();
   const proj = db
