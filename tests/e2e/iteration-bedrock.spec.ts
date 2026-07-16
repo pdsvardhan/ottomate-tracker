@@ -6,7 +6,7 @@ import { test, expect, type APIRequestContext } from '@playwright/test';
 // (throwaway DB copy). The negative "enforcement" cases are the highest-value
 // assertions here: they prove the gates that stop scope-gaslighting actually hold
 // (lock before build, verifier APPROVE before integrate, no silent post-lock edits,
-// no double-classify, confidence floor, no coder self-certification).
+// no double-classify, confidence floor, no coder self-certification, no silent drops).
 
 const AUTH = { Authorization: 'Bearer e2e-token', 'Content-Type': 'application/json' };
 
@@ -157,6 +157,41 @@ test.describe('iteration bedrock — anti-gaslight enforcement (negative cases)'
     const progressBody = await progress.json().catch(() => ({}));
     expect(progress.status(), JSON.stringify(progressBody)).toBe(200);
     expect(progressBody.item.status).toBe('building');
+  });
+
+  test('a coder agent cannot silently drop an item: build-status failed leaves it open', async ({ request }) => {
+    const { iterationId, itemIds } = await freshIteration(request);
+    const lock = await request.post(`/api/iterations/${iterationId}/lock`, { headers: AUTH, data: {} });
+    expect(lock.status()).toBe(200);
+
+    // A failed build is progress, not a drop — the item stays OPEN.
+    const failed = await request.post(`/api/iterations/${iterationId}/items/${itemIds[0]}/build-status`, {
+      headers: AUTH,
+      data: { status: 'failed', notes: 'compile error on attempt 3' },
+    });
+    const failedBody = await failed.json().catch(() => ({}));
+    expect(failed.status(), JSON.stringify(failedBody)).toBe(200);
+    expect(failedBody.item.status).toBe('building'); // NOT 'rejected' — that satisfies integrate
+    expect(String(failedBody.item.notes)).toContain('compile error');
+
+    // Still open ⇒ integrate is blocked. Nothing was silently dropped.
+    const integrate = await request.post(`/api/iterations/${iterationId}/integrate`, {
+      headers: AUTH,
+      data: { trace_report: { summary: 'must not integrate with an open item' } },
+    });
+    const intBody = await integrate.json().catch(() => ({}));
+    expect(integrate.status(), JSON.stringify(intBody)).toBe(400);
+    expect(String(intBody.error)).toContain('items still open');
+
+    // The sanctioned post-lock drop is defer-with-reason, and the reason is recorded.
+    const defer = await request.post(`/api/iterations/${iterationId}/items/${itemIds[0]}`, {
+      headers: AUTH,
+      data: { reason: 'cannot fix this iteration; moved to backlog' },
+    });
+    const deferBody = await defer.json().catch(() => ({}));
+    expect(defer.status(), JSON.stringify(deferBody)).toBe(200);
+    expect(deferBody.item.status).toBe('deferred');
+    expect(String(deferBody.item.notes)).toContain('cannot fix this iteration');
   });
 });
 

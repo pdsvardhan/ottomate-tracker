@@ -2,9 +2,12 @@
 // Coder agent updates the item's build status during execution.
 //
 // Progress only (2026-07-16). This endpoint reports what the CODER is doing; it may
-// not record a verdict. `verified` is the independent verifier's call and is rejected
-// here — see the guard in POST and bedrock rule 4 (verifier inputs are the locked
-// manifest + diff, never coder claims).
+// neither record a verdict nor close an item:
+// - `verified` is rejected (400) — that is the independent verifier's call, not the
+//   coder's (bedrock rule 4: inputs are the locked manifest + diff, never coder claims).
+// - `failed` no longer closes the item (bedrock rule 7) — dropping a locked item takes
+//   an explicit reason via defer-with-reason.
+// See STATUS_MAP for the folds and the sanctioned closure paths.
 
 import { NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
@@ -14,13 +17,19 @@ import { BuildStatusSchema } from '@/lib/validation/iterations';
 
 export const runtime = 'nodejs';
 
-// `verified` is deliberately absent — only /verifier-result may advance an item to
-// verified, because that endpoint writes the verification_reports row proving it.
-// `verifier-pending` folds into `building`: it is a progress label, not a distinct state.
-const STATUS_MAP: Record<'building' | 'verifier-pending' | 'failed', 'building' | 'rejected'> = {
+// build-status can never CLOSE an item — every accepted label folds into `building`.
+// - `verifier-pending`: a progress label, not a distinct state.
+// - `failed`: folds into `building`, NOT `rejected`. `rejected` satisfies integrate, so
+//   the old mapping let a coder agent drop a locked item with no mandatory reason —
+//   precisely the "faking a build failure" that defer-with-reason
+//   (POST /api/iterations/[id]/items/[itemId]) was added to replace (bedrock rule 7).
+//   A failed build leaves the item OPEN; the failure detail belongs in `notes`.
+// Closure paths, all explicit: verifier-result (APPROVE->verified / BLOCK->rejected),
+// defer-with-reason (->deferred), or pre-lock DELETE (->rejected).
+const STATUS_MAP: Record<'building' | 'verifier-pending' | 'failed', 'building'> = {
   building: 'building',
   'verifier-pending': 'building',
-  failed: 'rejected',
+  failed: 'building',
 };
 
 interface Ctx { params: Promise<{ id: string; itemId: string }>; }
