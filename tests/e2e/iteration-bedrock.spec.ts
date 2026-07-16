@@ -6,7 +6,7 @@ import { test, expect, type APIRequestContext } from '@playwright/test';
 // (throwaway DB copy). The negative "enforcement" cases are the highest-value
 // assertions here: they prove the gates that stop scope-gaslighting actually hold
 // (lock before build, verifier APPROVE before integrate, no silent post-lock edits,
-// no double-classify, confidence floor).
+// no double-classify, confidence floor, no coder self-certification).
 
 const AUTH = { Authorization: 'Bearer e2e-token', 'Content-Type': 'application/json' };
 
@@ -128,6 +128,35 @@ test.describe('iteration bedrock — anti-gaslight enforcement (negative cases)'
     expect(lock1.status()).toBe(200);
     const lock2 = await request.post(`/api/iterations/${iterationId}/lock`, { headers: AUTH, data: {} });
     expect(lock2.status()).toBe(409);
+  });
+
+  test('a coder agent cannot self-certify: build-status verified is rejected (400)', async ({ request }) => {
+    const { iterationId, itemIds } = await freshIteration(request);
+    const lock = await request.post(`/api/iterations/${iterationId}/lock`, { headers: AUTH, data: {} });
+    expect(lock.status()).toBe(200);
+
+    const res = await request.post(`/api/iterations/${iterationId}/items/${itemIds[0]}/build-status`, {
+      headers: AUTH,
+      data: { status: 'verified' },
+    });
+    const body = await res.json().catch(() => ({}));
+    expect(res.status(), JSON.stringify(body)).toBe(400);
+    expect(String(body.error)).toContain('verifier-result');
+
+    // The item must NOT have advanced — only /verifier-result may do that.
+    const after = await request.get(`/api/iterations/${iterationId}`);
+    const afterBody = await after.json();
+    const item = (afterBody.items as Array<{ id: number; status: string }>).find((i) => i.id === itemIds[0]);
+    expect(item?.status).not.toBe('verified');
+
+    // Progress reporting still works; verifier-pending folds into 'building'.
+    const progress = await request.post(`/api/iterations/${iterationId}/items/${itemIds[0]}/build-status`, {
+      headers: AUTH,
+      data: { status: 'verifier-pending' },
+    });
+    const progressBody = await progress.json().catch(() => ({}));
+    expect(progress.status(), JSON.stringify(progressBody)).toBe(200);
+    expect(progressBody.item.status).toBe('building');
   });
 });
 
