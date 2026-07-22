@@ -389,3 +389,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_diagram_artifacts_proj_kind_pos
 CREATE INDEX IF NOT EXISTS idx_component_feedback_proj ON component_feedback(project_slug);
 CREATE INDEX IF NOT EXISTS idx_component_feedback_mc   ON component_feedback(mc_id);
 CREATE INDEX IF NOT EXISTS idx_flow_test_runs_flow ON flow_test_runs(flow_id);
+
+-- Visual-QA intake (Task 1, 2026-07-23) — mirrors 0007_report_comments.sql for fresh clones.
+CREATE TABLE IF NOT EXISTS report_comments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  report_id INTEGER NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+  comment_uid TEXT NOT NULL,
+  project_slug TEXT NOT NULL,
+  page TEXT, url TEXT, title TEXT, target TEXT,
+  locator TEXT, provenance TEXT, category TEXT,
+  screenshot_path TEXT, selection TEXT,
+  text TEXT NOT NULL, ts TEXT,
+  created_at INTEGER DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS report_comments_report_id_idx ON report_comments(report_id);

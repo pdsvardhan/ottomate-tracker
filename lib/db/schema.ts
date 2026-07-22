@@ -526,7 +526,7 @@ export const reports = sqliteTable('reports', {
   flow_id: text('flow_id').references(() => flows.id),
   raw_text: text('raw_text').notNull(),
   source: text('source', {
-    enum: ['tracker-flow-bug', 'tracker-mega-prompt', 'chat', 'auto-feedback'],
+    enum: ['tracker-flow-bug', 'tracker-mega-prompt', 'chat', 'auto-feedback', 'visual-qa'],
   }).notNull(),
   status: text('status', {
     enum: ['pending', 'classified', 'failed', 'ignored'],
@@ -541,7 +541,7 @@ export const iterations = sqliteTable('iterations', {
   project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
   iteration_number: integer('iteration_number').notNull(),
   trigger_source: text('trigger_source', {
-    enum: ['tracker-flow-bug', 'tracker-mega-prompt', 'chat', 'auto-feedback'],
+    enum: ['tracker-flow-bug', 'tracker-mega-prompt', 'chat', 'auto-feedback', 'visual-qa'],
   }),
   status: text('status', {
     enum: [
@@ -997,3 +997,28 @@ export type ComponentFeedback = typeof component_feedback.$inferSelect;
 export type FlowTestRun = typeof flow_test_runs.$inferSelect;
 export type AdrIndexRow = typeof adr_index.$inferSelect;
 export type SkillEventInsert = typeof skill_events.$inferInsert;
+
+// Visual-QA intake (Task 1, 2026-07-23): one row per DOM-commenter comment, linked to a parent
+// report(source='visual-qa'). Screenshots live on the /asset-library volume; the DB keeps their
+// relative path. locator/provenance are JSON. Table DDL: 0007_report_comments.sql.
+export const report_comments = sqliteTable('report_comments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  report_id: integer('report_id').notNull().references(() => reports.id, { onDelete: 'cascade' }),
+  comment_uid: text('comment_uid').notNull(),
+  project_slug: text('project_slug').notNull(),
+  page: text('page'),
+  url: text('url'),
+  title: text('title'),
+  target: text('target'),
+  locator: text('locator', { mode: 'json' }).$type<Record<string, unknown> | null>(),
+  provenance: text('provenance', { mode: 'json' }).$type<Record<string, unknown> | null>(),
+  category: text('category'),
+  screenshot_path: text('screenshot_path'),
+  selection: text('selection'),
+  text: text('text').notNull(),
+  ts: text('ts'),
+  created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
+export type ReportComment = typeof report_comments.$inferSelect;
+export type ReportCommentInsert = typeof report_comments.$inferInsert;

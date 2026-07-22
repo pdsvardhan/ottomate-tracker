@@ -4,7 +4,7 @@
 import { z } from 'zod';
 
 const reportSourceEnum = z.enum([
-  'tracker-flow-bug', 'tracker-mega-prompt', 'chat', 'auto-feedback',
+  'tracker-flow-bug', 'tracker-mega-prompt', 'chat', 'auto-feedback', 'visual-qa',
 ]);
 
 export const ReportCreateSchema = z.object({
@@ -91,4 +91,27 @@ export const LockRequestSchema = z.object({
 export const IntegrateRequestSchema = z.object({
   trace_report: z.unknown(),
   notes: z.string().nullish(),
+});
+
+// Visual-QA intake (Task 1, 2026-07-23): the skill unpacks a DOM-commenter v2 zip locally and
+// POSTs the comments here. Screenshots arrive base64 (route writes them to the asset volume);
+// locator/provenance stay opaque JSON.
+const VisualQaCommentSchema = z.object({
+  id: z.string().min(1).max(80),          // the extension's comment uuid
+  ts: z.string().nullish(),
+  page: z.string().nullish(),
+  url: z.string().nullish(),
+  title: z.string().nullish(),
+  target: z.string().nullish(),
+  locator: z.unknown().nullish(),
+  provenance: z.unknown().nullish(),
+  category: z.string().max(40).nullish(),
+  screenshot_b64: z.string().nullish(),   // base64 JPEG (no data: prefix), optional
+  selection: z.string().nullish(),
+  text: z.string().min(1).max(20_000),
+});
+
+export const VisualQaImportSchema = z.object({
+  imported_by_session: z.string().min(1).max(120),
+  comments: z.array(VisualQaCommentSchema).min(1).max(100),
 });
