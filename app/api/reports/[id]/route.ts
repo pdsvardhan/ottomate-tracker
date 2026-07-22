@@ -1,17 +1,35 @@
-// /api/reports/[id] — DELETE a report + its comments (cleanup for junk/test batches).
-// Cascades report_comments (FK ON DELETE CASCADE), nulls iteration/bug back-refs so the delete
-// isn't FK-restricted, and removes any visual-qa screenshots on disk. Iterations survive (their
-// raw_text link is just nulled). Auth via bearer (send a JSON body, e.g. {}).
+// /api/reports/[id] — GET (report + its comments) and DELETE (report + comments + screenshots).
+// GET is read-only (no auth): the sole way to independently re-read a report's stored comment
+// text/paths via API — used by the Task-3 feature verifier's DB-via-API system-state assertion
+// (ONE DOOR, adr-018) and by any debugging of a visual-qa batch. DELETE (Task 1) cascades
+// report_comments (FK ON DELETE CASCADE), nulls iteration/bug back-refs so the delete isn't
+// FK-restricted, and removes any visual-qa screenshots on disk. DELETE auth via bearer.
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { NextResponse } from 'next/server';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { getDb, schema } from '@/lib/db/client';
 import { notFound, readAuthBody, parseIntId } from '@/lib/api';
 
 export const runtime = 'nodejs';
+
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const idNum = parseIntId(id);
+  if (idNum === null) return notFound('Report not found');
+  const db = await getDb();
+  const report = db.select().from(schema.reports).where(eq(schema.reports.id, idNum)).get();
+  if (!report) return notFound(`Report ${idNum} not found`);
+  const comments = db
+    .select()
+    .from(schema.report_comments)
+    .where(eq(schema.report_comments.report_id, idNum))
+    .orderBy(asc(schema.report_comments.id))
+    .all();
+  return NextResponse.json({ report, comments, count: comments.length });
+}
 
 const DeleteBody = z.object({ reason: z.string().max(500).optional() });
 
