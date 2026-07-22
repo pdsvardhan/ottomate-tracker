@@ -8,6 +8,10 @@ const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // The Task-3 feature-verifier is a SEPARATE test project, invoked explicitly with its own
+  // config (tests/e2e/feature-verify/playwright.feature-verify.config.ts) + FV_* env. Keep it
+  // out of the default suite: its specs call loadConfig() at import and require FV_* env.
+  testIgnore: '**/feature-verify/**',
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
