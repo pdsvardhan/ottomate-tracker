@@ -25,6 +25,7 @@ type Item = {
   user_edited: boolean | null;
   status: string | null;
   notes: string | null;
+  proposed_change?: { source_comment_ids?: number[] | null } | null;
 };
 
 type VqaComment = {
@@ -55,6 +56,7 @@ export function LockInPanel({ iterationId, rawText, items: initialItems, comment
   const blocking = active.filter((i) => (i.confidence ?? 0) < CONFIDENCE_FLOOR && !i.user_edited);
   const rejected = items.filter((i) => i.status === 'rejected');
   const canLock = active.length > 0 && blocking.length === 0;
+  const commentsById = new Map((comments ?? []).map((c) => [c.id, c] as const));
 
   function token(): string | null {
     return typeof window !== 'undefined' ? window.sessionStorage.getItem('ottomate_token') : null;
@@ -213,6 +215,9 @@ export function LockInPanel({ iterationId, rawText, items: initialItems, comment
             <ItemCard
               key={item.id}
               item={item}
+              comments={(item.proposed_change?.source_comment_ids ?? [])
+                .map((cid) => commentsById.get(cid))
+                .filter((c): c is VqaComment => !!c)}
               busy={busy === `item-${item.id}`}
               onPatch={(patch) => patchItem(item.id, patch)}
               onReject={() => rejectItem(item.id)}
@@ -226,11 +231,13 @@ export function LockInPanel({ iterationId, rawText, items: initialItems, comment
 
 function ItemCard({
   item,
+  comments = [],
   busy,
   onPatch,
   onReject,
 }: {
   item: Item;
+  comments?: VqaComment[];
   busy: boolean;
   onPatch: (patch: Partial<Item>) => void;
   onReject: () => void;
@@ -288,6 +295,19 @@ function ItemCard({
             </p>
           )}
         </>
+      )}
+
+      {comments.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {comments.map((c) =>
+            c.screenshot_url ? (
+              <a key={c.id} href={c.screenshot_url} target="_blank" rel="noopener noreferrer" title={c.text}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={c.screenshot_url} alt="" loading="lazy" className="h-14 w-20 rounded-md border border-zinc-800/60 object-cover object-top" />
+              </a>
+            ) : null,
+          )}
+        </div>
       )}
 
       {!isRejected && (
