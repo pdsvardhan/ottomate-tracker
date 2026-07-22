@@ -1,0 +1,123 @@
+// /api/feature-verification-reports — persist a FEATURE-verifier verdict (Task 3).
+//
+// Sibling to /api/verification-reports (the CODE verifier). The code verifier proves
+// the code; the feature verifier drives the REAL running app via Playwright, feeds it
+// real + nasty inputs, and asserts user-visible outcomes + SYSTEM STATE with evidence.
+// This is the rich sink: it stores the case×outcome matrix + evidence paths + the gate
+// verdict (APPROVE/BLOCK/ITERATE, same vocabulary as the code verifier).
+//
+// Reuse boundary: per-flow pass/fail is ALSO written to flow_test_runs (ran_by
+// 'automated') via POST /api/flows/[id]/test so the Stage-3→deploy gate consumes it,
+// and the CI subset to POST /api/test-runs. This endpoint owns only the rich report.
+// Bearer required (mutation). Unlike the code-verifier endpoint, both target_kinds are
+// accepted here directly — there is no second writer to duplicate against.
+
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { and, desc, eq } from 'drizzle-orm';
+import { getDb, schema } from '@/lib/db/client';
+import { readAuthBody } from '@/lib/api';
+
+export const runtime = 'nodejs';
+
+const CaseSchema = z.object({
+  case: z.string(),
+  variant: z.string().optional(),
+  axis: z.string().optional(),           // the decision/axis this case isolates
+  inputs: z.unknown().optional(),
+  action_log: z.unknown().optional(),
+  system_state: z.unknown().optional(),  // the asserted real effect (fs/DB/downstream values)
+  outcome: z.enum(['pass', 'fail', 'warn', 'skipped']),
+  evidence: z.unknown().optional(),      // { trace, video, screenshot, network, console }
+  judge_verdict: z.unknown().optional(), // advisory AI-judge cell + the evidence it saw
+}).passthrough();
+
+const ReportCreateSchema = z.object({
+  project_slug: z.string().min(1),
+  target_kind: z.enum(['stage-3-feature', 'stage-4-iteration-item', 'flow']).default('stage-3-feature'),
+  target_id: z.string().min(1),
+  verifier_session_id: z.string().min(1),
+  commit_sha: z.string().optional(),
+  recommendation_overall: z.enum(['APPROVE', 'BLOCK', 'ITERATE']),
+  recommendation_reason: z.string().optional(),
+  risk_policy: z.enum(['block', 'warn']).optional(),
+  mandatory_user_review: z.boolean().optional(),
+  case_matrix: z.array(CaseSchema).optional(),
+  evidence_root: z.string().optional(),
+  full_report: z.unknown().optional(),
+});
+
+// GET /api/feature-verification-reports?project_slug=&target_id=&latest=1&limit=
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const project_slug = url.searchParams.get('project_slug');
+  const target_id = url.searchParams.get('target_id');
+  const latest = url.searchParams.get('latest') === '1';
+  const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10) || 50, 200);
+  const db = await getDb();
+  const conds = [];
+  if (project_slug) conds.push(eq(schema.feature_verification_reports.project_slug, project_slug));
+  if (target_id) conds.push(eq(schema.feature_verification_reports.target_id, target_id));
+  const rows = db
+    .select()
+    .from(schema.feature_verification_reports)
+    .where(conds.length ? and(...conds) : undefined)
+    .orderBy(desc(schema.feature_verification_reports.ran_at))
+    .limit(latest ? 1 : limit)
+    .all();
+  if (latest) return NextResponse.json({ report: rows[0] ?? null });
+  return NextResponse.json({ reports: rows, count: rows.length });
+}
+
+// POST /api/feature-verification-reports — bearer required.
+export async function POST(req: Request) {
+  const parsed = await readAuthBody(req, ReportCreateSchema);
+  if (!parsed.ok) return parsed.res;
+  const data = parsed.data;
+
+  const db = await getDb();
+  const proj = db
+    .select({ slug: schema.projects.slug })
+    .from(schema.projects)
+    .where(eq(schema.projects.slug, data.project_slug))
+    .get();
+  if (!proj) return NextResponse.json({ error: `project '${data.project_slug}' not found` }, { status: 404 });
+
+  // Derive headline counts from the matrix (source of truth) so they can't disagree.
+  const matrix = data.case_matrix ?? [];
+  const total = matrix.length;
+  const passed = matrix.filter((c) => c.outcome === 'pass').length;
+  const failed = matrix.filter((c) => c.outcome === 'fail').length;
+  const warned = matrix.filter((c) => c.outcome === 'warn').length;
+
+  db.insert(schema.feature_verification_reports)
+    .values({
+      project_slug: data.project_slug,
+      target_kind: data.target_kind,
+      target_id: data.target_id,
+      verifier_session_id: data.verifier_session_id,
+      commit_sha: data.commit_sha ?? null,
+      cases_total: total,
+      cases_passed: passed,
+      cases_failed: failed,
+      cases_warned: warned,
+      recommendation_overall: data.recommendation_overall,
+      recommendation_reason: data.recommendation_reason ?? null,
+      risk_policy: data.risk_policy ?? null,
+      mandatory_user_review: data.mandatory_user_review ?? false,
+      case_matrix: (data.case_matrix ?? null) as object | null,
+      evidence_root: data.evidence_root ?? null,
+      full_report: (data.full_report ?? null) as object | null,
+    })
+    .run();
+
+  const created = db
+    .select()
+    .from(schema.feature_verification_reports)
+    .where(eq(schema.feature_verification_reports.target_id, data.target_id))
+    .orderBy(desc(schema.feature_verification_reports.ran_at))
+    .limit(1)
+    .get();
+
+  return NextResponse.json({ report: created }, { status: 201 });
+}

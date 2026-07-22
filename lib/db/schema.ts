@@ -1022,3 +1022,46 @@ export const report_comments = sqliteTable('report_comments', {
 
 export type ReportComment = typeof report_comments.$inferSelect;
 export type ReportCommentInsert = typeof report_comments.$inferInsert;
+
+// ═══════════════════════════════════════════════════════════════════
+// FEATURE VERIFICATION REPORTS (Task 3, 2026-07-23) — the FEATURE verifier's sink,
+// an independent sibling to verification_reports (the CODE verifier). The code
+// verifier proves the code is correct/complete; this proves the running feature
+// works for a user: an independent sub-agent drives the real app via Playwright,
+// feeds it real + nasty inputs, and asserts user-visible outcomes + SYSTEM STATE
+// (the file on disk with its native-script tag intact, the DB row, the rescan)
+// with evidence. Both gate "done" (block cv/public, warn personal — adr-014).
+// Deterministic core is the only gate; Explorer/Judge (Claude, build-session) are
+// advisory. Rich case×outcome matrix + evidence paths live here; per-flow pass/fail
+// is ALSO mirrored to flow_test_runs (ran_by='automated') for the deploy gate, and
+// the CI subset to test_runs. Table DDL: 0008_feature_verification_reports.sql.
+// ═══════════════════════════════════════════════════════════════════
+export const feature_verification_reports = sqliteTable('feature_verification_reports', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
+  target_kind: text('target_kind', { enum: ['stage-3-feature', 'stage-4-iteration-item', 'flow'] }),
+  target_id: text('target_id').notNull(),
+  ran_at: integer('ran_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  verifier_session_id: text('verifier_session_id'),
+  commit_sha: text('commit_sha'),
+  // headline case counts (fast query / UI trend)
+  cases_total: integer('cases_total'),
+  cases_passed: integer('cases_passed'),
+  cases_failed: integer('cases_failed'),
+  cases_warned: integer('cases_warned'),
+  // the gate verdict — same vocabulary as the code verifier's recommendation
+  recommendation_overall: text('recommendation_overall', { enum: ['APPROVE', 'BLOCK', 'ITERATE'] }),
+  recommendation_reason: text('recommendation_reason'),
+  // adr-014 policy applied when computing the verdict: block (cv/public) | warn (personal)
+  risk_policy: text('risk_policy', { enum: ['block', 'warn'] }),
+  mandatory_user_review: integer('mandatory_user_review', { mode: 'boolean' }).default(false),
+  // machine-readable case×outcome matrix: per-case inputs, action log, system-state
+  // values, outcome, evidence paths, and any advisory AI-judge verdict + evidence.
+  case_matrix: text('case_matrix', { mode: 'json' }),
+  // filesystem root of the run's evidence (trace/video/network/console/screenshots)
+  evidence_root: text('evidence_root'),
+  full_report: text('full_report', { mode: 'json' }),
+});
+
+export type FeatureVerificationReport = typeof feature_verification_reports.$inferSelect;
+export type FeatureVerificationReportInsert = typeof feature_verification_reports.$inferInsert;
