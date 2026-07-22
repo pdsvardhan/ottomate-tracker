@@ -25,7 +25,7 @@ type Item = {
   user_edited: boolean | null;
   status: string | null;
   notes: string | null;
-  proposed_change?: { source_comment_ids?: number[] | null } | null;
+  proposed_change?: unknown;
 };
 
 type VqaComment = {
@@ -215,7 +215,7 @@ export function LockInPanel({ iterationId, rawText, items: initialItems, comment
             <ItemCard
               key={item.id}
               item={item}
-              comments={(item.proposed_change?.source_comment_ids ?? [])
+              comments={((item.proposed_change as { source_comment_ids?: number[] | null } | null)?.source_comment_ids ?? [])
                 .map((cid) => commentsById.get(cid))
                 .filter((c): c is VqaComment => !!c)}
               busy={busy === `item-${item.id}`}
