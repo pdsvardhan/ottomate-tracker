@@ -27,15 +27,25 @@ type Item = {
   notes: string | null;
 };
 
+type VqaComment = {
+  id: number;
+  category: string | null;
+  text: string;
+  url: string | null;
+  target: string | null;
+  screenshot_url: string | null;
+};
+
 type Props = {
   iterationId: number;
   rawText: string | null;
   items: Item[];
+  comments?: VqaComment[];
 };
 
 const CONFIDENCE_FLOOR = 0.7;
 
-export function LockInPanel({ iterationId, rawText, items: initialItems }: Props) {
+export function LockInPanel({ iterationId, rawText, items: initialItems, comments }: Props) {
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
   const [busy, setBusy] = useState<string | null>(null);
@@ -126,9 +136,36 @@ export function LockInPanel({ iterationId, rawText, items: initialItems }: Props
     <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
       <section className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl p-5 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-7rem)] overflow-auto">
         <h2 className="text-sm font-semibold bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent mb-3">
-          Original report
+          {comments && comments.length > 0 ? '📷 Visual-QA source' : 'Original report'}
         </h2>
-        {rawText ? (
+        {comments && comments.length > 0 ? (
+          <div className="space-y-3">
+            {comments.map((c) => (
+              <div key={c.id} className="rounded-xl border border-zinc-800/60 bg-zinc-950/40 overflow-hidden">
+                {c.screenshot_url && (
+                  <a href={c.screenshot_url} target="_blank" rel="noopener noreferrer" title="Open full screenshot">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={c.screenshot_url}
+                      alt="comment screenshot"
+                      loading="lazy"
+                      className="block w-full max-h-48 object-cover object-top border-b border-zinc-800/60"
+                    />
+                  </a>
+                )}
+                <div className="p-3">
+                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                    {c.category && <Badge variant="tag">{c.category}</Badge>}
+                    {c.url && (
+                      <span className="text-[10px] text-zinc-600 truncate">{c.url.replace(/^https?:\/\//, '')}</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed">{c.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : rawText ? (
           <p className="text-sm text-zinc-400 whitespace-pre-wrap leading-relaxed">{rawText}</p>
         ) : (
           <p className="text-xs text-zinc-600 italic">— no raw text linked</p>

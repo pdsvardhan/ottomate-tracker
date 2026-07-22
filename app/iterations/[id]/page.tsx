@@ -28,6 +28,21 @@ export default async function IterationDetail({ params }: { params: Promise<{ id
     ? (db.select().from(schema.reports).where(eq(schema.reports.id, iteration.raw_text_id)).get() ?? null)
     : null;
 
+  // Visual-QA source comments (Task 1) — rendered with screenshot thumbnails in the lock-in view.
+  const comments = report && report.source === 'visual-qa'
+    ? db.select().from(schema.report_comments)
+        .where(eq(schema.report_comments.report_id, report.id))
+        .orderBy(asc(schema.report_comments.id)).all()
+        .map((c) => ({
+          id: c.id,
+          category: c.category,
+          text: c.text,
+          url: c.url,
+          target: c.target,
+          screenshot_url: c.screenshot_path ? `/api/asset/${c.screenshot_path}` : null,
+        }))
+    : [];
+
   const isEditable = ['awaiting-lock', 'pending_user_review'].includes(iteration.status ?? '');
   const isIntegrated = iteration.status === 'integrated';
 
@@ -63,6 +78,7 @@ export default async function IterationDetail({ params }: { params: Promise<{ id
           iterationId={iteration.id}
           rawText={report?.raw_text ?? null}
           items={items}
+          comments={comments}
         />
       ) : (
         <BuildProgress iteration={iteration} items={items} />
