@@ -505,6 +505,13 @@ export const ui_master_plans = sqliteTable('ui_master_plans', {
   fonts: text('fonts', { mode: 'json' }),
   animation_level: text('animation_level', { enum: ['none', 'subtle', 'smooth', 'playful'] }),
   layout_style: text('layout_style'),
+  // Design decision-ledger (Task 2, 2026-07-23) — the home for the A→B→C visual loop's state:
+  // context (audience/use-cases/brand-tone/primary-screen) · worklist · ladder rung · colour-budget ·
+  // per-component decisions + FULL rationale · locked-vs-open · preview Artifact URL · content-derived
+  // tokens. JSON so decisions are UNCAPPED: a 300-char limit (project_todos.title) truncated decisions
+  // twice in the real run — never store design decisions as todo titles. Reloaded on resume via
+  // GET /api/projects/<slug>/ui-master-plan. DDL: 0009_ui_master_plan_design_ledger.sql.
+  design_ledger: text('design_ledger', { mode: 'json' }),
 });
 
 export const tech_stacks = sqliteTable('tech_stacks', {
