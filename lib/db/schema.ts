@@ -1072,3 +1072,60 @@ export const feature_verification_reports = sqliteTable('feature_verification_re
 
 export type FeatureVerificationReport = typeof feature_verification_reports.$inferSelect;
 export type FeatureVerificationReportInsert = typeof feature_verification_reports.$inferInsert;
+
+// ═══════════════════════════════════════════════════════════════════
+// design_decisions — Task 2, the per-target design decision ledger.
+//
+// The blob (ui_master_plans.design_ledger, 0009) keeps loose CONTEXT: the audience
+// profile, the worklist, the constraint contract. Per-decision records live HERE, one
+// row each, because three questions must be answerable by index rather than by
+// re-parsing a blob: what is still open on this target? what did we already reject
+// here (so a fresh round does not re-offer it)? and which decisions depended on the
+// audience profile that just changed?
+//
+// Field set follows G3 §5.2 (the record shape that survives a session boundary):
+// concrete values never descriptions, rejections recorded with the same rigour as
+// picks, rationale tied to an observable reaction, lock earned not implied.
+// target_id is the data-oid — one instrument, three consumers (Task 1 comment→
+// component, Task 3 test selector, Task 2 design target).
+// Table DDL: 0010_design_decisions.sql. NEVER run drizzle-kit generate (0002-0006 gap).
+// ═══════════════════════════════════════════════════════════════════
+export const design_decisions = sqliteTable('design_decisions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
+  // the data-oid of the thing being decided
+  target_id: text('target_id').notNull(),
+  target_kind: text('target_kind', { enum: ['component', 'cluster', 'page', 'site', 'foundation'] }),
+  // the decision itself, dotted: card.corner-radius, card.hover-motion
+  axis: text('axis').notNull(),
+  // G3 rule 12: locked is EARNED (explicit confirm or unchanged re-exposure), never a first click
+  status: text('status', { enum: ['proposed', 'in-review', 'locked', 'rejected', 'superseded'] }).notNull().default('proposed'),
+  // 0 direction · 1 mechanic · 2 component · 3 cluster · 4 page · 5 micro
+  rung: integer('rung'),
+  round: integer('round').default(1),
+  variants_shown: text('variants_shown', { mode: 'json' }),
+  // the CONCRETE token/value, never a description (G3 rule 10)
+  chosen_value: text('chosen_value'),
+  mixed_from: text('mixed_from', { mode: 'json' }),
+  // [{value, why_rejected}] — a fresh round must not re-offer these (G3 rule 11)
+  rejected: text('rejected', { mode: 'json' }),
+  // UNCAPPED. The 300-char limit is project_todos.title — never store a decision there.
+  rationale: text('rationale'),
+  constraints_applied: text('constraints_applied', { mode: 'json' }),
+  // the graduation key: which audience profile this rationale depended on
+  profile_at_decision: text('profile_at_decision'),
+  // the locked artifact, for the golden-file regression gate (G1 §4.9)
+  snapshot: text('snapshot'),
+  preview_url: text('preview_url'),
+  // proof the restate-before-act step actually happened (G3 §4.7)
+  confirmed: integer('confirmed', { mode: 'boolean' }).default(false),
+  confirmation_text_shown: text('confirmation_text_shown'),
+  session_id: text('session_id'),
+  supersedes: integer('supersedes'),
+  superseded_by: integer('superseded_by'),
+  created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  updated_at: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
+export type DesignDecision = typeof design_decisions.$inferSelect;
+export type DesignDecisionInsert = typeof design_decisions.$inferInsert;
