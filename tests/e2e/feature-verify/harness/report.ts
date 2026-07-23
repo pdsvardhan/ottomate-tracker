@@ -115,7 +115,11 @@ export async function postReport(
   return body.report?.id ?? null;
 }
 
-/** Mirror per-critical-flow pass/fail into flow_test_runs — what the deploy gate reads. */
+/** Mirror per-critical-flow pass/fail into flow_test_runs — what the deploy gate reads.
+ *  Targets trackerBase, NOT instanceUrl: flow_test_runs lives in the Ottomate tracker, while
+ *  instanceUrl is the app under test. (Fixed 2026-07-23 — using instanceUrl worked only because
+ *  Ottomate dogfoods itself and the two happened to be the same origin; on any other project it
+ *  would POST to the target app, which has no such endpoint.) */
 export async function postFlowTestRun(
   request: APIRequestContext,
   cfg: FeatureVerifyConfig,
@@ -123,9 +127,42 @@ export async function postFlowTestRun(
   status: 'passing' | 'failing' | 'not-tested',
   notes?: string,
 ): Promise<void> {
-  const res = await request.post(`${cfg.instanceUrl}/api/flows/${encodeURIComponent(flowId)}/test`, {
+  const res = await request.post(`${cfg.trackerBase}/api/flows/${encodeURIComponent(flowId)}/test`, {
     headers: authHeaders(cfg),
     data: { status, ran_by: 'automated', notes: notes ?? null },
   });
   if (!res.ok()) throw new Error(`postFlowTestRun(${flowId}) → ${res.status()} ${await res.text()}`);
+}
+
+/** Record the run in test_runs — the CI/nightly substrate (anti-gaslight Rule 4).
+ *  Referenced by the method + prompt as the nightly-subset sink; this is that helper. */
+export async function postTestRun(
+  request: APIRequestContext,
+  cfg: FeatureVerifyConfig,
+  args: {
+    matrix: Matrix;
+    commit_sha: string;
+    branch?: string;
+    triggered_by?: 'push' | 'schedule' | 'manual' | 'iteration';
+    notes?: string;
+  },
+): Promise<void> {
+  const c = args.matrix.counts();
+  const res = await request.post(`${cfg.trackerBase}/api/test-runs`, {
+    headers: authHeaders(cfg),
+    data: {
+      project_slug: cfg.projectSlug,
+      commit_sha: args.commit_sha,
+      branch: args.branch,
+      result: c.fail > 0 ? 'failed' : c.skipped > 0 ? 'partial' : 'passed',
+      total: c.total,
+      passed: c.pass,
+      failed: c.fail,
+      skipped: c.skipped,
+      per_test_results: args.matrix.results,
+      triggered_by: args.triggered_by ?? 'schedule',
+      notes: args.notes ?? null,
+    },
+  });
+  if (!res.ok()) throw new Error(`postTestRun → ${res.status()} ${await res.text()}`);
 }
