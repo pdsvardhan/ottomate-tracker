@@ -22,11 +22,9 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  try {
-    requireBearer(req);
-  } catch (e) {
-    return e as Response;
-  }
+  // requireBearer RETURNS the rejection response (or null); it does not throw.
+  const auth = requireBearer(req);
+  if (auth) return auth;
 
   const { slug } = await params;
 
@@ -106,11 +104,9 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  try {
-    requireBearer(req);
-  } catch (e) {
-    return e as Response;
-  }
+  // requireBearer RETURNS the rejection response (or null); it does not throw.
+  const auth = requireBearer(req);
+  if (auth) return auth;
 
   const { slug } = await params;
 

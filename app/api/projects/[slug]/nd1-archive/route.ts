@@ -62,7 +62,9 @@ async function readJson<T>(req: Request, schema: z.ZodType<T>): Promise<{ ok: tr
 // POST — finalize the draft into an immutable archive row
 // ============================================================================
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  try { requireBearer(req); } catch (e) { return e as Response; }
+  // requireBearer RETURNS the rejection response (or null); it does not throw.
+  const auth = requireBearer(req);
+  if (auth) return auth;
 
   const { slug } = await params;
   const parsed = await readJson(req, PostBody);
@@ -164,7 +166,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
 // PATCH — Stage 1 intake marks the archive consumed (its exit marker)
 // ============================================================================
 export async function PATCH(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  try { requireBearer(req); } catch (e) { return e as Response; }
+  // requireBearer RETURNS the rejection response (or null); it does not throw.
+  const auth = requireBearer(req);
+  if (auth) return auth;
 
   const { slug } = await params;
   const parsed = await readJson(req, PatchBody);
