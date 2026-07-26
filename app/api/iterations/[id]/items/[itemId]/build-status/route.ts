@@ -12,7 +12,8 @@
 import { NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
-import { badRequest, notFound, parseIntId, readAuthBody } from '@/lib/api';
+import { badRequest, conflict, notFound, parseIntId, readAuthBody } from '@/lib/api';
+import { isPreLock, preLockMessage } from '@/lib/lock-guard';
 import { BuildStatusSchema } from '@/lib/validation/iterations';
 
 export const runtime = 'nodejs';
@@ -62,6 +63,16 @@ export async function POST(req: Request, { params }: Ctx) {
   const item = db.select().from(schema.iteration_items)
     .where(and(eq(schema.iteration_items.id, itmId), eq(schema.iteration_items.iteration_id, itrId))).get();
   if (!item) return notFound(`Item ${itmId} not in iteration ${itrId}`);
+
+  // Bedrock rule 2 (lock before build): build progress may not be recorded against an
+  // iteration the user has not locked yet. Without this, work done before the gate looked
+  // identical to work done after it (todo #239a).
+  const iteration = db.select({ status: schema.iterations.status }).from(schema.iterations)
+    .where(eq(schema.iterations.id, itrId)).get();
+  if (!iteration) return notFound(`Iteration ${itrId} not found`);
+  if (isPreLock(iteration.status)) {
+    return conflict(preLockMessage(itrId, iteration.status, 'build-status'));
+  }
 
   const newStatus = STATUS_MAP[reported];
   db.update(schema.iteration_items).set({

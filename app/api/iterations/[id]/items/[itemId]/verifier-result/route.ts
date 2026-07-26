@@ -4,7 +4,8 @@
 import { NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
-import { badRequest, notFound, parseIntId, readAuthBody } from '@/lib/api';
+import { badRequest, conflict, notFound, parseIntId, readAuthBody } from '@/lib/api';
+import { isPreLock, preLockMessage } from '@/lib/lock-guard';
 import { VerifierResultSchema } from '@/lib/validation/iterations';
 
 export const runtime = 'nodejs';
@@ -22,9 +23,17 @@ export async function POST(req: Request, { params }: Ctx) {
   const item = db.select().from(schema.iteration_items)
     .where(and(eq(schema.iteration_items.id, itmId), eq(schema.iteration_items.iteration_id, itrId))).get();
   if (!item) return notFound(`Item ${itmId} not in iteration ${itrId}`);
-  const iteration = db.select({ project_slug: schema.iterations.project_slug }).from(schema.iterations)
-    .where(eq(schema.iterations.id, itrId)).get();
+  const iteration = db.select({
+    project_slug: schema.iterations.project_slug,
+    status: schema.iterations.status,
+  }).from(schema.iterations).where(eq(schema.iterations.id, itrId)).get();
   if (!iteration) return notFound(`Iteration ${itrId} not found`);
+
+  // A verdict before the lock is a gate that ran after the fact: it would leave an item
+  // 'verified' for work the user never confirmed was in scope (todo #239a).
+  if (isPreLock(iteration.status)) {
+    return conflict(preLockMessage(itrId, iteration.status, 'verifier-result'));
+  }
 
   // Persist full verification report.
   const vr = db.insert(schema.verification_reports).values({

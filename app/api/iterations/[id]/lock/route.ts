@@ -65,11 +65,23 @@ export async function POST(req: Request, { params }: Ctx) {
     lock_in_audit: lockAudit,
   }).where(eq(schema.iterations.id, idNum)).run();
 
-  for (const item of active) {
+  // Idempotent lock (todo #239b). The old loop set EVERY active item to 'locked'
+  // unconditionally, so a late or repeated lock demoted items that had already been built and
+  // verified — forcing the verifier to re-issue a verdict and writing duplicate
+  // verification_reports rows (observed: portfolio iter-89, reports 512-515).
+  // Only items that have not moved past the gate are promoted; progress is never rewound.
+  const promoted = active.filter((i) => (i.status ?? 'pending-review') === 'pending-review');
+  for (const item of promoted) {
     db.update(schema.iteration_items).set({ status: 'locked' })
       .where(eq(schema.iteration_items.id, item.id)).run();
   }
 
   const updated = db.select().from(schema.iterations).where(eq(schema.iterations.id, idNum)).get();
-  return NextResponse.json({ iteration: updated, locked_items: active.length });
+  return NextResponse.json({
+    iteration: updated,
+    locked_items: promoted.length,
+    // Surfaced rather than hidden: a caller re-locking an in-flight iteration should see
+    // that these items kept the state they had earned.
+    preserved_items: active.length - promoted.length,
+  });
 }
