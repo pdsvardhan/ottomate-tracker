@@ -61,8 +61,20 @@ export const master_components = sqliteTable('master_components', {
   // ── 2026-05-19 expansion (library + quality columns) ──
   library: text('library'),                       // e.g. 'magicui', 'react-bits', 'aceternity', 'custom'
   source_url: text('source_url'),                 // upstream URL the source was pulled from
-  quality_grade: text('quality_grade', { enum: ['A', 'B', 'C'] }),
+  // H1 grades A-F and only A/B ship. Widened from A-C on 2026-07-27 (migration 0011): the enum is
+  // TS/zod-only with no SQL CHECK, so widening it is a code change, not a DB migration.
+  quality_grade: text('quality_grade', { enum: ['A', 'B', 'C', 'D', 'E', 'F'] }),
   ingestion_method: text('ingestion_method'),     // 'clone' | 'gist' | 'hand-authored' | 'manual'
+  // -- 2026-07-27 migration 0011: H1 provenance. Captured at ingest or lost forever; a NULL means
+  // 'never captured', which is exactly what the S3 quarantine gate reads. No defaults, deliberately:
+  // defaulting spdx_id would launder an unknown licence into a known one.
+  spdx_id: text('spdx_id'),                       // SPDX id, e.g. 'MIT'. NULL is NOT permissive
+  author: text('author'),
+  attribution: text('attribution'),               // the exact string the licence requires
+  licence_url: text('licence_url'),
+  retrieved_at: integer('retrieved_at', { mode: 'timestamp' }),
+  trademark_flag: integer('trademark_flag', { mode: 'boolean' }).default(false), // independent of licence
+  provenance_debt: integer('provenance_debt', { mode: 'boolean' }).default(false), // grandfathered pre-rule row
   created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
   updated_at: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
