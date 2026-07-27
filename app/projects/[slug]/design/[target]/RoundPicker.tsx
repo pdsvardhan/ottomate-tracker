@@ -26,20 +26,36 @@ export interface LedgerDecision {
   round: number;
   variants_shown: Record<string, unknown> | null;
   chosen_value: string | null;
-  mixed_from: { variant?: string } | null;
-  rejected: Array<{ value?: unknown; from?: string; why_rejected?: string }> | null;
+  mixed_from: { variant?: string; label?: string | null } | null;
+  rejected: Array<{ value?: unknown; from?: string; why_rejected?: string; grade?: string; label?: string | null }> | null;
   rationale: string | null;
   confirmed: boolean;
 }
 
 const FRAME_HEIGHTS = [700, 1000, 1400, 2000];
 
-function offeredEntries(d: LedgerDecision): Array<[string, string]> {
+// T3: two grades. Simply not winning is `not_selected` and may come back; only an explicit rule-out
+// is a hard ban that a later round must never re-offer.
+const HARD_BAN = 'rejected_with_reason';
+const SOFT = 'not_selected';
+
+interface Offered { slot: string; value: string; label: string | null }
+
+// T5: rows published from 2026-07-27 carry { slot: { value, label } } because slot letters reshuffle
+// every round. Rows written before that carry a bare { slot: value } and are NOT rewritten, so both
+// shapes must read.
+function offeredEntries(d: LedgerDecision): Offered[] {
   const vs = d.variants_shown;
   if (!vs || typeof vs !== 'object') return [];
   return Object.entries(vs)
     .filter(([, v]) => v !== undefined && v !== null)
-    .map(([slot, v]) => [slot, String(v)] as [string, string]);
+    .map(([slot, v]) => (typeof v === 'object'
+      ? { slot, value: String((v as { value?: unknown }).value ?? ''), label: ((v as { label?: string | null }).label ?? null) }
+      : { slot, value: String(v), label: null }));
+}
+
+function hardBans(d: LedgerDecision) {
+  return (d.rejected ?? []).filter((r) => r && r.grade === HARD_BAN);
 }
 
 async function patchDecision(id: number, body: Record<string, unknown>) {
@@ -83,8 +99,8 @@ export function RoundPicker({
       const fromVariant = d.mixed_from?.variant;
       if (fromVariant) m[d.id] = fromVariant;
       else if (d.chosen_value != null) {
-        const hit = offeredEntries(d).find(([, v]) => v === d.chosen_value);
-        if (hit) m[d.id] = hit[0];
+        const hit = offeredEntries(d).find((o) => o.value === d.chosen_value);
+        if (hit) m[d.id] = hit.slot;
       }
     }
     return m;
@@ -112,20 +128,27 @@ export function RoundPicker({
 
   function pickBody(d: LedgerDecision, slot: string) {
     const offered = offeredEntries(d);
-    const chosen = offered.find(([s]) => s === slot);
+    const chosen = offered.find((o) => o.slot === slot);
     if (!chosen) return null;
-    const rejected = offered
-      .filter(([s, v]) => s !== slot && v !== chosen[1])
-      .map(([s, v]) => ({ value: v, from: s, why_rejected: 'not selected in the per-item pick' }));
+    // Hard bans survive a re-pick — a value the owner explicitly ruled out must not quietly come back
+    // just because they changed which option wins.
+    const kept = hardBans(d);
+    const bannedValues = new Set(kept.map((r) => String(r.value)));
+    const rejected = [
+      ...kept,
+      ...offered
+        .filter((o) => o.slot !== slot && o.value !== chosen.value && !bannedValues.has(o.value))
+        .map((o) => ({ value: o.value, from: o.slot, label: o.label, grade: SOFT, why_rejected: 'not selected in the per-item pick' })),
+    ];
     const note = notes[d.id]?.trim();
     return {
-      chosen_value: chosen[1],
-      mixed_from: { variant: slot },
+      chosen_value: chosen.value,
+      mixed_from: { variant: slot, label: chosen.label },
       rejected,
       status: 'in-review',
       rationale: note
-        ? `${note}\n[picked in-app ${new Date().toISOString()}] ${chosen[1]} from ${slot}`
-        : `Selected ${chosen[1]} for ${d.axis} (from variant ${slot}), picked in-app on round ${round}.`,
+        ? `${note}\n[picked in-app ${new Date().toISOString()}] ${chosen.value} from ${chosen.label ?? slot}`
+        : `Selected ${chosen.value} for ${d.axis} (from variant ${chosen.label ?? slot}), picked in-app on round ${round}.`,
     };
   }
 
@@ -141,6 +164,30 @@ export function RoundPicker({
       startTransition(() => router.refresh());
     } catch (e) {
       setErr('all', String(e instanceof Error ? e.message : e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function ruleOut(d: LedgerDecision, o: Offered) {
+    const reason = window.prompt(
+      'Rule out "' + o.value + '" for ' + d.axis + '?\n\n'
+      + 'This is a HARD ban — later rounds will never offer it again. Simply picking something else is '
+      + 'NOT a ban, so only do this when you actively do not want it.\n\nWhy?',
+    );
+    if (reason == null) return;
+    if (reason.trim().length < 3) { setErr(String(d.id), 'A rule-out needs a reason.'); return; }
+    setBusy(d.id);
+    setErr(String(d.id), null);
+    try {
+      const next = [
+        ...(d.rejected ?? []).filter((r) => String(r.value) !== o.value),
+        { value: o.value, from: o.slot, label: o.label, grade: HARD_BAN, why_rejected: reason.trim() },
+      ];
+      await patchDecision(d.id, { rejected: next });
+      startTransition(() => router.refresh());
+    } catch (e) {
+      setErr(String(d.id), String(e instanceof Error ? e.message : e));
     } finally {
       setBusy(null);
     }
@@ -296,7 +343,6 @@ export function RoundPicker({
                     ) : null}
                   </div>
                   <div className="shrink-0 flex items-center gap-1.5">
-                    {d.rung != null ? <Badge variant="tag">rung {d.rung}</Badge> : null}
                     <Badge
                       variant="status"
                       tone={
@@ -314,45 +360,60 @@ export function RoundPicker({
                   </p>
                 ) : (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {offered.map(([slot, value]) => {
-                      const active = chosenSlot === slot;
+                    {offered.map((o) => {
+                      const active = chosenSlot === o.slot;
+                      const banned = hardBans(d).some((r) => String(r.value) === o.value);
                       return (
-                        <button
-                          key={slot}
-                          type="button"
-                          disabled={locked || busy !== null}
-                          onClick={() => setSel((s) => ({ ...s, [d.id]: slot }))}
-                          className={
-                            'rounded-xl border px-3 py-2 text-left transition-colors disabled:opacity-60 disabled:cursor-not-allowed ' +
-                            (active
-                              ? 'border-cyan-500/50 bg-cyan-500/10'
-                              : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700')
-                          }
-                        >
-                          <span className="block text-[10px] uppercase tracking-wider text-zinc-500">
-                            {slot}
-                          </span>
-                          <span
+                        <div key={o.slot} className="relative">
+                          <button
+                            type="button"
+                            disabled={locked || banned || busy !== null}
+                            onClick={() => setSel((s) => ({ ...s, [d.id]: o.slot }))}
                             className={
-                              'block text-xs font-mono ' + (active ? 'text-cyan-100' : 'text-zinc-300')
+                              'rounded-xl border px-3 py-2 pr-7 text-left transition-colors disabled:cursor-not-allowed ' +
+                              (banned ? 'border-zinc-900 bg-zinc-950/60 opacity-40'
+                                : active ? 'border-cyan-500/50 bg-cyan-500/10'
+                                  : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700')
                             }
                           >
-                            {value}
-                          </span>
-                        </button>
+                            <span className="block text-[10px] uppercase tracking-wider text-zinc-500">
+                              {o.label ?? o.slot}
+                            </span>
+                            <span
+                              className={
+                                'block text-xs font-mono ' + (banned ? 'text-zinc-500 line-through'
+                                  : active ? 'text-cyan-100' : 'text-zinc-300')
+                              }
+                            >
+                              {o.value}
+                            </span>
+                          </button>
+                          {!locked && !banned ? (
+                            <button
+                              type="button"
+                              title="Rule this out for good - later rounds will never offer it again"
+                              onClick={() => ruleOut(d, o)}
+                              disabled={busy !== null}
+                              className="absolute top-1 right-1 h-5 w-5 rounded text-[11px] leading-none text-zinc-600 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                            >
+                              &times;
+                            </button>
+                          ) : null}
+                        </div>
                       );
                     })}
                   </div>
                 )}
 
-                {d.rejected && d.rejected.length > 0 ? (
-                  <p className="mt-2 text-[11px] text-zinc-600">
-                    previously rejected:{' '}
-                    {d.rejected.map((r, i) => (
-                      <span key={i} className="font-mono line-through mr-2">
+                {hardBans(d).length > 0 ? (
+                  <p className="mt-2 text-[11px] text-rose-300/70">
+                    ruled out:{' '}
+                    {hardBans(d).map((r, i) => (
+                      <span key={i} className="font-mono line-through mr-2" title={r.why_rejected}>
                         {String(r.value)}
                       </span>
                     ))}
+                    <span className="text-zinc-600">&mdash; never offered again</span>
                   </p>
                 ) : null}
 
@@ -360,13 +421,13 @@ export function RoundPicker({
                   <div className="mt-3 flex items-end gap-2">
                     <label className="flex-1 min-w-0">
                       <span className="block text-[11px] text-zinc-500 mb-1">
-                        Why this one? (optional — appended to the uncapped rationale)
+                        Notes (optional)
                       </span>
                       <input
                         type="text"
                         value={notes[d.id] ?? ''}
                         onChange={(e) => setNotes((n) => ({ ...n, [d.id]: e.target.value }))}
-                        placeholder="the reaction, not the adjective"
+                        placeholder="anything you want to say — rambling is fine, it is kept verbatim"
                         className={FILTER_CONTROL_CLASSES + ' w-full text-xs'}
                       />
                     </label>
