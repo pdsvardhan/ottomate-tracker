@@ -20,6 +20,29 @@ import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
+// ── U4: the design worklist ────────────────────────────────────────────────
+// Every source the owner named — a DOM comment, a passing dislike, a rebuild, a new
+// feature — already funnels into an iteration_items row, and that row already carries
+// target_kind + target_id. So the worklist is a QUERY, not a new table.
+// Mirrors scripts/generation/design-intent.mjs `buildWorklist`, which is the spec and
+// carries the tests; kept in sync by hand because the plugin and the app are separate repos.
+const UI_ITEM_TYPES = new Set([
+  'component_modification', 'page_modification', 'revamp', 'new_feature_request', 'bug',
+]);
+const DEAD_STATUSES = new Set(['rejected', 'integrated']);
+
+interface WorkRow {
+  source: string;
+  source_id: number;
+  kind: string;
+  target_id: string;
+  label: string;
+  item_type: string | null;
+  status: string;
+  settled: boolean;
+  at: number;
+}
+
 interface TargetRollup {
   target_id: string;
   target_kind: string | null;
@@ -84,6 +107,57 @@ export default async function DesignIndexPage({
     (a, b) => (b.updated_at?.getTime() ?? 0) - (a.updated_at?.getTime() ?? 0),
   );
 
+  // ── the worklist: what is outstanding, from work the project already tracks ──
+  const settled = new Set(rows.filter((r) => r.status === 'locked').map((r) => r.target_id));
+
+  const iterationRows = db
+    .select({
+      id: schema.iteration_items.id,
+      item_type: schema.iteration_items.item_type,
+      target_kind: schema.iteration_items.target_kind,
+      target_id: schema.iteration_items.target_id,
+      title: schema.iteration_items.title,
+      status: schema.iteration_items.status,
+      project_slug: schema.iterations.project_slug,
+    })
+    .from(schema.iteration_items)
+    .innerJoin(schema.iterations, eq(schema.iteration_items.iteration_id, schema.iterations.id))
+    .where(eq(schema.iterations.project_slug, slug))
+    .all();
+
+  const componentRows = db
+    .select()
+    .from(schema.components)
+    .where(eq(schema.components.project_slug, slug))
+    .all();
+
+  const worklist: WorkRow[] = [
+    ...iterationRows
+      .filter((i) =>
+        i.item_type && UI_ITEM_TYPES.has(i.item_type)
+        && !(i.status && DEAD_STATUSES.has(i.status))
+        && ['component', 'page'].includes(i.target_kind ?? '')
+        && i.target_id)
+      .map((i) => ({
+        source: 'iteration item', source_id: i.id, kind: i.target_kind ?? 'component',
+        target_id: i.target_id as string, label: i.title, item_type: i.item_type,
+        status: i.status ?? 'pending-review', settled: settled.has(i.target_id as string),
+        // iteration_items carries NO timestamp columns, so the autoincrement id IS creation order.
+        at: i.id,
+      })),
+    ...componentRows
+      .filter((c) => !c.picked && !c.skip_reason)
+      .map((c) => ({
+        source: 'unpicked component slot', source_id: c.id, kind: 'component',
+        target_id: c.name, label: c.name, item_type: null, status: 'unpicked',
+        settled: settled.has(c.name), at: 0,
+      })),
+  ].sort((a, b) => {
+    if (a.settled !== b.settled) return a.settled ? 1 : -1;   // unsettled first
+    const at = b.at - a.at;                                    // then most recently raised
+    return at || String(a.label).localeCompare(String(b.label));
+  });
+
   return (
     <div className="mt-6">
       <PageHeader
@@ -103,6 +177,42 @@ export default async function DesignIndexPage({
           </Link>
         }
       />
+
+      {worklist.length > 0 ? (
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-zinc-200 mb-1">
+            Outstanding UI work
+            <span className="ml-2 font-normal text-xs text-zinc-500">
+              from this project&apos;s own iteration items and unpicked slots · unsettled first
+            </span>
+          </h2>
+          <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl divide-y divide-zinc-800/60">
+            {worklist.slice(0, 12).map((w) => (
+              <Link
+                key={`${w.source}-${w.source_id}`}
+                href={`/projects/${slug}/design/${encodeURIComponent(w.target_id)}`}
+                className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-900/50 transition-colors group"
+              >
+                <span className="text-[10px] uppercase tracking-wider text-zinc-600 w-32 shrink-0">
+                  {w.source}
+                </span>
+                <span className="text-xs text-zinc-200 group-hover:text-cyan-200 transition-colors truncate flex-1">
+                  {w.label}
+                </span>
+                <code className="text-[10px] font-mono text-zinc-600 truncate max-w-[16rem]">{w.target_id}</code>
+                {w.settled ? (
+                  <Badge variant="status" tone="done">settled</Badge>
+                ) : (
+                  <Badge variant="status" tone="neutral">{w.status}</Badge>
+                )}
+              </Link>
+            ))}
+          </div>
+          {worklist.length > 12 ? (
+            <p className="mt-2 text-[11px] text-zinc-500">showing 12 of {worklist.length}</p>
+          ) : null}
+        </section>
+      ) : null}
 
       {targets.length === 0 ? (
         <EmptyState
