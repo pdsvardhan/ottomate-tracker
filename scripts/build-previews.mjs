@@ -381,7 +381,14 @@ await fs.writeFile(path.join(BUILD, 'previews-manifest.json'), JSON.stringify({ 
 // the live app without a full rebuild (iter-15 — COMP_ONLY previously skipped
 // publish entirely, so single fixes never went live).
 if (!ONLY) {
-  await fs.rm(PUBLISH, { recursive: true, force: true });
+  // R1.3 (2026-07-29): PRESERVE design-rounds/** — published design-round renders live here and must
+  // survive a component-preview rebuild (they were being wiped on every rebuild/restart, taking the live
+  // design-round grid with them). Clean only what THIS script manages (component dirs + the manifest).
+  await fs.mkdir(PUBLISH, { recursive: true });
+  for (const entry of await fs.readdir(PUBLISH)) {
+    if (entry === 'design-rounds') continue; // durable — never cleared by a component rebuild
+    await fs.rm(path.join(PUBLISH, entry), { recursive: true, force: true });
+  }
 }
 await fs.mkdir(PUBLISH, { recursive: true });
 for (const r of results) {
