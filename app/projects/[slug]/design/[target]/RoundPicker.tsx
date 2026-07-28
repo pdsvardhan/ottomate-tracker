@@ -9,7 +9,7 @@
 // unlock needs a reason (422 unlock_requires_reason, G3 rule 13). This component
 // deliberately surfaces those 422 details verbatim rather than swallowing them.
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/Badge';
 import {
@@ -112,6 +112,28 @@ export function RoundPicker({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [unlockFor, setUnlockFor] = useState<number | null>(null);
   const [unlockReason, setUnlockReason] = useState('');
+
+  // WS1.1 (Phase 1) — the LIVE preview grid. A round MAY ship a `round.json` beside its index.html that
+  // lists `variant_previews` (one interactive, self-contained HTML file per variant) and a legibility
+  // `banner` (WS1.2). When present, each variant renders in its OWN full-width sandbox="allow-scripts"
+  // iframe — real hover/motion/3D, side by side (fixes F-14 + F-10). When absent, we fall back to the
+  // single index.html iframe, so every legacy round still renders exactly as before.
+  const previewBase = previewUrl ? previewUrl.replace(/\/index\.html$/, '') : null;
+  const [variantPreviews, setVariantPreviews] = useState<Array<{ label: string; file: string }> | null>(null);
+  const [bannerHtml, setBannerHtml] = useState<string | null>(null);
+  useEffect(() => {
+    if (!previewBase) return;
+    let live = true;
+    fetch(`${previewBase}/round.json`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!live || !j) return;
+        if (Array.isArray(j.variant_previews) && j.variant_previews.length) setVariantPreviews(j.variant_previews);
+        if (typeof j.banner === 'string') setBannerHtml(j.banner);
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [previewBase]);
 
   const dirty = decisions.filter(
     (d) => d.status !== 'locked' && sel[d.id] && sel[d.id] !== initialSel[d.id],
@@ -275,7 +297,33 @@ export function RoundPicker({
             ) : null}
           </div>
         </div>
-        {previewUrl ? (
+        {bannerHtml ? (
+          // WS1.2 legibility banner — what this round decides / holds / defers, loud and first.
+          <div className="px-4 pt-4" dangerouslySetInnerHTML={{ __html: bannerHtml }} />
+        ) : null}
+        {previewUrl && variantPreviews ? (
+          // WS1.1 — one live, full-width iframe PER VARIANT (fixes F-10's squeeze + F-14's dead panel).
+          <div
+            className="grid gap-3 p-4"
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))' }}
+          >
+            {variantPreviews.map((v) => (
+              <div key={v.file} className="rounded-xl border border-zinc-800/60 overflow-hidden bg-white">
+                <div className="text-[11px] font-medium text-zinc-600 px-3 py-1.5 border-b border-zinc-200 bg-zinc-50">
+                  {v.label}
+                </div>
+                <iframe
+                  src={`${previewBase}/${v.file}`}
+                  title={`${target} round ${round} — ${v.label}`}
+                  style={{ height: frameH }}
+                  className="w-full block bg-white"
+                  sandbox="allow-scripts"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
+        ) : previewUrl ? (
           <iframe
             src={previewUrl}
             title={`${target} round ${round}`}
