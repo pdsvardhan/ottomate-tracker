@@ -9,11 +9,17 @@
 // No new table. A ROUND is derivable: the design_decisions rows sharing
 // (project_slug, target_id, round). Each row already carries variants_shown (the
 // options), preview_url (where the round renders) and rung.
+//
+// N2 (2026-07-28): the target list is now a STATUS BOARD — Pages vs Components, each
+// target's status (final / in progress / not started) rolled up from its rows, with a
+// project-level roll-up. Status logic lives in lib/design.ts (pure + unit-tested).
 
 import Link from 'next/link';
 import { desc, eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { getDb, schema } from '@/lib/db/client';
+import { summariseTargets, type TargetSummary, type TargetStatus } from '@/lib/design';
+import { resolveProjectProfile, PROFILE_META } from '@/lib/audience-profile';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -43,18 +49,64 @@ interface WorkRow {
   at: number;
 }
 
-interface TargetRollup {
-  target_id: string;
-  target_kind: string | null;
-  latest_round: number;
-  rounds: number[];
-  open: number;
-  in_review: number;
-  locked: number;
-  rejected: number;
-  total: number;
-  profile: string | null;
-  updated_at: Date | null;
+const STATUS_LABEL: Record<TargetStatus, string> = {
+  final: 'final', 'in-progress': 'in progress', 'not-started': 'not started',
+};
+const STATUS_TONE: Record<TargetStatus, 'done' | 'open' | 'neutral'> = {
+  final: 'done', 'in-progress': 'open', 'not-started': 'neutral',
+};
+
+function leaf(id: string): string {
+  const parts = id.split('.');
+  return parts[parts.length - 1] || id;
+}
+
+function ago(ms: number | null): string {
+  if (ms == null) return '—';
+  const d = Math.floor((Date.now() - ms) / 86_400_000);
+  if (d <= 0) return 'today';
+  if (d === 1) return '1d ago';
+  if (d < 30) return `${d}d ago`;
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+function TargetRow({ slug, t }: { slug: string; t: TargetSummary }) {
+  return (
+    <Link
+      href={`/projects/${slug}/design/${encodeURIComponent(t.target_id)}`}
+      className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-900/50 transition-colors group"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="text-sm text-zinc-100 group-hover:text-cyan-200 transition-colors">
+          {leaf(t.target_id)}
+        </span>
+        <code className="ml-2 text-[10px] font-mono text-zinc-600">{t.target_id}</code>
+      </span>
+      <Badge variant="status" tone={STATUS_TONE[t.status]}>{STATUS_LABEL[t.status]}</Badge>
+      <span className="w-20 shrink-0 text-right text-[11px] text-zinc-500">
+        {t.rounds.length ? `${t.rounds.length} round${t.rounds.length === 1 ? '' : 's'}` : '—'}
+      </span>
+      <span className="w-24 shrink-0 text-right text-[11px] text-zinc-500">
+        {t.openAxes > 0 ? `${t.openAxes} open` : `${t.lockedAxes} locked`}
+      </span>
+      <span className="w-20 shrink-0 text-right text-[11px] text-zinc-600">{ago(t.lastActivity)}</span>
+    </Link>
+  );
+}
+
+function Section({ slug, title, targets }: { slug: string; title: string; targets: TargetSummary[] }) {
+  if (targets.length === 0) return null;
+  return (
+    <section className="mb-6">
+      <h2 className="text-sm font-semibold text-zinc-200 mb-1">
+        {title}
+        <span className="ml-2 font-normal text-xs text-zinc-500">{targets.length}</span>
+      </h2>
+      <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl divide-y divide-zinc-800/60">
+        {targets.map((t) => <TargetRow key={t.target_id} slug={slug} t={t} />)}
+      </div>
+    </section>
+  );
 }
 
 export default async function DesignIndexPage({
@@ -74,38 +126,17 @@ export default async function DesignIndexPage({
     .orderBy(desc(schema.design_decisions.updated_at))
     .all();
 
-  const byTarget = new Map<string, TargetRollup>();
-  for (const r of rows) {
-    let t = byTarget.get(r.target_id);
-    if (!t) {
-      t = {
-        target_id: r.target_id,
-        target_kind: r.target_kind,
-        latest_round: r.round ?? 1,
-        rounds: [],
-        open: 0,
-        in_review: 0,
-        locked: 0,
-        rejected: 0,
-        total: 0,
-        profile: r.profile_at_decision,
-        updated_at: r.updated_at,
-      };
-      byTarget.set(r.target_id, t);
-    }
-    const round = r.round ?? 1;
-    if (!t.rounds.includes(round)) t.rounds.push(round);
-    if (round > t.latest_round) t.latest_round = round;
-    t.total += 1;
-    if (r.status === 'proposed') t.open += 1;
-    else if (r.status === 'in-review') t.in_review += 1;
-    else if (r.status === 'locked') t.locked += 1;
-    else if (r.status === 'rejected') t.rejected += 1;
-  }
+  const board = summariseTargets(rows);
 
-  const targets = [...byTarget.values()].sort(
-    (a, b) => (b.updated_at?.getTime() ?? 0) - (a.updated_at?.getTime() ?? 0),
-  );
+  // ── #319: the audience profile that resolveFloor(profile) binds to ──
+  // Owner-set (context gate) wins; otherwise a suggestion from the project's own signals, suggest-only.
+  const ump = db
+    .select()
+    .from(schema.ui_master_plans)
+    .where(eq(schema.ui_master_plans.project_slug, slug))
+    .get();
+  const ledger = (ump?.design_ledger ?? {}) as { context?: { profile?: string | null } };
+  const audience = resolveProjectProfile(project, ledger.context?.profile);
 
   // ── the worklist: what is outstanding, from work the project already tracks ──
   const settled = new Set(rows.filter((r) => r.status === 'locked').map((r) => r.target_id));
@@ -158,14 +189,16 @@ export default async function DesignIndexPage({
     return at || String(a.label).localeCompare(String(b.label));
   });
 
+  const { rollup } = board;
+
   return (
     <div className="mt-6">
       <PageHeader
         title="Design"
         tagline={project.display_name}
         meta={
-          targets.length
-            ? `${targets.length} target${targets.length === 1 ? '' : 's'} · ${rows.length} decision${rows.length === 1 ? '' : 's'} in the ledger`
+          board.targets.length
+            ? `${board.targets.length} target${board.targets.length === 1 ? '' : 's'} · ${rows.length} decision${rows.length === 1 ? '' : 's'} in the ledger`
             : 'No design rounds published yet.'
         }
         actions={
@@ -177,6 +210,27 @@ export default async function DesignIndexPage({
           </Link>
         }
       />
+
+      <div className="mb-2 flex items-center gap-2 flex-wrap">
+        {board.targets.length > 0 ? (
+          <>
+            <Badge variant="status" tone="done">{rollup.final} final</Badge>
+            <Badge variant="status" tone="open">{rollup.inProgress} in progress</Badge>
+            <Badge variant="status" tone="neutral">{rollup.notStarted} not started</Badge>
+            <span className="text-[11px] text-zinc-600">of {rollup.total} target{rollup.total === 1 ? '' : 's'}</span>
+            <span className="text-zinc-700">·</span>
+          </>
+        ) : null}
+        <Badge variant="tag" title={`Audience profile ${audience.profile} — ${PROFILE_META[audience.profile].blurb} (resolveFloor binds this floor)`}>
+          {audience.profile} {PROFILE_META[audience.profile].label}
+        </Badge>
+        {audience.source === 'suggested' ? (
+          <span className="text-[11px] text-amber-400/80" title={audience.evidence.join('; ')}>
+            suggested (not set) — {audience.evidence[0]}
+          </span>
+        ) : null}
+      </div>
+      <div className="mb-6" />
 
       {worklist.length > 0 ? (
         <section className="mb-8">
@@ -214,54 +268,16 @@ export default async function DesignIndexPage({
         </section>
       ) : null}
 
-      {targets.length === 0 ? (
+      {board.targets.length === 0 ? (
         <EmptyState
           title="No design rounds yet"
-          body="A round is published from the skill: the variant harness builds one self-contained page, publish-round.mjs copies it onto the previews volume and posts one proposed decision per sub-decision. This page then lists every target that has decisions."
+          body="A round is published from the skill: the variant harness builds one self-contained page, publish-round.mjs copies it onto the previews volume and posts one proposed decision per sub-decision. This page then lists every target that has decisions, grouped into Pages and Components with its status."
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {targets.map((t) => (
-            <Link
-              key={t.target_id}
-              href={`/projects/${slug}/design/${encodeURIComponent(t.target_id)}`}
-              className="group rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl p-5 hover:border-zinc-700 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <code className="text-[11px] font-mono text-zinc-500 block truncate">
-                    {t.target_id}
-                  </code>
-                  <h3 className="mt-1 text-sm font-semibold text-zinc-100 group-hover:text-cyan-200 transition-colors">
-                    round {t.latest_round}
-                    {t.rounds.length > 1 ? (
-                      <span className="text-zinc-500 font-normal"> · {t.rounds.length} rounds</span>
-                    ) : null}
-                  </h3>
-                </div>
-                <div className="shrink-0 flex items-center gap-1">
-                  {t.target_kind ? <Badge variant="tag">{t.target_kind}</Badge> : null}
-                  {t.profile ? <Badge variant="tag">{t.profile}</Badge> : null}
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-center gap-1.5 flex-wrap">
-                {t.open > 0 ? (
-                  <Badge variant="status" tone="neutral">{t.open} open</Badge>
-                ) : null}
-                {t.in_review > 0 ? (
-                  <Badge variant="status" tone="open">{t.in_review} in review</Badge>
-                ) : null}
-                {t.locked > 0 ? (
-                  <Badge variant="status" tone="done">{t.locked} locked</Badge>
-                ) : null}
-                {t.rejected > 0 ? (
-                  <Badge variant="status" tone="deprecated">{t.rejected} rejected</Badge>
-                ) : null}
-              </div>
-            </Link>
-          ))}
-        </div>
+        <>
+          <Section slug={slug} title="Pages" targets={board.pages} />
+          <Section slug={slug} title="Components" targets={board.components} />
+        </>
       )}
     </div>
   );
