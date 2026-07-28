@@ -18,7 +18,10 @@ import Link from 'next/link';
 import { desc, eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { getDb, schema } from '@/lib/db/client';
-import { summariseTargets, type TargetSummary, type TargetStatus } from '@/lib/design';
+import {
+  summariseTargets, statusByLeaf, rollUpPage, groupByFlow,
+  type TargetSummary, type TargetStatus, type PageRollup,
+} from '@/lib/design';
 import { resolveProjectProfile, PROFILE_META } from '@/lib/audience-profile';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -109,6 +112,22 @@ function Section({ slug, title, targets }: { slug: string; title: string; target
   );
 }
 
+// N3 — a page's roll-up row: its design status + component progress (when the page has structured
+// components; screenroom's are empty, so it falls back to the page's own status, shown honestly).
+function PageRollupRow({ p, indent = false }: { p: PageRollup; indent?: boolean }) {
+  return (
+    <div className={`flex items-center gap-3 px-4 py-2 ${indent ? 'pl-8' : ''}`}>
+      <span className="text-xs text-zinc-200 truncate flex-1">{p.label}</span>
+      {p.source === 'components' ? (
+        <span className="text-[11px] text-zinc-500">{p.componentsDesigned}/{p.componentsTotal} components</span>
+      ) : p.source === 'none' ? (
+        <span className="text-[10px] text-zinc-600 italic">no components / target</span>
+      ) : null}
+      <Badge variant="status" tone={STATUS_TONE[p.status]}>{STATUS_LABEL[p.status]}</Badge>
+    </div>
+  );
+}
+
 export default async function DesignIndexPage({
   params,
 }: {
@@ -137,6 +156,30 @@ export default async function DesignIndexPage({
     .get();
   const ledger = (ump?.design_ledger ?? {}) as { context?: { profile?: string | null } };
   const audience = resolveProjectProfile(project, ledger.context?.profile);
+
+  // ── N3: page-finalizes-from-components (Gap 1) + classify-by-flow (Gap 2) ──
+  // The app IS the door (drizzle here, not a second sqlite client). A design target_id is a free-form
+  // label, so the join to the structure is by slugified name; an unmatched component reads not-started.
+  const byLeaf = statusByLeaf(board);
+  const pageRows = db.select().from(schema.pages).where(eq(schema.pages.project_slug, slug)).all();
+  const componentRowsAll = db.select().from(schema.components).where(eq(schema.components.project_slug, slug)).all();
+  const flowRows = db.select().from(schema.flows).where(eq(schema.flows.project_slug, slug)).all();
+  const flowPageRows = db
+    .select({ flow_id: schema.flow_pages.flow_id, page_id: schema.flow_pages.page_id })
+    .from(schema.flow_pages)
+    .innerJoin(schema.flows, eq(schema.flow_pages.flow_id, schema.flows.id))
+    .where(eq(schema.flows.project_slug, slug))
+    .all();
+  const componentsForRollup = componentRowsAll.map((c) => ({
+    name: c.name, page_id: c.page_id, picked: !!c.picked, skip_reason: c.skip_reason,
+  }));
+  const pageRollups: PageRollup[] = pageRows.map((p) =>
+    rollUpPage({ id: p.id, name: p.title, route: p.route }, componentsForRollup, byLeaf));
+  const flowView = groupByFlow(
+    flowRows.map((f) => ({ id: f.id, name: f.title })),
+    flowPageRows,
+    pageRollups,
+  );
 
   // ── the worklist: what is outstanding, from work the project already tracks ──
   const settled = new Set(rows.filter((r) => r.status === 'locked').map((r) => r.target_id));
@@ -279,6 +322,37 @@ export default async function DesignIndexPage({
           <Section slug={slug} title="Components" targets={board.components} />
         </>
       )}
+
+      {flowView.flows.length > 0 ? (
+        <section className="mt-8 mb-6">
+          <h2 className="text-sm font-semibold text-zinc-200 mb-1">
+            By user flow
+            <span className="ml-2 font-normal text-xs text-zinc-500">
+              {flowView.flows.length} flow{flowView.flows.length === 1 ? '' : 's'} · a page finalizes when its components do
+            </span>
+          </h2>
+          <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 backdrop-blur-xl divide-y divide-zinc-800/60">
+            {flowView.flows.map((f) => (
+              <div key={f.flow_id} className="py-1">
+                <div className="flex items-center gap-3 px-4 py-2">
+                  <span className="text-xs font-semibold text-zinc-100 flex-1">{f.label}</span>
+                  <span className="text-[10px] text-zinc-600">{f.pages.length} page{f.pages.length === 1 ? '' : 's'}</span>
+                  <Badge variant="status" tone={STATUS_TONE[f.status]}>{STATUS_LABEL[f.status]}</Badge>
+                </div>
+                {f.pages.map((p) => <PageRollupRow key={p.page_id} p={p} indent />)}
+              </div>
+            ))}
+          </div>
+          {flowView.unassigned.length > 0 ? (
+            <div className="mt-3">
+              <h3 className="text-xs font-medium text-zinc-400 mb-1">Pages in no flow</h3>
+              <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/20 divide-y divide-zinc-800/60">
+                {flowView.unassigned.map((p) => <PageRollupRow key={p.page_id} p={p} />)}
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -112,3 +112,101 @@ export function summariseTargets(rows: DecisionRowLike[]): BoardSummary {
     rollup,
   };
 }
+
+// ── N3 (2026-07-28): page-finalizes-from-components + classify-by-flow ────────────────────────────
+// A design `target_id` is a free-form label, not a wire to the structure. The match to a component /
+// page is by slugified name; where it does not match, the item reads not-started — never a faked final.
+
+export function slugify(s: string | null | undefined): string {
+  return String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+export function targetLeafSlug(target_id: string): string {
+  return slugify(target_id.split('.').pop() || target_id);
+}
+
+/** A design-status lookup keyed by the slug of each target's leaf — the join key for structure. */
+export function statusByLeaf(board: BoardSummary): Map<string, TargetStatus> {
+  const m = new Map<string, TargetStatus>();
+  for (const t of board.targets) {
+    const k = targetLeafSlug(t.target_id);
+    // if two targets collapse to one leaf, the more-advanced status wins (final > in-progress > not)
+    const cur = m.get(k);
+    if (!cur || STATUS_ORDER[t.status] > STATUS_ORDER[cur]) m.set(k, t.status);
+  }
+  return m;
+}
+
+export interface PageLike { id: string; name?: string | null; route?: string | null; }
+export interface ComponentLike { name: string; page_id: string; picked?: boolean; skip_reason?: string | null; }
+export interface FlowLike { id: string; name?: string | null; }
+export interface FlowPageLink { flow_id: string; page_id: string; }
+
+export interface PageRollup {
+  page_id: string;
+  label: string;
+  componentsTotal: number; // non-skipped components on the page
+  componentsDesigned: number; // design-final
+  componentsInProgress: number;
+  status: TargetStatus;
+  source: 'components' | 'own-target' | 'none';
+}
+
+/**
+ * Gap 1 — a page's design status rolled up from its components. A page is FINAL when every non-skipped
+ * component has a design-final target; IN-PROGRESS if any component is; falls back to the page's OWN
+ * page-scope design-target status when it has no structured components (graceful, never a fake match).
+ */
+export function rollUpPage(
+  page: PageLike,
+  components: ComponentLike[],
+  byLeaf: Map<string, TargetStatus>,
+): PageRollup {
+  const label = page.name || page.route || page.id;
+  const own = byLeaf.get(slugify(page.id)) ?? byLeaf.get(targetLeafSlug(page.route || '')) ?? null;
+  const active = components.filter((c) => c.page_id === page.id && !c.skip_reason);
+
+  if (active.length === 0) {
+    return {
+      page_id: page.id, label, componentsTotal: 0, componentsDesigned: 0, componentsInProgress: 0,
+      status: own ?? 'not-started', source: own ? 'own-target' : 'none',
+    };
+  }
+  let designed = 0, inProgress = 0;
+  for (const c of active) {
+    const s = byLeaf.get(slugify(c.name)) ?? 'not-started';
+    if (s === 'final') designed += 1;
+    else if (s === 'in-progress') inProgress += 1;
+  }
+  const status: TargetStatus = designed === active.length ? 'final'
+    : (inProgress > 0 || designed > 0) ? 'in-progress' : 'not-started';
+  return {
+    page_id: page.id, label, componentsTotal: active.length, componentsDesigned: designed,
+    componentsInProgress: inProgress, status, source: 'components',
+  };
+}
+
+export interface FlowGroup { flow_id: string; label: string; pages: PageRollup[]; status: TargetStatus; }
+
+/** Gap 2 — classify pages by user flow. A flow rolls up like a page; pages in no flow are Unassigned. */
+export function groupByFlow(
+  flows: FlowLike[],
+  flowPages: FlowPageLink[],
+  pageRollups: PageRollup[],
+): { flows: FlowGroup[]; unassigned: PageRollup[] } {
+  const byId = new Map(pageRollups.map((p) => [p.page_id, p]));
+  const assigned = new Set<string>();
+  const groups: FlowGroup[] = [];
+  for (const f of flows) {
+    const pages = flowPages
+      .filter((fp) => fp.flow_id === f.id)
+      .map((fp) => byId.get(fp.page_id))
+      .filter((p): p is PageRollup => Boolean(p));
+    for (const p of pages) assigned.add(p.page_id);
+    const status: TargetStatus = pages.length === 0 ? 'not-started'
+      : pages.every((p) => p.status === 'final') ? 'final'
+        : pages.some((p) => p.status !== 'not-started') ? 'in-progress' : 'not-started';
+    groups.push({ flow_id: f.id, label: f.name || f.id, pages, status });
+  }
+  const unassigned = pageRollups.filter((p) => !assigned.has(p.page_id));
+  return { flows: groups, unassigned };
+}
