@@ -10,6 +10,7 @@ import { SpotlightCard } from '@/components/ui/SpotlightCard';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { VerifySiteButton } from './VerifySiteButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -199,6 +200,10 @@ export default async function CoveragePage() {
           </>
         }
       />
+
+      <div className="mb-6 -mt-2">
+        <VerifySiteButton />
+      </div>
 
       {rows.length === 0 ? (
         <EmptyState
