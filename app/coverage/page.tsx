@@ -1,9 +1,10 @@
-// Coverage page — Spotlight Glass redesign (E.8 closes iteration #5 item 35).
-// Per-project pass rate cards for flows + features, with a click-through to
-// the Capabilities tab where the user can flip status inline via FlowTestRow.
-
+// Coverage page — real test-coverage dashboard (BP-5, feature-registry Phase 2c).
+// Sourced from live flow test_status + feature test_status (now DERIVED — BP-2) and
+// the latest feature-verification report per project. It surfaces GAPS (flows with no
+// linked test) instead of a green wall: an untested flow is shown as a gap, never
+// counted as passing.
 import Link from 'next/link';
-import { count, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { SpotlightCard } from '@/components/ui/SpotlightCard';
 import { Badge } from '@/components/ui/Badge';
@@ -12,6 +13,10 @@ import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
+interface GapFlow {
+  id: string;
+  title: string;
+}
 interface ProjectCoverage {
   slug: string;
   display_name: string;
@@ -20,19 +25,39 @@ interface ProjectCoverage {
   failing_flows: number;
   not_tested_flows: number;
   total_features: number;
-  done_features: number;
+  passing_features: number;
+  gap_flows: GapFlow[];
+  last_verdict: string | null;
+  last_ran_at: Date | null;
+  last_commit: string | null;
 }
 
-function pctClass(value: number | null): string {
-  if (value === null) return 'bg-zinc-800';
-  if (value >= 80) return 'bg-emerald-500';
-  if (value >= 50) return 'bg-amber-500';
+function pctClass(v: number | null): string {
+  if (v === null) return 'bg-zinc-800';
+  if (v >= 80) return 'bg-emerald-500';
+  if (v >= 50) return 'bg-amber-500';
   return 'bg-rose-500';
+}
+
+function Bar({ pct }: { pct: number | null }) {
+  return (
+    <div className="h-1.5 rounded-full bg-zinc-900/80 overflow-hidden">
+      <div className={'h-full transition-all ' + pctClass(pct)} style={{ width: `${pct ?? 0}%` }} />
+    </div>
+  );
+}
+
+function fmtDate(d: Date | null): string {
+  return d ? new Date(d).toISOString().slice(0, 10) : 'never';
 }
 
 function ProjectCard({ row }: { row: ProjectCoverage }) {
   const flowPct = row.total_flows > 0 ? Math.round((row.passing_flows / row.total_flows) * 100) : null;
-  const featurePct = row.total_features > 0 ? Math.round((row.done_features / row.total_features) * 100) : null;
+  const featPct = row.total_features > 0 ? Math.round((row.passing_features / row.total_features) * 100) : null;
+  const verdictColor =
+    row.last_verdict === 'APPROVE' ? 'text-emerald-400'
+      : row.last_verdict === 'BLOCK' ? 'text-rose-400'
+        : 'text-amber-400';
   return (
     <SpotlightCard href={`/projects/${row.slug}/capabilities`}>
       <div className="flex items-start justify-between gap-2 mb-3">
@@ -42,41 +67,54 @@ function ProjectCard({ row }: { row: ProjectCoverage }) {
         <code className="text-[11px] font-mono text-zinc-500 truncate shrink-0">{row.slug}</code>
       </div>
 
-      {/* Flows row */}
+      {/* Flows */}
       <div className="mb-3">
         <div className="flex items-baseline justify-between mb-1">
-          <span className="text-[11px] uppercase tracking-wider text-zinc-500">Flows</span>
+          <span className="text-[11px] uppercase tracking-wider text-zinc-500">Flows tested</span>
           <span className="text-[11px] font-mono text-zinc-400">
             {flowPct !== null ? `${flowPct}%` : '—'}
-            <span className="text-zinc-600 ml-1.5">
-              ({row.passing_flows}/{row.total_flows})
-            </span>
+            <span className="text-zinc-600 ml-1.5">({row.passing_flows}/{row.total_flows})</span>
           </span>
         </div>
-        <div className="h-1.5 rounded-full bg-zinc-900/80 overflow-hidden">
-          <div className={'h-full transition-all ' + pctClass(flowPct)} style={{ width: `${flowPct ?? 0}%` }} />
-        </div>
-        <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-zinc-500">
+        <Bar pct={flowPct} />
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-zinc-500">
           <Badge variant="status" tone="shipped">{row.passing_flows} pass</Badge>
           {row.failing_flows > 0 && <Badge variant="status" tone="blocked">{row.failing_flows} fail</Badge>}
           {row.not_tested_flows > 0 && <Badge variant="status" tone="neutral">{row.not_tested_flows} untested</Badge>}
         </div>
       </div>
 
-      {/* Features row */}
-      <div>
+      {/* Features (test_status, now derived) */}
+      <div className="mb-3">
         <div className="flex items-baseline justify-between mb-1">
-          <span className="text-[11px] uppercase tracking-wider text-zinc-500">Features done</span>
+          <span className="text-[11px] uppercase tracking-wider text-zinc-500">Features tested</span>
           <span className="text-[11px] font-mono text-zinc-400">
-            {featurePct !== null ? `${featurePct}%` : '—'}
-            <span className="text-zinc-600 ml-1.5">
-              ({row.done_features}/{row.total_features})
-            </span>
+            {featPct !== null ? `${featPct}%` : '—'}
+            <span className="text-zinc-600 ml-1.5">({row.passing_features}/{row.total_features})</span>
           </span>
         </div>
-        <div className="h-1.5 rounded-full bg-zinc-900/80 overflow-hidden">
-          <div className={'h-full transition-all ' + pctClass(featurePct)} style={{ width: `${featurePct ?? 0}%` }} />
-        </div>
+        <Bar pct={featPct} />
+      </div>
+
+      {/* Gaps + last verified */}
+      <div className="flex flex-wrap items-center justify-between gap-1.5 pt-2 border-t border-zinc-800/60">
+        {row.gap_flows.length > 0 ? (
+          <Badge variant="status" tone="blocked">
+            {row.gap_flows.length} flow{row.gap_flows.length > 1 ? 's' : ''} with no test
+          </Badge>
+        ) : (
+          <span className="text-[10px] text-emerald-500/80">every flow has a test</span>
+        )}
+        <span className="text-[10px] font-mono text-zinc-600">
+          {row.last_verdict ? (
+            <>
+              verified {fmtDate(row.last_ran_at)} · <span className={verdictColor}>{row.last_verdict}</span>
+              {row.last_commit ? ` · ${row.last_commit}` : ''}
+            </>
+          ) : (
+            'never verified'
+          )}
+        </span>
       </div>
     </SpotlightCard>
   );
@@ -84,60 +122,80 @@ function ProjectCard({ row }: { row: ProjectCoverage }) {
 
 export default async function CoveragePage() {
   const db = await getDb();
-  const projects = db.select().from(schema.projects)
-    .where(eq(schema.projects.archived, false)).all();
+  const projects = db.select().from(schema.projects).where(eq(schema.projects.archived, false)).all();
 
   const rows: ProjectCoverage[] = projects.map((p) => {
-    const flowCounts = db.select({
-      total: count(),
-      status: schema.flows.test_status,
-    }).from(schema.flows)
+    const flows = db
+      .select({
+        id: schema.flows.id,
+        title: schema.flows.title,
+        test_status: schema.flows.test_status,
+        linked: schema.flows.linked_playwright_test,
+      })
+      .from(schema.flows)
       .where(eq(schema.flows.project_slug, p.slug))
-      .groupBy(schema.flows.test_status).all();
-    const featCounts = db.select({
-      total: count(),
-      status: schema.features.status,
-    }).from(schema.features)
+      .all();
+    const feats = db
+      .select({ test_status: schema.features.test_status })
+      .from(schema.features)
       .where(eq(schema.features.project_slug, p.slug))
-      .groupBy(schema.features.status).all();
+      .all();
+    const last = db
+      .select({
+        verdict: schema.feature_verification_reports.recommendation_overall,
+        ran_at: schema.feature_verification_reports.ran_at,
+        commit: schema.feature_verification_reports.commit_sha,
+      })
+      .from(schema.feature_verification_reports)
+      .where(eq(schema.feature_verification_reports.project_slug, p.slug))
+      .orderBy(desc(schema.feature_verification_reports.ran_at))
+      .limit(1)
+      .get();
 
-    const total_flows = flowCounts.reduce((s, r) => s + Number(r.total), 0);
-    const passing_flows = Number(flowCounts.find((r) => r.status === 'passing')?.total ?? 0);
-    const failing_flows = Number(flowCounts.find((r) => r.status === 'failing')?.total ?? 0);
-    const not_tested_flows = total_flows - passing_flows - failing_flows;
-
-    const total_features = featCounts.reduce((s, r) => s + Number(r.total), 0);
-    const done_features = Number(featCounts.find((r) => r.status === 'done')?.total ?? 0);
+    const passing_flows = flows.filter((f) => f.test_status === 'passing').length;
+    const failing_flows = flows.filter((f) => f.test_status === 'failing').length;
+    const not_tested_flows = flows.filter((f) => !f.test_status || f.test_status === 'not-tested').length;
+    const gap_flows = flows
+      .filter((f) => !f.linked || String(f.linked).trim() === '')
+      .map((f) => ({ id: f.id, title: f.title }));
+    const passing_features = feats.filter((f) => f.test_status === 'passing').length;
 
     return {
       slug: p.slug,
       display_name: p.display_name,
-      total_flows,
+      total_flows: flows.length,
       passing_flows,
       failing_flows,
       not_tested_flows,
-      total_features,
-      done_features,
+      total_features: feats.length,
+      passing_features,
+      gap_flows,
+      last_verdict: last?.verdict ?? null,
+      last_ran_at: last?.ran_at ?? null,
+      last_commit: last?.commit ?? null,
     };
   });
 
   const totalFlows = rows.reduce((s, r) => s + r.total_flows, 0);
-  const totalPassingFlows = rows.reduce((s, r) => s + r.passing_flows, 0);
+  const totalPassing = rows.reduce((s, r) => s + r.passing_flows, 0);
   const totalFailing = rows.reduce((s, r) => s + r.failing_flows, 0);
-  const overallPct = totalFlows > 0 ? Math.round((totalPassingFlows / totalFlows) * 100) : null;
+  const totalGaps = rows.reduce((s, r) => s + r.gap_flows.length, 0);
+  const overallPct = totalFlows > 0 ? Math.round((totalPassing / totalFlows) * 100) : null;
+  const gapProjects = rows.filter((r) => r.gap_flows.length > 0);
 
   return (
     <div className="px-8 py-10 max-w-7xl mx-auto">
       <PageHeader
         title="Coverage"
-        tagline="cross-project test pass-rate dashboard"
+        tagline="real test coverage across projects — and what isn't covered"
         meta={
           <>
             <span className="text-zinc-200 font-medium">
-              {overallPct !== null ? `${overallPct}% overall` : '— no tests yet'}
+              {overallPct !== null ? `${overallPct}% of flows passing` : '— no tests yet'}
             </span>{' '}
-            ({totalPassingFlows} of {totalFlows} flows passing
-            {totalFailing > 0 && `, ${totalFailing} failing`})
+            ({totalPassing}/{totalFlows}
+            {totalFailing > 0 ? `, ${totalFailing} failing` : ''}
+            {totalGaps > 0 ? `, ${totalGaps} with no test` : ''})
           </>
         }
       />
@@ -155,9 +213,37 @@ export default async function CoveragePage() {
         </div>
       )}
 
-      <p className="mt-8 text-[11px] text-zinc-600">
-        Click any card to open that project's <Link href="#" className="text-cyan-500">Capabilities tab</Link> and flip flow status inline.
-      </p>
+      {/* GAPS — the honest bit: flows with no linked test, never a silent pass */}
+      {gapProjects.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-sm font-semibold text-zinc-200 mb-1">Coverage gaps</h2>
+          <p className="text-[11px] text-zinc-500 mb-4">
+            Flows with no linked test — not verified, and shown as a gap rather than counted green.
+          </p>
+          <div className="space-y-3">
+            {gapProjects.map((r) => (
+              <div key={r.slug} className="rounded-lg border border-zinc-800/60 bg-zinc-950/40 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Link
+                    href={`/projects/${r.slug}/capabilities`}
+                    className="text-[13px] font-medium text-zinc-200 hover:text-cyan-300"
+                  >
+                    {r.display_name}
+                  </Link>
+                  <Badge variant="status" tone="blocked">{r.gap_flows.length} untested</Badge>
+                </div>
+                <ul className="flex flex-wrap gap-1.5">
+                  {r.gap_flows.map((g) => (
+                    <li key={g.id} className="text-[11px] text-zinc-400 bg-zinc-900/70 rounded px-2 py-0.5">
+                      {g.title}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
