@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { getDb, schema } from '@/lib/db/client';
 import { notFound, readAuthBody } from '@/lib/api';
+import { recomputeFeaturesForFlow } from '@/lib/feature-rollup';
 
 export const runtime = 'nodejs';
 
@@ -36,6 +37,10 @@ export async function POST(req: Request, { params }: Ctx) {
     test_status: result.data.status,
     last_tested_date: new Date(),
   }).where(eq(schema.flows.id, id)).run();
+
+  // Roll the result up to any linked features (feature.test_status = AND of its
+  // flows). The documented "derived from linked flows" rule, now actually computed.
+  recomputeFeaturesForFlow(db, id);
 
   const latest = db.select().from(schema.flows).where(eq(schema.flows.id, id)).get();
   return NextResponse.json({ flow: latest });
