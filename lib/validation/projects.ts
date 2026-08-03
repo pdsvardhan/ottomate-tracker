@@ -47,6 +47,8 @@ export const ProjectCreateSchema = z.object({
   tags: z.array(z.string()).nullish(),
   needs_stage_1_catchup: z.boolean().optional(),
   verify_gate: verifyGateEnum.optional(),
+  // Phase 4 doc-freshness ramp (migration 0013); same {off,warn,block} values.
+  doc_gate: verifyGateEnum.optional(),
 });
 
 // Slug is immutable; everything else is partial-updatable.

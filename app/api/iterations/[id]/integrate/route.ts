@@ -34,6 +34,45 @@ export async function POST(req: Request, { params }: Ctx) {
       open.map((i) => `#${i.id}=${i.status}`).join(', '),
     );
   }
+
+  // D2 spec-sync gate (R-DOC-10): on a doc-gated ('block') project, a
+  // behaviour-changing modification cannot integrate unless its target's spec
+  // was actually updated this iteration (target.updated_at >= iteration.locked_at).
+  // Turns the 4.8 "update the entry" prose into an enforced check. Pages have no
+  // updated_at, so the timestamp check covers feature + flow modifications; other
+  // drift (bugs, pages, dropped refs) is surfaced by the stale-spec / dead-
+  // capability rules. Ramped: only 'block' refuses; 'warn'/'off' skip.
+  const proj = db
+    .select({ doc_gate: schema.projects.doc_gate })
+    .from(schema.projects)
+    .where(eq(schema.projects.slug, iteration.project_slug))
+    .get();
+  if (proj?.doc_gate === 'block' && iteration.locked_at) {
+    const lockedMs = iteration.locked_at.getTime();
+    const unsynced: string[] = [];
+    for (const it of items) {
+      if (!it.target_id) continue;
+      if (it.item_type !== 'feature_modification' && it.item_type !== 'flow_modification') continue;
+      let updatedAt: Date | null = null;
+      if (it.target_kind === 'feature') {
+        updatedAt = db.select({ u: schema.features.updated_at }).from(schema.features)
+          .where(eq(schema.features.id, it.target_id)).get()?.u ?? null;
+      } else if (it.target_kind === 'flow') {
+        updatedAt = db.select({ u: schema.flows.updated_at }).from(schema.flows)
+          .where(eq(schema.flows.id, it.target_id)).get()?.u ?? null;
+      }
+      if (updatedAt && updatedAt.getTime() < lockedMs) {
+        unsynced.push(`#${it.id}=${it.target_kind}:${it.target_id}`);
+      }
+    }
+    if (unsynced.length > 0) {
+      return badRequest(
+        `Cannot integrate on a doc-gated project; spec not updated for behaviour-changing items (R-DOC-10): ` +
+        `${unsynced.join(', ')}. PATCH the target's spec/ACs in this iteration, then retry.`,
+      );
+    }
+  }
+
   db.update(schema.iterations).set({
     status: 'integrated',
     integrated_at: new Date(),

@@ -1,0 +1,11 @@
+-- 0013 - Phase 4 per-project doc-freshness ramp flag (2026-08-04).
+--
+-- HAND-WRITTEN, hand-journaled (same discipline as 0007-0012). Do NOT run
+-- drizzle-kit generate/migrate.
+--
+-- Additive, nullable-with-constant-default. doc_gate in {off,warn,block}; the
+-- CHECK lives in TS/zod (schema.ts enum + lib/validation/projects.ts). Default
+-- 'off' so every project is advisory-only until explicitly ramped. INDEPENDENT
+-- of verify_gate (0012): ship-gate and doc-gate ramp separately. Single
+-- statement, no breakpoint.
+ALTER TABLE `projects` ADD `doc_gate` text DEFAULT 'off';

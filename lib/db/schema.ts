@@ -151,6 +151,11 @@ export const projects = sqliteTable('projects', {
   // violations; 'block' = HARD violations that the Stage-3→deploy gate refuses
   // on. The enum CHECK lives in TS/zod only (house style — no SQL CHECK).
   verify_gate: text('verify_gate', { enum: ['off', 'warn', 'block'] }).default('off'),
+  // Phase 4 (2026-08-04, migration 0013): per-project DOC-freshness ramp,
+  // INDEPENDENT of verify_gate — a project can be ship-gated without being
+  // doc-gated, and vice-versa. 'off' = advisory; 'warn' = SOFT doc violations;
+  // 'block' = HARD (the deploy/integrate gate refuses). Enum in TS/zod only.
+  doc_gate: text('doc_gate', { enum: ['off', 'warn', 'block'] }).default('off'),
   created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
   updated_at: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
