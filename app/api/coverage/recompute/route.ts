@@ -4,9 +4,10 @@
 // Bearer required (mutation). Body is ignored (send {}).
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getDb } from '@/lib/db/client';
+import { getDb, getRawSqlite } from '@/lib/db/client';
 import { readAuthBody } from '@/lib/api';
 import { recomputeAllFeatures } from '@/lib/feature-rollup';
+import { reconcileAllFromApproveReports } from '@/lib/claim-reconcile';
 
 export const runtime = 'nodejs';
 
@@ -18,10 +19,19 @@ export async function POST(req: Request) {
   const db = await getDb();
   const all = recomputeAllFeatures(db);
   const derived = all.filter((r) => r.linked_flows > 0);
+
+  // P3-B: also backfill claim reconciliation — every flow with an APPROVE report
+  // reconciles its linked features' unreconciled claims (idempotent).
+  const sqlite = await getRawSqlite();
+  const reconciled = reconcileAllFromApproveReports(sqlite);
+  const claims_reconciled = reconciled.reduce((n, r) => n + r.claims_updated, 0);
+
   return NextResponse.json({
     ok: true,
     features_total: all.length,
     features_with_flows: derived.length,
     results: derived,
+    claims_reconciled,
+    reconciled,
   });
 }

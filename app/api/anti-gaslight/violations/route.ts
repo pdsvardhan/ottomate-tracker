@@ -226,6 +226,128 @@ export async function GET(req: Request) {
     );
   }
 
+  // ── R6 unverified-ship + R7 unreconciled-claim (Phase 3 ship-gate) ────────
+  // Both only fire on projects whose verify_gate != 'off' (the ramp). Severity
+  // follows the ramp: 'block' → HARD (the deploy gate refuses the transition),
+  // 'warn' → SOFT (advisory). Each ITEM also carries its own severity +
+  // project_slug so a whole-site call (no project_slug) stays honest when
+  // projects differ; the rule-level severity is HARD iff any block-project item
+  // is present (so the stage-transition gate, which refuses on any HARD, fires).
+  const r6base = {
+    rule: 'unverified-ship',
+    severity: 'HARD' as const,
+    description:
+      "User-facing (ui/hybrid) features at status='done' on a gated project (verify_gate!='off') that are not verifiable: no registered flow, a linked flow with no linked_playwright_test, or a rolled-up test_status != 'passing'. HARD on a 'block' project (the deploy gate refuses), SOFT on 'warn'.",
+  };
+  const r7base = {
+    rule: 'unreconciled-claim',
+    severity: 'HARD' as const,
+    description:
+      "Features on a gated project (verify_gate!='off') carrying a feature_claims row still reconciled_with='unreconciled' — a 'done' assertion never reconciled against a verifier. HARD on 'block', SOFT on 'warn'. Complements unclaimed-done (R1, which catches done-with-NO-claim).",
+  };
+
+  const hasGateCol = (() => {
+    try {
+      return (sqlite.prepare(`PRAGMA table_info(projects)`).all() as Array<{ name: string }>)
+        .some((c) => c.name === 'verify_gate');
+    } catch {
+      return false;
+    }
+  })();
+
+  if (!hasGateCol) {
+    const note = 'projects.verify_gate column absent — migration 0012 not applied';
+    violations.push(skipped(r6base, note));
+    violations.push(skipped(r7base, note));
+  } else {
+    try {
+      const gateRows = sqlite
+        .prepare(
+          `SELECT slug, COALESCE(verify_gate, 'off') AS gate FROM projects
+           WHERE COALESCE(verify_gate, 'off') != 'off' ${project_slug ? 'AND slug = ?' : ''}`,
+        )
+        .all(...slugParams) as Array<{ slug: string; gate: string }>;
+      const gateOf = new Map(gateRows.map((r) => [r.slug, r.gate]));
+      const sevOf = (slug: string): 'HARD' | 'SOFT' => (gateOf.get(slug) === 'block' ? 'HARD' : 'SOFT');
+
+      if (gateOf.size === 0) {
+        const note = project_slug
+          ? `project '${project_slug}' is not gated (verify_gate='off') — advisory only`
+          : 'no gated projects (all verify_gate=off) — advisory only';
+        violations.push(skipped(r6base, note));
+        violations.push(skipped(r7base, note));
+      } else {
+        const gatedSlugs = [...gateOf.keys()];
+        const ph = gatedSlugs.map(() => '?').join(',');
+
+        // R6 — each done ui/hybrid feature on a gated project, first failing reason.
+        const feats = sqlite
+          .prepare(
+            `SELECT f.id, f.title, f.project_slug, f.test_status,
+                    (SELECT COUNT(*) FROM flow_features ff WHERE ff.feature_id = f.id) AS n_flows,
+                    (SELECT COUNT(*) FROM flow_features ff
+                       JOIN flows fl ON fl.id = ff.flow_id
+                      WHERE ff.feature_id = f.id
+                        AND (fl.linked_playwright_test IS NULL OR fl.linked_playwright_test = '')) AS n_flows_no_test
+             FROM features f
+             WHERE f.status = 'done' AND f.type IN ('ui', 'hybrid')
+               AND f.project_slug IN (${ph})`,
+          )
+          .all(...gatedSlugs) as Array<{
+          id: string; title: string; project_slug: string; test_status: string | null;
+          n_flows: number; n_flows_no_test: number;
+        }>;
+
+        const r6items = feats
+          .map((f) => {
+            const reason =
+              f.n_flows === 0 ? 'no-flow'
+              : f.n_flows_no_test > 0 ? 'no-test'
+              : f.test_status !== 'passing' ? 'not-passing'
+              : null;
+            return reason
+              ? { feature_id: f.id, title: f.title, project_slug: f.project_slug, reason, severity: sevOf(f.project_slug) }
+              : null;
+          })
+          .filter((x): x is NonNullable<typeof x> => x !== null);
+        violations.push({
+          ...r6base,
+          severity: r6items.some((i) => i.severity === 'HARD') ? 'HARD' : 'SOFT',
+          count: r6items.length,
+          items: r6items.slice(0, MAX_ITEMS),
+        });
+
+        // R7 — unreconciled claims on gated projects.
+        if (!hasTable(sqlite, 'feature_claims')) {
+          violations.push(skipped(r7base, 'feature_claims table absent — ledger substrate (0008) not installed'));
+        } else {
+          const r7rows = sqlite
+            .prepare(
+              `SELECT fc.id AS claim_id, fc.feature_id, f.project_slug, f.title AS feature_title,
+                      fc.claimed_at, fc.claimed_by_session, fc.source
+               FROM feature_claims fc
+               JOIN features f ON f.id = fc.feature_id
+               WHERE fc.reconciled_with = 'unreconciled'
+                 AND f.project_slug IN (${ph})
+               ORDER BY fc.claimed_at DESC`,
+            )
+            .all(...gatedSlugs) as Array<{ project_slug: string } & Record<string, unknown>>;
+          const r7items = r7rows.map((r) => ({ ...r, severity: sevOf(r.project_slug) }));
+          violations.push({
+            ...r7base,
+            severity: r7items.some((i) => i.severity === 'HARD') ? 'HARD' : 'SOFT',
+            count: r7items.length,
+            items: r7items.slice(0, MAX_ITEMS),
+          });
+        }
+      }
+    } catch (err) {
+      const note = `rule query failed: ${String(err)}`;
+      violations.push(skipped(r6base, note));
+      violations.push(skipped(r7base, note));
+    }
+  }
+
   return NextResponse.json({
     generated_at: new Date().toISOString(),
     project_slug,

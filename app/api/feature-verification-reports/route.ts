@@ -15,8 +15,9 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { and, desc, eq } from 'drizzle-orm';
-import { getDb, schema } from '@/lib/db/client';
+import { getDb, getRawSqlite, schema } from '@/lib/db/client';
 import { readAuthBody } from '@/lib/api';
+import { reconcileClaimsForFlow } from '@/lib/claim-reconcile';
 
 export const runtime = 'nodejs';
 
@@ -119,5 +120,19 @@ export async function POST(req: Request) {
     .limit(1)
     .get();
 
-  return NextResponse.json({ report: created }, { status: 201 });
+  // P3-B: an APPROVE report is proof the flow passed → auto-reconcile the claim
+  // ledger for every feature linked to this flow (target_id). Keyed on target_id
+  // + APPROVE, never target_kind (reports in practice carry 'stage-3-feature').
+  // Best-effort: a reconcile failure must not fail the (already-persisted) report.
+  let reconciled: Awaited<ReturnType<typeof reconcileClaimsForFlow>> | null = null;
+  if (data.recommendation_overall === 'APPROVE' && created?.id != null) {
+    try {
+      const sqlite = await getRawSqlite();
+      reconciled = reconcileClaimsForFlow(sqlite, data.target_id, created.id as number);
+    } catch (err) {
+      console.error('[ottomate] claim auto-reconcile failed (report persisted):', err);
+    }
+  }
+
+  return NextResponse.json({ report: created, reconciled }, { status: 201 });
 }

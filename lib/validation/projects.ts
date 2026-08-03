@@ -16,6 +16,9 @@ export const lifecyclePhaseEnum = z.enum([
 export const scopeSizeEnum = z.enum(['nano', 'small', 'medium', 'large', 'xl']);
 export const targetDevicesEnum = z.enum(['desktop', 'mobile', 'tablet', 'both']);
 export const hostingTargetEnum = z.enum(['vault7a-docker', 'public-server', 'hybrid']);
+// Phase 3 ship-gate ramp (migration 0012). off = advisory only; warn = SOFT
+// anti-gaslight violations; block = HARD violations the deploy gate refuses on.
+export const verifyGateEnum = z.enum(['off', 'warn', 'block']);
 
 // All four arrays required; pass empty array to clear. DB column type is strict.
 export const PreferencesSchema = z.object({
@@ -43,6 +46,7 @@ export const ProjectCreateSchema = z.object({
   preferences: PreferencesSchema.nullish(),
   tags: z.array(z.string()).nullish(),
   needs_stage_1_catchup: z.boolean().optional(),
+  verify_gate: verifyGateEnum.optional(),
 });
 
 // Slug is immutable; everything else is partial-updatable.

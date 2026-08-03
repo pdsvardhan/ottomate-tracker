@@ -1,0 +1,15 @@
+-- 0012 - P3-0 per-project verify_gate ramp flag (Phase 3 ship-gate, 2026-08-04).
+--
+-- HAND-WRITTEN, hand-journaled (same discipline as 0007-0011). Do NOT run
+-- drizzle-kit generate/migrate: migrations 0002-0006 were hand-applied and never
+-- journaled, so generate() would try to recreate existing DDL.
+--
+-- Additive, nullable-with-constant-default. verify_gate in {off,warn,block}: the
+-- CHECK lives in TypeScript/zod (schema.ts enum + lib/validation/projects.ts),
+-- NOT in SQL — matching the 0011 house rule that enums are TS/zod only. Default
+-- 'off' so every existing AND future project is advisory-only until explicitly
+-- ramped; Phase 3 arms screenroom='block' via PATCH /api/projects after deploy.
+--
+-- Single statement — no breakpoint needed (the Drizzle migrator executes one
+-- statement per call).
+ALTER TABLE `projects` ADD `verify_gate` text DEFAULT 'off';

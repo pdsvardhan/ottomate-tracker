@@ -50,6 +50,13 @@
       "when": 1785160459760,
       "tag": "0011_master_components_provenance",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1785784587217,
+      "tag": "0012_project_verify_gate",
+      "breakpoints": true
     }
   ]
 }

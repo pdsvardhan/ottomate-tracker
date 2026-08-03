@@ -146,6 +146,11 @@ export const projects = sqliteTable('projects', {
   // Added 2026-05-19 (iter-5 C.8 / T6). Single boolean for "is this active or not".
   // Co-exists with lifecycle_phase='deprecated'; backfilled from existing dep rows.
   archived: integer('archived', { mode: 'boolean' }).default(false),
+  // Phase 3 (2026-08-04, migration 0012): per-project ship-gate ramp. 'off' =
+  // advisory only (default, every existing + new project); 'warn' = SOFT
+  // violations; 'block' = HARD violations that the Stage-3→deploy gate refuses
+  // on. The enum CHECK lives in TS/zod only (house style — no SQL CHECK).
+  verify_gate: text('verify_gate', { enum: ['off', 'warn', 'block'] }).default('off'),
   created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
   updated_at: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
