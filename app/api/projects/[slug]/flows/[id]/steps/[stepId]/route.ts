@@ -22,6 +22,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     .where(and(eq(schema.flow_steps.id, stepIdNum), eq(schema.flow_steps.flow_id, id))).get();
   if (!existing) return notFound(`Step ${stepIdNum} not found for flow '${id}'`);
   db.update(schema.flow_steps).set(result.data).where(eq(schema.flow_steps.id, stepIdNum)).run();
+  db.update(schema.flows).set({ updated_at: new Date() }).where(eq(schema.flows.id, id)).run();
   const updated = db.select().from(schema.flow_steps).where(eq(schema.flow_steps.id, stepIdNum)).get();
   return NextResponse.json({ step: updated });
 }
@@ -37,5 +38,6 @@ export async function DELETE(req: Request, { params }: Ctx) {
     .where(and(eq(schema.flow_steps.id, stepIdNum), eq(schema.flow_steps.flow_id, id))).get();
   if (!existing) return notFound(`Step ${stepIdNum} not found for flow '${id}'`);
   db.delete(schema.flow_steps).where(eq(schema.flow_steps.id, stepIdNum)).run();
+  db.update(schema.flows).set({ updated_at: new Date() }).where(eq(schema.flows.id, id)).run();
   return NextResponse.json({ deleted: stepIdNum });
 }

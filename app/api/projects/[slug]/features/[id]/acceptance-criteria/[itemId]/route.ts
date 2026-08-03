@@ -14,7 +14,7 @@ interface Ctx { params: Promise<{ slug: string; id: string; itemId: string }>; }
 export async function PATCH(req: Request, { params }: Ctx) {
   const result = await readAuthBody(req, AcceptanceCriterionPatchSchema);
   if (!result.ok) return result.res;
-  const { itemId } = await params;
+  const { id, itemId } = await params;
   const idNum = parseIntId(itemId);
   if (idNum === null) return badRequest('Invalid itemId');
   const db = await getDb();
@@ -24,6 +24,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (!existing) return notFound(`Acceptance criterion ${idNum} not found`);
   db.update(schema.feature_acceptance_criteria).set(result.data)
     .where(eq(schema.feature_acceptance_criteria.id, idNum)).run();
+  db.update(schema.features).set({ updated_at: new Date() }).where(eq(schema.features.id, id)).run();
   const updated = db.select().from(schema.feature_acceptance_criteria)
     .where(eq(schema.feature_acceptance_criteria.id, idNum)).get();
   return NextResponse.json({ acceptance_criterion: updated });
@@ -32,10 +33,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
 export async function DELETE(req: Request, { params }: Ctx) {
   const authError = requireBearer(req);
   if (authError) return authError;
-  const { itemId } = await params;
+  const { id, itemId } = await params;
   const idNum = parseIntId(itemId);
   if (idNum === null) return badRequest('Invalid itemId');
   const db = await getDb();
   db.delete(schema.feature_acceptance_criteria).where(eq(schema.feature_acceptance_criteria.id, idNum)).run();
+  db.update(schema.features).set({ updated_at: new Date() }).where(eq(schema.features.id, id)).run();
   return NextResponse.json({ deleted: idNum });
 }

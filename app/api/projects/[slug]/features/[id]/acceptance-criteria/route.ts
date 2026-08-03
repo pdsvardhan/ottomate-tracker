@@ -39,5 +39,8 @@ export async function POST(req: Request, { params }: Ctx) {
 
   const inserted = db.insert(schema.feature_acceptance_criteria)
     .values({ ...result.data, feature_id: id }).returning().get();
+  // A feature's spec changed when its ACs change → bump the parent's updated_at
+  // so it reflects the edit (and the D2 doc-gate sees the spec was touched).
+  db.update(schema.features).set({ updated_at: new Date() }).where(eq(schema.features.id, id)).run();
   return NextResponse.json({ acceptance_criterion: inserted }, { status: 201 });
 }

@@ -29,5 +29,8 @@ export async function POST(req: Request, { params }: Ctx) {
   if (!flow) return notFound(`Flow '${id}' not found in '${slug}'`);
 
   const inserted = db.insert(schema.flow_steps).values({ ...result.data, flow_id: id }).returning().get();
+  // A flow's spec changed when its steps change → bump the parent's updated_at
+  // (so the D2 doc-gate sees the spec was touched).
+  db.update(schema.flows).set({ updated_at: new Date() }).where(eq(schema.flows.id, id)).run();
   return NextResponse.json({ step: inserted }, { status: 201 });
 }
