@@ -50,15 +50,24 @@ beforeAll(async () => {
 });
 
 describe('/api/anti-gaslight/violations', () => {
-  it('returns all 5 rules with zero violations on a clean DB', async () => {
+  // Was pinned at the original 5 rules and had been red since the Phase-3 ship-gate and the
+  // R-DOC-* doc-freshness rules landed — the endpoint has served 10 for a while. Asserting the
+  // full set (not just a count) is the point: a rule silently disappearing is exactly the kind
+  // of gap these rules exist to catch, so the list stays exhaustive and updates deliberately.
+  it('returns all 10 rules with zero violations on a clean DB', async () => {
     const json = await getViolations();
-    expect(json.violations).toHaveLength(5);
+    expect(json.violations).toHaveLength(10);
     expect(json.violations.map((v) => v.rule).sort()).toEqual([
+      'dead-capability',
       'missing-acceptance',
       'silent-drops',
+      'stale-spec',
       'stale-verification',
+      'unbacked-pass',
       'unclaimed-done',
+      'unreconciled-claim',
       'untested-deploys',
+      'unverified-ship',
     ]);
     for (const v of json.violations) expect(v.count).toBe(0);
     expect(typeof json.generated_at).toBe('string');

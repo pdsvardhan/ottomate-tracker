@@ -33,12 +33,23 @@ const CaseSchema = z.object({
   judge_verdict: z.unknown().optional(), // advisory AI-judge cell + the evidence it saw
 }).passthrough();
 
+// 2026-08-11: commit_sha was `z.string().optional()`, so rows accumulated in two shapes —
+// 40-hex and 7-char abbreviations — while the deploy gate compared them with `=`. A report
+// stored short could never satisfy a full-sha gate query, which read as "never verified"
+// rather than "format mismatch". Writes are now pinned to the full 40-hex form (a caller
+// always has it: `git rev-parse HEAD`), and the gate resolves prefixes on read.
+const CommitShaSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[0-9a-f]{40}$/, 'commit_sha must be the full 40-hex sha (use `git rev-parse HEAD`)');
+
 const ReportCreateSchema = z.object({
   project_slug: z.string().min(1),
   target_kind: z.enum(['stage-3-feature', 'stage-4-iteration-item', 'flow']).default('stage-3-feature'),
   target_id: z.string().min(1),
   verifier_session_id: z.string().min(1),
-  commit_sha: z.string().optional(),
+  commit_sha: CommitShaSchema.optional(),
   recommendation_overall: z.enum(['APPROVE', 'BLOCK', 'ITERATE']),
   recommendation_reason: z.string().optional(),
   risk_policy: z.enum(['block', 'warn']).optional(),
@@ -78,11 +89,41 @@ export async function POST(req: Request) {
 
   const db = await getDb();
   const proj = db
-    .select({ slug: schema.projects.slug })
+    .select({ slug: schema.projects.slug, verify_gate: schema.projects.verify_gate })
     .from(schema.projects)
     .where(eq(schema.projects.slug, data.project_slug))
     .get();
   if (!proj) return NextResponse.json({ error: `project '${data.project_slug}' not found` }, { status: 404 });
+
+  // ── target_id must name a FLOW (owner ruling, 2026-08-11) ──────────────────────────────
+  // The deploy gate resolves per (feature × linked flow) and matches r.target_id against the
+  // FLOW id. Reports were arriving with three different conventions — flow ids, feature ids
+  // (run-matrix posts `m.feature`) and bare iteration numbers — so most APPROVEs were simply
+  // invisible to the gate while looking perfectly healthy in the table. Keying on the feature
+  // instead was rejected: one APPROVE would then clear a feature whose other flows were never
+  // driven, which is the exact failure the gate exists to catch.
+  //
+  // Enforcement is ramped on verify_gate, matching how the anti-gaslight rules already ramp:
+  // where a gate is live the wrong id is a silent hole, so refuse it; where it is 'off' the
+  // report is a record and refusing would break existing harnesses (mapsofbharat has 46 rows
+  // in the older shapes) — so warn instead and let it through.
+  const gate = proj.verify_gate ?? 'off';
+  let target_warning: string | null = null;
+  if (data.target_kind === 'stage-3-feature' || data.target_kind === 'flow') {
+    const flow = db
+      .select({ id: schema.flows.id })
+      .from(schema.flows)
+      .where(and(eq(schema.flows.id, data.target_id), eq(schema.flows.project_slug, data.project_slug)))
+      .get();
+    if (!flow) {
+      const msg =
+        `target_id '${data.target_id}' is not a flow in '${data.project_slug}'. ` +
+        `target_kind='${data.target_kind}' reports are keyed on the FLOW id — the deploy gate ` +
+        `matches feature_verification_reports.target_id against flows linked to the feature.`;
+      if (gate !== 'off') return NextResponse.json({ error: msg }, { status: 422 });
+      target_warning = msg + ` Accepted because '${data.project_slug}' has verify_gate='off'.`;
+    }
+  }
 
   // Derive headline counts from the matrix (source of truth) so they can't disagree.
   const matrix = data.case_matrix ?? [];
@@ -134,5 +175,8 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({ report: created, reconciled }, { status: 201 });
+  return NextResponse.json(
+    target_warning ? { report: created, reconciled, warning: target_warning } : { report: created, reconciled },
+    { status: 201 },
+  );
 }

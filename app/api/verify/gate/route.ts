@@ -46,6 +46,20 @@ export async function GET(req: Request) {
   if (!project_slug) return NextResponse.json({ error: 'project_slug query param required' }, { status: 400 });
   if (!commit_sha) return NextResponse.json({ error: 'commit_sha query param required' }, { status: 400 });
 
+  // 2026-08-11 — the gate used to compare commit_sha with `=`, so a caller passing a short sha
+  // against full-sha rows (or the reverse) got a clean "no-approve-at-commit" that looked like
+  // missing verification rather than a format mismatch. Stored rows genuinely hold both shapes.
+  // Fix is two-sided: writes are pinned to 40-hex (POST /api/feature-verification-reports) and
+  // reads resolve by prefix. 7 is git's own abbreviation floor; below that a prefix is ambiguous
+  // enough that silently matching would be worse than refusing.
+  const sha = commit_sha.trim().toLowerCase();
+  if (!/^[0-9a-f]{7,40}$/.test(sha)) {
+    return NextResponse.json(
+      { error: `commit_sha must be 7-40 hex chars (got '${commit_sha}')` },
+      { status: 400 },
+    );
+  }
+
   const sqlite = await getRawSqlite();
 
   const proj = sqlite
@@ -58,10 +72,15 @@ export async function GET(req: Request) {
 
   // One row per (done ui/hybrid feature × linked flow); features with no flow
   // still appear once (LEFT JOIN → flow_id NULL).
+  // Prefix-tolerant in BOTH directions: @sha may be the abbreviation of a stored full sha, or a
+  // stored legacy short sha may be the abbreviation of the full @sha the caller passed. The
+  // length guards stop a stray 1-char value from matching everything.
   const approveClause = reportsExist
     ? `NOT EXISTS (SELECT 1 FROM feature_verification_reports r
                     WHERE r.target_id = ff.flow_id
-                      AND r.commit_sha = @sha
+                      AND ( r.commit_sha = @sha
+                            OR (length(@sha) >= 7 AND r.commit_sha LIKE @sha || '%')
+                            OR (length(r.commit_sha) >= 7 AND @sha LIKE r.commit_sha || '%') )
                       AND r.recommendation_overall = 'APPROVE')`
     : `(@sha IS NOT NULL)`; // no reports table → nothing approved (keeps @sha bound)
 
@@ -83,7 +102,7 @@ export async function GET(req: Request) {
        WHERE f.project_slug = @slug AND f.status = 'done' AND f.type IN ('ui', 'hybrid')
        ORDER BY f.id`,
     )
-    .all({ slug: project_slug, sha: commit_sha }) as Array<{
+    .all({ slug: project_slug, sha }) as Array<{
     feature_id: string; feature_title: string; flow_id: string | null;
     no_flow: number; no_test: number; no_approve: number;
   }>;
@@ -104,7 +123,8 @@ export async function GET(req: Request) {
     ok,
     gate,
     project_slug,
-    commit_sha,
+    commit_sha: sha,
+    commit_sha_matching: 'prefix',
     checked_features,
     blocking,
     warnings,
