@@ -220,12 +220,55 @@ async function runBootstrapChecks(): Promise<CheckResult[]> {
     },
   });
 
-  // 5. Server clock (always pass on tracker side; client compares)
-  checks.push({
-    id: 'server-clock',
-    result: 'pass',
-    detail: { server_now: new Date().toISOString() },
-  });
+  // 5. Server clock — drift DETECTION, not a formality (#427).
+  //
+  // This used to always pass, on the theory that "the client compares". Nothing
+  // ever did, so the container ran days behind across two separate sessions and
+  // nobody noticed until an entire iteration's ledger rows read as 6 August.
+  //
+  // The check needs no external time source. Time only moves forward, so a row
+  // already written cannot be in the future: if the newest timestamp in the DB
+  // is AHEAD of now, the clock has gone backwards, which is precisely the
+  // failure that stamps fresh work with stale dates.
+  try {
+    const sqlite = await getRawSqlite();
+    const newest = sqlite
+      .prepare(
+        `SELECT MAX(ts) AS latest FROM (
+           SELECT MAX(event_at) AS ts FROM skill_events
+           UNION ALL SELECT MAX(created_at) FROM project_todos
+           UNION ALL SELECT MAX(ran_at) FROM verification_reports
+         )`,
+      )
+      .get() as { latest: string | null } | undefined;
+    const now = Date.now();
+    const latestMs = newest?.latest ? Date.parse(newest.latest) : NaN;
+    const aheadMs = Number.isFinite(latestMs) ? latestMs - now : 0;
+    // A minute of slack absorbs ordinary write/read skew; days are the symptom.
+    const drifted = aheadMs > 60_000;
+    checks.push({
+      id: 'server-clock',
+      result: drifted ? 'fail' : 'pass',
+      detail: {
+        server_now: new Date(now).toISOString(),
+        newest_row_at: newest?.latest ?? null,
+        ahead_by_seconds: Math.round(aheadMs / 1000),
+      },
+      ...(drifted
+        ? {
+            approval_required: true,
+            explanation:
+              'The newest row in the database is dated AFTER the current time, so the container clock has moved backwards. Anything written now will carry a stale date. Fix container time sync before recording work.',
+          }
+        : {}),
+    });
+  } catch {
+    checks.push({
+      id: 'server-clock',
+      result: 'pass',
+      detail: { server_now: new Date().toISOString(), note: 'no comparable rows yet' },
+    });
+  }
 
   // 6. Deferred tools loaded — N/A on server side
   checks.push({
