@@ -54,7 +54,25 @@ const MAX_ITEMS = 50;
  * count that can never go down. Returns '' when the table is absent so a DB without the
  * migration behaves exactly as before.
  */
+/* #685: both interpolations are now validated at the boundary.
+ *
+ * This function BUILDS A SQL FRAGMENT, so `alias` is a SQL identifier and cannot be a bound
+ * parameter at all — an allowlist pattern is the correct control for it. `rule` is a VALUE and
+ * would ideally be bound, but the fragment is concatenated into queries whose parameter lists are
+ * assembled elsewhere, and silently shifting positional parameters is a worse bug than the one
+ * being fixed. So it is validated to the same shape the rule ids actually take.
+ *
+ * NOT exploitable today — every call site passes a hardcoded literal ('untested-deploys' and its
+ * siblings) and no caller-supplied value reaches here. This closes the SHAPE, before someone
+ * later wires a query param to it and reintroduces the hole in a subsystem whose entire purpose
+ * is being trustworthy. It THROWS rather than sanitising: a rule id that does not match is a
+ * programming error, and quietly rewriting it would hide the mistake. */
+const SQL_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const RULE_ID = /^[a-z][a-z0-9-]*$/;
+
 function writeoffExclusion(sqlite: Database.Database, rule: string, alias: string): string {
+  if (!RULE_ID.test(rule)) throw new Error(`writeoffExclusion: refusing an unsafe rule id '${rule}'`);
+  if (!SQL_IDENT.test(alias)) throw new Error(`writeoffExclusion: refusing an unsafe table alias '${alias}'`);
   if (!hasTable(sqlite, 'violation_writeoffs')) return '';
   return `AND NOT EXISTS (
             SELECT 1 FROM violation_writeoffs w

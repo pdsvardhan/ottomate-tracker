@@ -67,10 +67,27 @@ interface GateIssue {
 function declaredTestState(slug: string, relPath: string): 'ok' | 'missing' | 'unverifiable' {
   const repoRoot = path.resolve('/repos', slug);
   if (!fs.existsSync(repoRoot)) return 'unverifiable';
+
+  /* #679: a declared test must be a FILE.
+   *
+   * Measured on the real /repos mount: `linked_playwright_test: '.'` passed. It resolved to the
+   * repo root, the old `abs !== repoRoot` guard let the root through as "inside its own repo",
+   * and `existsSync` was then trivially true because the repo directory exists. So the gate
+   * proved A PATH EXISTS, which is not the question — the question is whether a test exists.
+   * Any project could satisfy the ship gate with a single dot.
+   *
+   * The repo root is now explicitly refused, and `isFile()` replaces `existsSync` so a directory
+   * anywhere else in the tree ('tests/', 'tests/e2e/') cannot stand in for a test either.
+   * A symlink is followed deliberately — statSync, not lstatSync — because a symlink TO a real
+   * test file is a real test; it is the directory that is not. */
   const abs = path.resolve(repoRoot, relPath);
   // A declared path must stay inside its own repo — '../..' is not a test, it is an escape.
-  if (abs !== repoRoot && !abs.startsWith(repoRoot + path.sep)) return 'missing';
-  return fs.existsSync(abs) ? 'ok' : 'missing';
+  if (!abs.startsWith(repoRoot + path.sep)) return 'missing';
+  try {
+    return fs.statSync(abs).isFile() ? 'ok' : 'missing';
+  } catch {
+    return 'missing';
+  }
 }
 
 export async function GET(req: Request) {
