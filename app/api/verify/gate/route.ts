@@ -184,6 +184,33 @@ export async function GET(req: Request) {
   const warnings = gate === 'block' ? [] : issues;
   const ok = gate === 'block' ? blocking.length === 0 : true;
 
+  /* #682: 'unverifiable' USED TO BE INVISIBLE.
+   *
+   * The issue loop only reacts to `stateOf(...) === 'missing'`, so an 'unverifiable' path fell
+   * silently through to the next branch. If /repos stopped resolving — an unmounted volume, a
+   * renamed directory, a compose change — EVERY declared test returned 'unverifiable', not one
+   * test-missing issue was raised, and the response was byte-indistinguishable from a run where
+   * every test was found. A check that cannot tell you it stopped checking is a check a rebuild
+   * can silently retire.
+   *
+   * Not promoted to a blocker: that is the documented design (see declaredTestState — a gate that
+   * cries wolf about its whole input teaches people to ignore it). But "I could not look" must
+   * never be spelled the same way as "I looked and it was fine", so it is now COUNTED, NAMED, and
+   * called out in the note. `repo_mounted` separates the two causes that matter: the whole repo
+   * being unreachable, versus individual paths being odd. */
+  const unverifiable = [...testState.entries()].filter(([, st]) => st === 'unverifiable').map(([rel]) => rel);
+  const repo_mounted = fs.existsSync(path.resolve('/repos', project_slug));
+  const notes = [
+    gate === 'off'
+      ? "verify_gate='off' — advisory only, never blocks (arm with PATCH /api/projects/<slug> {verify_gate:'warn'|'block'})"
+      : null,
+    unverifiable.length > 0
+      ? `WARNING: ${unverifiable.length} declared test path(s) could NOT be checked`
+        + (repo_mounted ? '' : ` because the repo is not readable at /repos/${project_slug}`)
+        + ' — this is NOT evidence that those tests exist.'
+      : null,
+  ].filter(Boolean);
+
   return NextResponse.json({
     ok,
     gate,
@@ -193,10 +220,10 @@ export async function GET(req: Request) {
     checked_features,
     blocking,
     warnings,
+    repo_mounted,
+    tests_unverifiable: unverifiable.length,
+    tests_unverifiable_paths: unverifiable.slice(0, 20),
     generated_at: new Date().toISOString(),
-    note:
-      gate === 'off'
-        ? "verify_gate='off' — advisory only, never blocks (arm with PATCH /api/projects/<slug> {verify_gate:'warn'|'block'})"
-        : undefined,
+    note: notes.length ? notes.join(' · ') : undefined,
   });
 }
