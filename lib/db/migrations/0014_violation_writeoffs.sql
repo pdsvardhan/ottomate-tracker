@@ -30,6 +30,6 @@ CREATE TABLE IF NOT EXISTS violation_writeoffs (
   written_off_by TEXT,
   UNIQUE (rule, project_slug, item_id)
 );
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_violation_writeoffs_lookup
   ON violation_writeoffs (rule, project_slug);
