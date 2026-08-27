@@ -11,6 +11,10 @@
 // For each user-facing (ui/hybrid) feature at status='done' in the project:
 //   - no linked flow                         → 'no-flow'
 //   - a linked flow with no linked_playwright_test → 'no-test'
+//   - a linked_playwright_test that does not EXIST in the repo → 'test-missing'
+//     (added 2026-08-27, Plan B item B3: the gate accepted any non-empty string as proof of a
+//     test and never looked. flow-music-upload declared a path belonging to a different
+//     project's checkout and scored as tested. See declaredTestState below.)
 //   - a linked+tested flow with no APPROVE feature_verification_reports row at
 //     commit_sha == <sha>                    → 'no-approve-at-commit'
 // Keyed on target_id + APPROVE + commit_sha (never target_kind: reports in
@@ -20,6 +24,8 @@
 // gate='warn' → issues are `warnings`, ok=true (advisory); gate='off' → issues
 // are `warnings`, ok=true (advisory only).
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { NextResponse } from 'next/server';
 import type Database from 'better-sqlite3';
 import { getRawSqlite } from '@/lib/db/client';
@@ -36,7 +42,35 @@ interface GateIssue {
   feature_id: string;
   feature_title: string;
   flow_id: string | null;
-  reason: 'no-flow' | 'no-test' | 'no-approve-at-commit';
+  reason: 'no-flow' | 'no-test' | 'test-missing' | 'no-approve-at-commit';
+  /** Only on 'test-missing': the path that was declared but does not exist. */
+  declared_test?: string;
+}
+
+/**
+ * Does a flow's declared Playwright test actually EXIST?
+ *
+ * The gate used to accept any non-empty string as proof a flow was tested, and never looked.
+ * Measured 2026-08-27: `flow-music-upload` declared
+ * `skills/ottomate/scripts/feature-verify/sandboxes/screenroom-music/music-upload.verify.mjs`,
+ * a path that is not in the screenroom repo at all — the only copies on the box belong to a
+ * different project's checkout — and the gate scored that flow as tested. It backs success
+ * criterion 105. A check that cannot fail is not a check.
+ *
+ * Project repos are mounted read-only at /repos (docker-compose: /mnt/storage/websites:/repos:ro).
+ *
+ * Returns 'ok' | 'missing' | 'unverifiable'. **'unverifiable' is deliberately NOT 'missing'**:
+ * if the repo is not mounted (a dev box, a changed mount) every flow would otherwise report a
+ * missing test at once, and a gate that cries wolf on its whole input teaches people to ignore
+ * it. We only assert absence when we can see the repo and the file is genuinely not in it.
+ */
+function declaredTestState(slug: string, relPath: string): 'ok' | 'missing' | 'unverifiable' {
+  const repoRoot = path.resolve('/repos', slug);
+  if (!fs.existsSync(repoRoot)) return 'unverifiable';
+  const abs = path.resolve(repoRoot, relPath);
+  // A declared path must stay inside its own repo — '../..' is not a test, it is an escape.
+  if (abs !== repoRoot && !abs.startsWith(repoRoot + path.sep)) return 'missing';
+  return fs.existsSync(abs) ? 'ok' : 'missing';
 }
 
 export async function GET(req: Request) {
@@ -103,14 +137,28 @@ export async function GET(req: Request) {
        ORDER BY f.id`,
     )
     .all({ slug: project_slug, sha }) as Array<{
-    feature_id: string; feature_title: string; flow_id: string | null;
+    feature_id: string; feature_title: string; flow_id: string | null; test: string | null;
     no_flow: number; no_test: number; no_approve: number;
   }>;
+
+  // Cache per declared path — several features share one flow, so the same file would
+  // otherwise be stat'd once per feature.
+  const testState = new Map<string, 'ok' | 'missing' | 'unverifiable'>();
+  const stateOf = (rel: string): 'ok' | 'missing' | 'unverifiable' => {
+    let s = testState.get(rel);
+    if (s === undefined) { s = declaredTestState(project_slug, rel); testState.set(rel, s); }
+    return s;
+  };
 
   const issues: GateIssue[] = [];
   for (const r of rows) {
     if (r.no_flow) issues.push({ feature_id: r.feature_id, feature_title: r.feature_title, flow_id: null, reason: 'no-flow' });
     else if (r.no_test) issues.push({ feature_id: r.feature_id, feature_title: r.feature_title, flow_id: r.flow_id, reason: 'no-test' });
+    else if (r.test && stateOf(r.test) === 'missing')
+      issues.push({
+        feature_id: r.feature_id, feature_title: r.feature_title, flow_id: r.flow_id,
+        reason: 'test-missing', declared_test: r.test,
+      });
     else if (r.no_approve) issues.push({ feature_id: r.feature_id, feature_title: r.feature_title, flow_id: r.flow_id, reason: 'no-approve-at-commit' });
   }
 

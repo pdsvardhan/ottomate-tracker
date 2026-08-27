@@ -40,6 +40,29 @@ export const runtime = 'nodejs';
 
 const MAX_ITEMS = 50;
 
+/**
+ * Exclude items the owner has DELIBERATELY written off, with a reason and an ADR (B4, 2026-08-27).
+ *
+ * A violation can be true, understood and accepted. adr-048 did exactly that for three July
+ * deploys and recorded the consequence: there was no "written off with a reason" state, so the
+ * only ways to clear R5 were to fabricate test runs or destroy deploy history — "both are worse
+ * than a red mark". The violation therefore stayed red permanently, and a permanent red teaches
+ * people to stop reading red, which is the failure this whole subsystem exists to prevent.
+ *
+ * Written-off rows are NOT deleted and NOT hidden: they are reported separately (see
+ * `written_off` on the response) with their reason and ADR. This only stops them inflating a
+ * count that can never go down. Returns '' when the table is absent so a DB without the
+ * migration behaves exactly as before.
+ */
+function writeoffExclusion(sqlite: Database.Database, rule: string, alias: string): string {
+  if (!hasTable(sqlite, 'violation_writeoffs')) return '';
+  return `AND NOT EXISTS (
+            SELECT 1 FROM violation_writeoffs w
+            WHERE w.rule = '${rule}'
+              AND w.project_slug = ${alias}.project_slug
+              AND w.item_id = CAST(${alias}.id AS TEXT))`;
+}
+
 interface RuleResult {
   rule: string;
   severity: 'HARD' | 'SOFT';
@@ -218,6 +241,7 @@ export async function GET(req: Request) {
            WHERE tr.project_slug = da.project_slug
              AND julianday(da.deployed_at) - julianday(tr.started_at) BETWEEN 0 AND 1
          )
+         ${writeoffExclusion(sqlite, 'untested-deploys', 'da')}
          ${project_slug ? 'AND da.project_slug = ?' : ''}`,
         `da.id, da.project_slug, da.commit_sha, da.deploy_url, da.deployed_at`,
         'ORDER BY da.deployed_at DESC',
@@ -491,9 +515,24 @@ export async function GET(req: Request) {
     }
   }
 
+  // Written-off items travel WITH the report, never instead of it — the point is that an accepted
+  // violation stays visible and stops inflating a count, not that it disappears.
+  let written_off: unknown[] = [];
+  if (hasTable(sqlite, 'violation_writeoffs')) {
+    written_off = sqlite
+      .prepare(
+        `SELECT rule, project_slug, item_id, reason, adr_id, written_off_at, written_off_by
+         FROM violation_writeoffs
+         ${project_slug ? 'WHERE project_slug = ?' : ''}
+         ORDER BY written_off_at DESC`,
+      )
+      .all(...(project_slug ? [project_slug] : []));
+  }
+
   return NextResponse.json({
     generated_at: new Date().toISOString(),
     project_slug,
     violations,
+    written_off,
   });
 }

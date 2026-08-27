@@ -15,6 +15,19 @@ export const RiskInstanceCreateSchema = z.object({
 });
 export const RiskInstancePatchSchema = RiskInstanceCreateSchema.partial().extend({
   sunset_date: z.coerce.date().nullish(),
+  // ── correcting a resolution (B4, 2026-08-27) ────────────────────────────────────────────
+  // A risk could be resolved but never CORRECTED: /resolve 409s once status='resolved', and
+  // PATCH accepted neither field below. Screenroom risk 94 was closed on a date when nothing
+  // had been fixed — the real fix landed six days later — and the only place the correction
+  // could be written was the free-text `notes`, where no reader would look for it.
+  //
+  // Correction carries MORE friction than the original claim, the same way unlocking a design
+  // decision costs more than locking one (G3 rule 13): changing either field on an
+  // already-resolved risk REQUIRES correction_reason, and the previous values are preserved in
+  // notes rather than overwritten. A record you can silently rewrite is not a record.
+  resolution_summary: z.string().min(1).max(2000).optional(),
+  resolved_at: z.coerce.date().nullish(),
+  correction_reason: z.string().min(1).max(1000).optional(),
 });
 
 // Resolve action — sets status='resolved' + resolved_at + resolution_summary
