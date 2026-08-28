@@ -9,7 +9,7 @@ import { AcceptanceCriterionCreateSchema } from '@/lib/validation/features';
 
 export const runtime = 'nodejs';
 
-const MAX_PER_FEATURE = 5;
+const MAX_PER_FEATURE = 10;
 
 interface Ctx { params: Promise<{ slug: string; id: string }>; }
 
