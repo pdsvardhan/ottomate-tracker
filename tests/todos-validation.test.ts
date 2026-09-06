@@ -1,6 +1,6 @@
-// lib/validation/todos.test.ts — the done<->state / blocked_on rules (ottomate #774).
+// tests/todos-validation.test.ts — the done<->state / blocked_on rules (ottomate #774).
 import { describe, expect, it } from 'vitest';
-import { normalizeTodoWrite, todoCounts, TodoPatchSchema } from './todos';
+import { normalizeTodoWrite, todoCounts, TodoPatchSchema } from '../lib/validation/todos';
 
 describe('normalizeTodoWrite', () => {
   it('state drives done', () => {
@@ -43,5 +43,23 @@ describe('todoCounts', () => {
     expect(c.owner_queue).toBe(1);
     expect(c.kind.misc).toBe(2);
     expect(c.priority.P1).toBe(1);
+  });
+});
+
+describe('normalizeTodoWrite — edge cases the verifier asked for', () => {
+  it('state:blocked keeps an existing blocked_on', () => {
+    expect(normalizeTodoWrite({ state: 'blocked' }, { state: 'open', blocked_on: 'owner' })).not.toHaveProperty('blocked_on');
+    expect(normalizeTodoWrite({ state: 'blocked' }, { state: 'open', blocked_on: 'owner' })).not.toHaveProperty('blocked_on', 'other');
+  });
+  it('blocked_on sent while the row stays open is cleared (only meaningful while blocked)', () => {
+    expect(normalizeTodoWrite({ blocked_on: 'owner' }, { state: 'open' })).toMatchObject({ blocked_on: null });
+  });
+  it('done:false on a blocked row stays blocked with its blocked_on', () => {
+    const out = normalizeTodoWrite({ done: false }, { state: 'blocked', blocked_on: 'owner' });
+    expect(out).toMatchObject({ state: 'blocked', done: false });
+    expect(out).not.toHaveProperty('blocked_on');
+  });
+  it('an explicit blocked_on:null while blocked falls back to other, never null', () => {
+    expect(normalizeTodoWrite({ state: 'blocked', blocked_on: null }, { state: 'blocked', blocked_on: 'owner' })).toMatchObject({ blocked_on: 'other' });
   });
 });

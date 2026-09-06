@@ -7,7 +7,7 @@
 // is the drift signal, so it must not be guessed empty. Unmapped leading [tags] are preserved in body.
 // Writes go through the API (ONE DOOR, adr-018). Idempotent: a row is only PATCHed with fields that change.
 //
-// Usage: node scripts/backfill-todo-model.mjs [--dry-run] [--project <slug>] [--base http://127.0.0.1:8110]
+// Usage: node scripts/backfill-todo-model.mjs [--dry-run] [--force] [--project <slug>] [--base http://127.0.0.1:8110]
 import fs from 'node:fs/promises';
 
 const args = process.argv.slice(2);
@@ -15,6 +15,7 @@ const DRY = args.includes('--dry-run');
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const BASE = opt('--base', 'http://127.0.0.1:8110');
 const ONLY = opt('--project', null);
+const FORCE = args.includes('--force');   // re-derive even fields a session has already set
 const TOKEN = process.env.OTTOMATE_TOKEN || (await fs.readFile('/opt/homeserver/ottomate/.token', 'utf8')).trim();
 const H = { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` };
 
@@ -29,7 +30,7 @@ const KIND_TEXT = [
   [/\b(bug|regression|broken|crash|fails? silently|wrong|false positive)\b/i, 'bug'],
   [/\b(research|investigate|decide|open question|proposal|design a)\b/i, 'research'],
   [/\b(backfill|consolidate|cron|rotate|scrub|cleanup|housekeeping|docs?|inventory|regenerate|sync)\b/i, 'chore'],
-  [/\b(add|implement|build|ship|support|new)\b/i, 'feature'],
+  [/\b(add|implement|support)\b/i, 'feature'],
 ];
 
 function derive(t) {
@@ -41,7 +42,7 @@ function derive(t) {
   // ---- state ----
   if (t.done) out.state = 'done';
   else if (/\[fixed, awaiting rebuild\]|awaiting rebuild|\bbuilt\b.*\bneeds? (test|verif)/i.test(head)) out.state = 'built';
-  else if (/\b(owner-deferred|owner call|OWNER:|needs one owner look|blocked on (the )?owner|owner (question|decision)s? (open|pending))\b/i.test(title)) { out.state = 'blocked'; out.blocked_on = 'owner'; }
+  else if (/\bOWNER:|\[OWNER ACTION\]|\bOWNER (PARTS|DROP)\b|owner to eyeball|\b(owner-deferred|owner call|needs one owner look|blocked on (the )?owner|owner (question|decision)s? (open|pending))\b/i.test(title)) { out.state = 'blocked'; out.blocked_on = 'owner'; }
   else if (/\[BLOCKED|\bblocked by\b/i.test(head)) { out.state = 'blocked'; out.blocked_on = /\bowner\b/i.test(head) ? 'owner' : 'dependency'; }
   else if (/\[(PARKED|DEFERRED)|\bparked\b|deferred on purpose|- LATER\]|\bLATER\b|next batch|do after the/i.test(head)) out.state = 'parked';
   else if (/\bin[- ]progress\b|\bstarted\b/i.test(head)) out.state = 'in-progress';
@@ -84,6 +85,12 @@ for (const slug of slugs) {
     const patch = {};
     for (const [k, v] of Object.entries(d)) {
       const cur = t[k];
+      // one-run guard: never overwrite something a session set on purpose (state past open, a real kind, any
+      // priority/origin/blocked_by/body) unless --force. Makes a second run a no-op instead of a rollback.
+      if (!FORCE) {
+        const atDefault = k === 'state' ? (cur == null || cur === 'open') : k === 'kind' ? (cur == null || cur === 'misc') : cur == null;
+        if (!atDefault) continue;
+      }
       const same = Array.isArray(v) ? JSON.stringify(cur ?? null) === JSON.stringify(v) : (cur ?? null) === v;
       if (!same) patch[k] = v;
     }

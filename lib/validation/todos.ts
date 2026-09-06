@@ -97,7 +97,7 @@ export function normalizeTodoWrite(input: TodoWrite, existing?: TodoLike | null)
   }
   const finalState = (state ?? (existing?.state as TodoState | undefined) ?? 'open') as TodoState;
   if (finalState === 'blocked') {
-    if (!input.blocked_on && !existing?.blocked_on) out.blocked_on = 'other';
+    if (input.blocked_on === null || (!input.blocked_on && !existing?.blocked_on)) out.blocked_on = 'other';
   } else if (input.blocked_on != null || existing?.blocked_on) {
     out.blocked_on = null;
   }
