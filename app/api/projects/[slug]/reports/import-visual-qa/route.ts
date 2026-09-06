@@ -23,7 +23,7 @@ export async function POST(req: Request, { params }: Ctx) {
   // #333: log EVERY push attempt, refused ones included - "zero import-visual-qa hits" must mean no
   // request arrived, not that one was silently turned away.
   const { slug: slugForLog } = await params;
-  console.log(`[import-visual-qa] slug=${slugForLog} auth=${result.ok ? 'ok' : 'refused'}`);
+  console.log(`[import-visual-qa] slug=${slugForLog} outcome=${result.ok ? 'ok' : result.res.status}`);
   if (!result.ok) return result.res;
   const { slug } = await params;
   const { imported_by_session, comments } = result.data;

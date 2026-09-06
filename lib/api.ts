@@ -55,7 +55,7 @@ export async function readAuthBody<T>(
   // get a 200 with the value silently discarded. Report those keys so a route can echo them back.
   const ignored =
     body && typeof body === 'object' && !Array.isArray(body) && schema instanceof z.ZodObject
-      ? Object.keys(body as Record<string, unknown>).filter((k) => !(k in (schema as z.ZodObject<z.ZodRawShape>).shape))
+      ? Object.keys(body as Record<string, unknown>).filter((k) => !Object.hasOwn((schema as z.ZodObject<z.ZodRawShape>).shape, k))
       : [];
   return { ok: true, data: parsed.data, ignored };
 }
