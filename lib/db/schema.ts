@@ -965,6 +965,16 @@ export const project_todos = sqliteTable('project_todos', {
   title: text('title').notNull(),
   done: integer('done', { mode: 'boolean' }).default(false),
   sort_order: integer('sort_order').default(0),
+  // #774/#530 (2026-09-07): the to-do model. Enums mirror lib/validation/todos.ts; every one has a
+  // misc/other bucket and the list endpoint counts them (a filling bucket = a missing category).
+  body: text('body'),
+  state: text('state', { enum: ['open', 'ready', 'in-progress', 'built', 'blocked', 'parked', 'done'] }).notNull().default('open'),
+  kind: text('kind', { enum: ['bug', 'feature', 'chore', 'research', 'process', 'misc'] }).notNull().default('misc'),
+  blocked_on: text('blocked_on', { enum: ['owner', 'dependency', 'external', 'other'] }),
+  priority: text('priority', { enum: ['P0', 'P1', 'P2'] }),
+  origin: text('origin'),
+  blocked_by: text('blocked_by', { mode: 'json' }).$type<number[]>(),
+  last_verified_at: integer('last_verified_at', { mode: 'timestamp' }),
   created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
   updated_at: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
