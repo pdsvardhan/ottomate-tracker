@@ -35,6 +35,18 @@ export async function POST(req: Request, { params }: Ctx) {
       cancelled_from_status: iteration.status,
     },
   }).where(eq(schema.iterations.id, idNum)).run();
+  // #724: a cancelled iteration is frozen, so any item still open could never be closed (item PATCH 409s
+  // by design). Close them here with the cancel reason - drop-with-reason (bedrock rule 7), never a silent loss.
+  const closed = ['verified', 'rejected', 'integrated', 'deferred'];
+  const stranded = db.select().from(schema.iteration_items)
+    .where(eq(schema.iteration_items.iteration_id, idNum)).all()
+    .filter((i) => !closed.includes(i.status ?? ''));
+  for (const it of stranded) {
+    const stamp = `[deferred] iteration ${idNum} cancelled: ${result.data.reason}`;
+    db.update(schema.iteration_items)
+      .set({ status: 'deferred', notes: it.notes ? `${it.notes}\n${stamp}` : stamp })
+      .where(eq(schema.iteration_items.id, it.id)).run();
+  }
   const updated = db.select().from(schema.iterations).where(eq(schema.iterations.id, idNum)).get();
-  return NextResponse.json({ iteration: updated });
+  return NextResponse.json({ iteration: updated, auto_deferred: stranded.map((i) => i.id) });
 }

@@ -217,6 +217,7 @@ export async function GET(req: Request) {
          GROUP BY target_id
        ) v ON v.target_id = f.id
        WHERE f.updated_at > v.last_ran_at
+         AND f.status <> 'dropped'
          ${project_slug ? 'AND f.project_slug = ?' : ''}`,
       `f.id, f.title, f.project_slug,
        datetime(f.updated_at, 'unixepoch') AS last_edited_at,

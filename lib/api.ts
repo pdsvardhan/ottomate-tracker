@@ -1,12 +1,12 @@
 // Shared route helpers — auth + JSON parse + zod validation in one shot.
 
 import { NextResponse } from 'next/server';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { requireBearer } from './auth';
 import { scanDeletedDbFds } from './db/client';
 
 export type AuthBodyResult<T> =
-  | { ok: true; data: T }
+  | { ok: true; data: T; ignored?: string[] }
   | { ok: false; res: NextResponse };
 
 export async function readAuthBody<T>(
@@ -51,7 +51,13 @@ export async function readAuthBody<T>(
     };
   }
 
-  return { ok: true, data: parsed.data };
+  // #688: zod strips keys the schema does not know, so a caller sending a field the DB lacks used to
+  // get a 200 with the value silently discarded. Report those keys so a route can echo them back.
+  const ignored =
+    body && typeof body === 'object' && !Array.isArray(body) && schema instanceof z.ZodObject
+      ? Object.keys(body as Record<string, unknown>).filter((k) => !(k in (schema as z.ZodObject<z.ZodRawShape>).shape))
+      : [];
+  return { ok: true, data: parsed.data, ignored };
 }
 
 export function notFound(label = 'Not found'): NextResponse {

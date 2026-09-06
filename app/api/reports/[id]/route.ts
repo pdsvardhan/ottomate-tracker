@@ -11,7 +11,7 @@ import { NextResponse } from 'next/server';
 import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { getDb, schema } from '@/lib/db/client';
-import { notFound, readAuthBody, parseIntId } from '@/lib/api';
+import { badRequest, notFound, readAuthBody, parseIntId } from '@/lib/api';
 
 export const runtime = 'nodejs';
 
@@ -58,4 +58,27 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   }
 
   return NextResponse.json({ deleted: idNum, source: report.source });
+}
+
+// PATCH - #773: /api/inbox was GET-only, so a fully actioned visual-QA report stayed "pending" forever
+// with nothing distinguishing it from an untouched one. Same shape as PATCH /api/todos/[id].
+const PatchBody = z.object({
+  status: z.enum(['pending', 'classified', 'failed', 'ignored']),
+  classified_by_session: z.string().max(120).optional(),
+});
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const result = await readAuthBody(req, PatchBody);
+  if (!result.ok) return result.res;
+  const { id } = await params;
+  const idNum = parseIntId(id);
+  if (idNum === null) return badRequest('Invalid id');
+  const db = await getDb();
+  const report = db.select().from(schema.reports).where(eq(schema.reports.id, idNum)).get();
+  if (!report) return notFound(`Report ${idNum} not found`);
+  const updates: Partial<typeof schema.reports.$inferInsert> = { status: result.data.status };
+  if (result.data.status === 'classified' && !report.classified_at) updates.classified_at = new Date();
+  if (result.data.classified_by_session) updates.classified_by_session = result.data.classified_by_session;
+  db.update(schema.reports).set(updates).where(eq(schema.reports.id, idNum)).run();
+  const updated = db.select().from(schema.reports).where(eq(schema.reports.id, idNum)).get();
+  return NextResponse.json({ report: updated });
 }

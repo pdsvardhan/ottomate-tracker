@@ -52,7 +52,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const updates = { ...result.data, updated_at: new Date() };
   db.update(schema.features).set(updates).where(eq(schema.features.id, id)).run();
   const updated = db.select().from(schema.features).where(eq(schema.features.id, id)).get();
-  return NextResponse.json({ feature: updated });
+  // #688: a dropped field is reported, never hidden - the caller can tell a stored write from a discarded one.
+  return NextResponse.json(
+    result.ignored?.length
+      ? { feature: updated, ignored: result.ignored, warning: 'unknown fields were not stored' }
+      : { feature: updated },
+  );
 }
 
 export async function DELETE(req: Request, { params }: Ctx) {
