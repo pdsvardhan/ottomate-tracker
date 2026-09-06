@@ -22,11 +22,9 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  try {
-    requireBearer(req);
-  } catch (e) {
-    return e as Response;
-  }
+  // requireBearer RETURNS the rejection response (or null); it does not throw.
+  const auth = requireBearer(req);
+  if (auth) return auth;
 
   const { slug } = await params;
 
@@ -80,6 +78,97 @@ export async function POST(
   const inserted = await db.select().from(intent_drafts).where(eq(intent_drafts.project_slug, slug)).limit(1);
 
   return NextResponse.json({ intent_draft: inserted[0] }, { status: 201 });
+}
+
+// ============================================================================
+// PATCH — Stage 0 sketch write-back (todo #225)
+// ============================================================================
+// core_idea_raw stays immutable (the audit's rule, enforced by POST); everything a Stage 0 pass
+// DERIVES from it is written here. Without this, sketches had nowhere to live in the DB and ND1
+// could only be finalized on disk — leaving the 0->1 gate unsatisfiable (adr-014).
+//
+// Every field is optional and only supplied keys are written, so a pass that produces only flows
+// cannot blank the features another pass already stored.
+const PatchBody = z.object({
+  session_id: z.string().min(1),
+  core_idea_refined: z.string().min(1).nullish(),
+  extracted_hints: z.unknown().nullish(),
+  features_sketch: z.array(z.unknown()).nullish(),
+  flows_sketch: z.array(z.unknown()).nullish(),
+  risk_concerns_initial: z.array(z.unknown()).nullish(),
+  dropped_hallucinations: z.array(z.unknown()).nullish(),
+  status: z.enum(['captured', 'hints-extracted', 'sketched', 'finalized']).nullish(),
+});
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ slug: string }> },
+) {
+  // requireBearer RETURNS the rejection response (or null); it does not throw.
+  const auth = requireBearer(req);
+  if (auth) return auth;
+
+  const { slug } = await params;
+
+  let body: z.infer<typeof PatchBody>;
+  try {
+    body = PatchBody.parse(await req.json());
+  } catch (err) {
+    return NextResponse.json(
+      { error: 'validation', details: err instanceof z.ZodError ? err.flatten() : String(err) },
+      { status: 400 },
+    );
+  }
+
+  const db = await getDb();
+  const existing = await db.select().from(intent_drafts).where(eq(intent_drafts.project_slug, slug)).limit(1);
+  if (existing.length === 0) {
+    return NextResponse.json(
+      { error: 'not-found', details: { resource: 'intent_draft', slug, hint: 'POST the intent dump first' } },
+      { status: 404 },
+    );
+  }
+
+  const now = new Date().toISOString();
+  const updates: Record<string, unknown> = { updated_at: now };
+
+  if (body.core_idea_refined !== undefined && body.core_idea_refined !== null) {
+    updates.core_idea_refined = body.core_idea_refined;
+    updates.core_idea_refined_at = now;
+    updates.core_idea_refined_session_id = body.session_id;
+  }
+  if (body.extracted_hints !== undefined && body.extracted_hints !== null) {
+    updates.extracted_hints = JSON.stringify(body.extracted_hints);
+    updates.hints_extracted_at = now;
+    updates.hints_session_id = body.session_id;
+  }
+
+  // The three sketch arrays share one timestamp: they are produced by the same Stage 0 pass.
+  let touchedSketches = false;
+  for (const key of ['features_sketch', 'flows_sketch', 'risk_concerns_initial'] as const) {
+    const value = body[key];
+    if (value !== undefined && value !== null) {
+      updates[key] = JSON.stringify(value);
+      touchedSketches = true;
+    }
+  }
+  if (touchedSketches) updates.sketches_generated_at = now;
+
+  if (body.dropped_hallucinations !== undefined && body.dropped_hallucinations !== null) {
+    updates.dropped_hallucinations = JSON.stringify(body.dropped_hallucinations);
+  }
+  if (body.status) updates.status = body.status;
+
+  if (Object.keys(updates).length === 1) {
+    return NextResponse.json(
+      { error: 'validation', details: { reason: 'no writable field supplied' } },
+      { status: 400 },
+    );
+  }
+
+  await db.update(intent_drafts).set(updates).where(eq(intent_drafts.project_slug, slug));
+  const updated = await db.select().from(intent_drafts).where(eq(intent_drafts.project_slug, slug)).limit(1);
+  return NextResponse.json({ intent_draft: updated[0], written: Object.keys(updates).filter((k) => k !== 'updated_at') });
 }
 
 // ============================================================================
