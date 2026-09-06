@@ -1,6 +1,6 @@
 # API inventory (generated)
 
-> Generated 2026-09-07T03:37:54+05:30 by `scripts/generate-api-inventory.sh` from route code.
+> Generated 2026-09-07T04:23:31+05:30 by `scripts/generate-api-inventory.sh` from route code.
 > Path/method/auth existence here outranks any prose doc. Do not hand-edit.
 
 | route | methods | bearer-auth |
@@ -124,7 +124,7 @@
 | `/api/skill-events` | POST GET | yes |
 | `/api/test-runs/[id]` | DELETE | yes |
 | `/api/test-runs` | GET POST | yes |
-| `/api/todos/[id]` | PATCH DELETE | yes |
+| `/api/todos/[id]` | GET PATCH DELETE | yes |
 | `/api/verification-reports` | GET POST | yes |
 | `/api/verify/[id]` | GET | no |
 | `/api/verify/gate` | GET | no |
