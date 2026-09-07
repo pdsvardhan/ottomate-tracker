@@ -130,11 +130,14 @@ Full schema in `lib/db/schema.ts`. ~60 tables across:
 
 ## Ongoing work
 
-Tracked as per-project to-dos in the app itself (`/api/projects/ottomate/todos`), not a static
-file. The pipeline is iterated on through its own Stage-4 loop.
+Tracked as per-project to-dos in the app itself (`/api/projects/ottomate/todos` — state / kind / owner queue), not a static
+file; the generated [FEATURES.md](FEATURES.md) is the reference, the showcase progress page the status view. The pipeline is iterated on through its own Stage-4 loop.
 
 ## Related
 
 - Skill plugin: `~/.claude/plugins/ottomate/` — Gitea `pdsv/ottomate` (the system's brain).
 - This app: Gitea `pdsv/ottomate-tracker-v3`.
-- Tasks-dashboard (separate, intentionally not merged — adr): `/mnt/storage/websites/tasks/`.
+- Architecture: [ARCHITECTURE.md](ARCHITECTURE.md) · generated reference: [FEATURES.md](FEATURES.md) · decisions:
+  [decisions/](decisions/) · narrative: [public_docs/](public_docs/) · coding rules: [CODING_GUIDELINES.md](CODING_GUIDELINES.md).
+- Retired hand-written status docs (April–June 2026): `_legacy/docs-retired-2026-09-07/` — see
+  [adr-024](decisions/adr-024-docs-to-the-standard.md). The tasks-dashboard repo was removed from Gitea on 2026-07-07.

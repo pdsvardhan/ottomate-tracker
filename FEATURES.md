@@ -1,0 +1,176 @@
+<!-- generated from registry @ be39ec4 on 2026-09-07 — DO NOT EDIT; edit the registry via the Ottomate API. R-DOC-1. -->
+# ottomate — Features & Flows (generated reference)
+
+> Generated from the Ottomate registry (the single source of truth). To change anything here, edit the feature/flow/acceptance-criteria in the tracker, then re-run `scripts/generation/gen-reference-docs.mjs --project ottomate`.
+
+## Features
+
+### done (18)
+
+- **ADR tracking with diagram anchoring** `feat-adr-tracking` — _ui_, test: `not-tested`
+  - Decision records keyed by anchored_to (process / topology / data / ux / api / NULL). Cards pair with the diagram they shaped on the Architecture tab.
+- **Anti-gaslighting bedrock (R1)** `feat-anti-gaslighting` — _n/a_, test: `not-tested`
+  - Lock-in gate at 4.3 + verifier sub-agent + trace report — the highest-cardinality requirement
+  - AC: User reaching iteration in awaiting-lock state can edit/split/reject items before locking
+  - AC: Lock action 400s if any item has confidence < 0.7 AND user_edited=false
+  - AC: Trace report after integrate shows raw text, locked items, verifier verdicts side by side
+- **Bearer-token auth on mutations** `feat-bearer-auth` — _n/a_, test: `not-tested`
+  - Codex Round 2 #2 — every POST/PATCH/PUT/DELETE checks the token, even single-user
+  - AC: Mutating endpoint without bearer returns 401; with wrong token returns 403; with correct token proceeds
+  - AC: Mutating endpoint without bearer returns 401; with wrong token returns 403; with correct token proceeds
+- **Cross-project bug inbox** `feat-bug-inbox` — _ui_, test: `not-tested`
+  - Submit a report (raw text + optional flow_id) via /inbox or /api/projects/<slug>/reports. Reports route through Stage 4 classifier into structured iteration items.
+- **Component catalog browser** `feat-component-catalog` — _ui_, test: `not-tested`
+  - 193 master_components in 18 categories, filterable by library / quality / tag / source. Each card shows library + quality badges + tags. Spotlight Glass cards on /components-browser.
+- **Component catalog CRUD** `feat-component-crud` — _ui_, test: `not-tested`
+  - Add modal on /components-browser writes new master_components rows + writes source code to /asset-library/components/<id>/<file>. PUT + DELETE backend live; Edit/Delete UI lands with the sandpack follow-up.
+- **Per-project component feedback** `feat-component-feedback` — _ui_, test: `not-tested`
+  - On each component detail page, users mark good/bad/needs-fix/classification-wrong from a specific project context. History is project-scoped + influences Stage 2.4 ranking.
+- **Live component preview** `feat-component-live-preview` — _ui_, test: `not-tested`
+  - Per-component detail page renders HTML bundles in an iframe srcdoc; TSX entries show source code with file tabs. Sandpack integration for TSX live preview is deferred.
+- **Drift watcher (manual YAML edits)** `feat-drift-watcher` — _backend_, test: `not-tested`
+  - Watches each /repos/<slug>/ottomate/ for manual edits between sessions; surfaces a Drift banner on the project page so the user can reconcile DB <-> YAML before code runs.
+- **FTS5 cross-doc search** `feat-fts5` — _n/a_, test: `not-tested`
+  - Virtual table + triggers + first-time backfill; powers /search with snippet+rank
+  - AC: Search returns ranked snippets across flows + features + pages + bugs + decisions
+- **Visual inspirations gallery** `feat-inspirations-gallery` — _ui_, test: `not-tested`
+  - /inspirations: 27 Dribbble + Figma references with style tags, domain, matched master_components, and click-through detail page. Stage 2.2 UI master plan pulls from this catalog.
+- **Iteration lock-in gate** `feat-iteration-lock-in-gate` — _mixed_, test: `not-tested`
+  - Anti-gaslight bridge at Stage 4.3: raw report -> classifier extracts items with source_substring proof -> user edits / locks -> code begins. Items at /iterations/<id> until locked.
+- **Session-end pack-up ritual** `feat-pack-up` — _n/a_, test: `not-tested`
+  - Backup + DB-YAML mirror + summary; skill calls /api/pack-up at session close
+  - AC: /api/pack-up returns backup path + 7 YAML mirror file bodies for the project
+- **Project lifecycle tracking** `feat-project-lifecycle` — _ui_, test: `not-tested`
+  - Per-project Stage 0-4 pipeline progress with done/remaining task counts. Renders as the PipelineProgress widget on every project overview.
+- **public_docs/ pack-up mirror** `feat-public-docs-mirror` — _mixed_, test: `not-tested`
+  - Per repo public_docs/{architecture-summary,feature-spec-public,adr-summary}.md gets ingested into the project_docs table on pack-up. Surfaced as a Docs rail on Overview.
+- **Stage 2.4 component picker** `feat-stage-2-4-picker` — _ui_, test: `not-tested`
+  - Per-project /components-pick page renders all unpicked component slots grouped by page; each slot surfaces 3 ranked master_components for click-to-pick or skip-with-reason. Stage 2 -> 3 gate enforces unresolved=0.
+- **Stage 4.4.5 iteration-time component pick** `feat-stage-4-4-5-iteration-pick` — _backend_, test: `not-tested`
+  - Iteration items with target_kind=component get the same ranked-options + pick flow scoped to the item. Backend endpoints live; UI surfacing inside iteration detail page is pending E.7 redesign.
+- **4-pass verifier sub-agent** `feat-verifier` — _n/a_, test: `not-tested`
+  - Code reality / stub detection / data correctness / acceptance criteria; independent of coder
+  - AC: Verifier sub-agent invocation passes iteration-locked items + diff (NOT coder claims) per Codex P0 #4
+  - AC: Stub detection bypasses auto-fix loop; sets mandatory_user_review=true
+  - AC: Verifier sub-agent invocation passes iteration-locked items + diff (NOT coder claims) per Codex P0 #4
+  - AC: Stub detection bypasses auto-fix loop; sets mandatory_user_review=true
+
+### building (2)
+
+- **Architecture diagrams (Mermaid)** `feat-architecture-diagrams` — _ui_, test: `not-tested`
+  - Per-project /architecture tab renders DB-backed Mermaid diagrams grouped by kind (process / topology / data / ux / api). Falls back to filesystem .mmd files for legacy projects.
+- **Spotlight Glass design system** `feat-spotlight-glass-ui` — _ui_, test: `not-tested`
+  - Cross-app design language: glass cards with cursor-following spotlight, gradient typography, dot+aurora background. Shared components at components/ui/ (SpotlightCard, Badge, PageHeader, FilterBar, EmptyState, Modal, TabsBar).
+
+## Flows
+
+- **Expand an ADR card** `flow-architecture-adr-expand` — test: `not-tested`
+  - Click an ADR card → Card expands to show body markdown rendered.
+- **Read data model diagram** `flow-architecture-data` — test: `not-tested`
+  - Scroll Architecture (only if has_data_layer) → data kind diagram renders; section hides when no data layer.
+- **Read process flow diagram** `flow-architecture-process` — test: `passing`
+  - Open Architecture tab → First Mermaid diagram (kind=process) renders.
+- **Read system topology diagram** `flow-architecture-topology` — test: `not-tested`
+  - Scroll Architecture → topology kind diagram renders + adjacent ADR cards anchored_to=topology.
+- **Skill classifies a raw report** `flow-classify-report` — test: `not-tested`
+  - Skill invokes POST /api/reports/<id>/classify with extracted items → Server creates an iteration row + iteration_items[]; source_substring stored per item.
+- **Record component feedback** `flow-component-detail-feedback` — test: `not-tested`
+  - In FeedbackWidget pick project + verdict + optional note, click Record → POST /api/component-feedback; history list appends new row.
+- **Toggle preview tab** `flow-component-detail-preview` — test: `passing`
+  - Click Preview tab → iframe srcdoc renders the HTML bundle (or shows the deferred-state stub for TSX).
+- **Browse source code tabs** `flow-component-detail-source` — test: `not-tested`
+  - Click Source tab, then a file tab → File content renders in <pre>; file tabs cycle through index.tsx / styles.css / etc.
+- **Add a new component to catalog** `flow-components-add` — test: `not-tested`
+  - Click "+ Add component", fill form, Save → POST /api/master-components; new card appears in the right category; source file written to /asset-library/components/<id>/<file>.
+- **Open a component detail** `flow-components-click-card` — test: `not-tested`
+  - Click a card on /components-browser → Routes to /components-browser/<id>; live preview tab loaded.
+- **Filter components by library** `flow-components-filter-library` — test: `not-tested`
+  - Select a library in dropdown + Filter → Grid filters to that library only; chip count updates.
+- **Filter components by quality grade** `flow-components-filter-quality` — test: `not-tested`
+  - Select A / A+B / C in quality dropdown → Grid filters by quality_grade.
+- **Browse the components catalog** `flow-components-grid` — test: `passing`
+  - Open /components-browser → 193 SpotlightCards render across 18 category sections.
+- **Jump to a category** `flow-components-jump-category` — test: `not-tested`
+  - Click a category chip at the top → Page anchors to #cat-<id>; category section in view.
+- **Search the catalog** `flow-components-search` — test: `not-tested`
+  - Type into search input + click Filter → Filtered grid re-renders matching name / id / description / tags / library.
+- **Drill into a coverage cell** `flow-coverage-cell-drill` — test: `not-tested`
+  - Click a heatmap cell → Flow test-run history renders for that flow.
+- **Read coverage heatmap** `flow-coverage-heatmap` — test: `not-tested`
+  - Open /coverage → Page-by-flow matrix renders; cells colour-coded passing/failing/not-tested.
+- **Watcher detects YAML drift** `flow-drift-watcher` — test: `not-tested`
+  - User manually edits /repos/<slug>/ottomate/<doc>.yaml → Chokidar fires; DriftBanner appears on next /projects/<slug> load with reconcile dialog.
+- **Filter inbox by status** `flow-inbox-filter-status` — test: `not-tested`
+  - Click a status pill → Page re-fetches with ?status=<x>; cards re-render.
+- **Browse the bug inbox** `flow-inbox-list` — test: `not-tested`
+  - Open /inbox → Report cards render filtered to current status tab (default pending).
+- **Submit a bug via modal** `flow-inbox-submit-modal` — test: `not-tested`
+  - Click "+ Submit bug", fill form, click Submit → POST /api/projects/<slug>/reports; modal closes; inbox refreshes with new pending row.
+- **Open a matched master_component from inspiration** `flow-inspiration-detail-matched` — test: `not-tested`
+  - Click a matched-component card on /inspirations/<id> → Routes to /components-browser/<mc_id>.
+- **Open an inspiration detail** `flow-inspirations-click-card` — test: `not-tested`
+  - Click an inspiration card → Routes to /inspirations/<id> with matched master_components list.
+- **Filter inspirations by domain** `flow-inspirations-filter-domain` — test: `not-tested`
+  - Select a domain in dropdown + Filter → Grid filters to that domain (e.g. dashboard/finance).
+- **Filter inspirations by source type** `flow-inspirations-filter-source` — test: `not-tested`
+  - Select dribbble / figma-community / etc. → Grid filters by source_type.
+- **Browse the inspirations gallery** `flow-inspirations-grid` — test: `passing`
+  - Open /inspirations → 27 inspiration SpotlightCards render with thumbnails + style tags.
+- **Skill integrates a completed iteration** `flow-integrate` — test: `not-tested`
+  - POST /api/iterations/<id>/integrate → All items must be verified; iteration.integrated_at set; trace_report blob saved.
+- **Edit an item before lock** `flow-iteration-detail-edit-item` — test: `not-tested`
+  - Click edit on an item, change fields, save → PATCH /api/iterations/<id>/items/<itemId>; user_edited=true.
+- **View extracted items at lock gate** `flow-iteration-detail-items` — test: `not-tested`
+  - Open /iterations/<id> → All iteration_items render with source_substring proof + confidence.
+- **Lock the iteration** `flow-iteration-detail-lock` — test: `not-tested`
+  - Click "Lock & build" on /iterations/<id> → POST /api/iterations/<id>/lock; iteration.status -> building; coder dispatch starts.
+- **Reject an item before lock** `flow-iteration-detail-reject-item` — test: `not-tested`
+  - Click reject on an item, confirm → DELETE soft-rejects (status=rejected); item still in trace report.
+- **Read trace report post-integrate** `flow-iteration-detail-trace` — test: `not-tested`
+  - Open /iterations/<id> after integrate → Trace report block renders with original message + locked items + per-item evidence.
+- **Open an iteration detail** `flow-iterations-click-card` — test: `not-tested`
+  - Click an iteration card → Routes to /iterations/<id> lock-in gate or trace report.
+- **Browse iterations list** `flow-iterations-list` — test: `not-tested`
+  - Open Iterations tab → All iterations render as SpotlightCards with status + item counts.
+- **Click submit-report CTA from iterations tab** `flow-iterations-submit-cta` — test: `not-tested`
+  - Click "+ Submit a report" on iterations tab → Routes to /inbox?action=new with SubmitBugModal open.
+- **Pack-up writes YAML mirrors** `flow-pack-up-mirror` — test: `not-tested`
+  - npm run mirror:write -- <slug> → flows.yaml + features.yaml + ... regenerated from DB; hash-checked, skipped if unchanged.
+- **Pick a component for a slot** `flow-pick-card` — test: `not-tested`
+  - Click one of 3 SpotlightCards in a slot → POST /api/components/<id>/pick; slot card transitions to picked state with picked badge.
+- **Skip a slot with a reason** `flow-pick-skip` — test: `not-tested`
+  - Click "Skip with reason" + enter >=10 chars + save → POST /api/components/<id>/pick {skip_reason}; slot transitions to skipped state.
+- **Read picker status rollup** `flow-pick-status-rollup` — test: `not-tested`
+  - Open /projects/<slug>/components-pick → Header shows picked / skipped / unresolved / total counts + ready_for_stage_3 badge.
+- **Read activity preview** `flow-project-overview-activity-preview` — test: `not-tested`
+  - Scroll bottom of Overview → Last 7 ActivityItem rows render with verb + target.
+- **Read blockers panel** `flow-project-overview-blockers` — test: `not-tested`
+  - Scan blockers card on Overview → Open risks (risk_instances.status=open) render with severity colour.
+- **Browse public_docs rail** `flow-project-overview-docs-rail` — test: `passing`
+  - Click the Docs rail tabs → architecture-summary / feature-spec-public / adr-summary bodies render inline.
+- **Read key-context panels** `flow-project-overview-key-context` — test: `not-tested`
+  - Scroll Overview → Three glass cards render must-haves / non-goals / preferences from projects.preferences JSON.
+- **Read pipeline progress widget** `flow-project-overview-pipeline` — test: `passing`
+  - Open /projects/<slug> → PipelineProgress widget shows 5 stages with done/remaining count per stage.
+- **Open public URL** `flow-project-overview-public-url` — test: `not-tested`
+  - Click public_url in Overview header → Opens deployed site in new tab.
+- **Open repo link** `flow-project-overview-repo-url` — test: `not-tested`
+  - Click repository_url in Overview → Opens Gitea repo in new tab.
+- **Add a project todo** `flow-project-overview-todo` — test: `not-tested`
+  - Type into "+ add task" input on Overview → New row inserted in project_todos; checklist re-renders.
+- **Toggle a todo as done** `flow-project-overview-todo-toggle` — test: `not-tested`
+  - Click checkbox on a todo row → project_todos.done flips; row gets struck-through styling.
+- **Read recent activity strip** `flow-projects-activity-strip` — test: `not-tested`
+  - Scan / for the activity panel → Last 5 events render with timestamp + actor + target.
+- **Filter projects by stage** `flow-projects-category-filter` — test: `not-tested`
+  - Click a stage chip (SPEC/BUILD/SHIPPED/MAINT) on / → Register filters to projects in that lifecycle stage
+- **Click a project card to open overview** `flow-projects-click-card` — test: `passing`
+  - Click any card on / → Routes to /projects/<slug> overview tab.
+- **View projects grid** `flow-projects-grid` — test: `passing`
+  - Open / → Project cards render with name + tagline + status badge + tags.
+- **Read status breakdown strip** `flow-projects-status-strip` — test: `not-tested`
+  - Scan top of / → Pill row shows count per lifecycle (building / shipped / ideating / maintained / archived).
+- **Run a Stage-4 iteration (report to verified change)** `flow-stage4-iteration-loop` — test: `passing` (`tests/e2e/iteration-bedrock.spec.ts`)
+  - Owner submits raw feedback (chat or report) about a tracked project → Every locked item is built, independently verified, integrated and traceable back to the original words
+- **Verifier sub-agent posts a result** `flow-verifier-result` — test: `not-tested`
+  - Verifier sub-agent calls POST /api/iterations/<id>/items/<itemId>/verifier-result → verification_reports row inserted; item.verifier_result updated; recommendation captured.

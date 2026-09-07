@@ -9,6 +9,8 @@ read_minutes: 4
 
 # Ottomate — Technical Deep-Dive
 
+> As of 2026-09-07 (ottomate-tracker-v3 @ be39ec4). How the tracker and the skill are built: registry, gates, verifiers, ledger.
+
 ## Stack
 Next.js 16 (App Router, RSC) + TypeScript strict, Tailwind v4, and Radix-based shadcn-style components. State lives in SQLite via `better-sqlite3` and `drizzle-orm`, with `zod` validating every write. Diagrams render with Mermaid; cross-doc search uses SQLite FTS5. It runs as a Docker container on a home server, bound to `127.0.0.1:8110`, reached publicly only through a Cloudflare Tunnel behind an Authentik SSO gate.
 

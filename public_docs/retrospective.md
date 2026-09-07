@@ -9,6 +9,8 @@ read_minutes: 3
 
 # Ottomate — Retrospective
 
+> As of 2026-09-07 (ottomate-tracker-v3 @ be39ec4). What went wrong along the way and what changed because of it.
+
 ## Two real data-loss incidents drove the "one door" rule
 Ottomate originally ran SQLite in WAL mode for concurrency. Twice, mutations returned success while the data evaporated: the running container's lock lived on a *deleted* `-shm` inode, an external client saw a lockless database and unlinked the `-wal` file underneath it, and commits landed in a file nobody else could read. The second recurrence cost a full report, an iteration with its items and lock, three diagram upserts, and an ADR — all recovered from local payloads. The lessons hardened into decisions: **adr-015** (back up *through* the engine with `VACUUM INTO`, never a raw file copy of a live DB) and **adr-018** (drop WAL for a rollback journal, add a deleted-fd self-check so writes fail loud with a 503 instead of silently). For a project about not gaslighting the user, the database silently gaslighting *us* was the sharpest possible irony.
 

@@ -9,6 +9,8 @@ read_minutes: 3
 
 # Ottomate — Project Thesis
 
+> As of 2026-09-07 (ottomate-tracker-v3 @ be39ec4). Why Ottomate exists: the anti-gaslighting case for keeping project state outside the model.
+
 ## Problem
 Ottomate replaces an earlier `/project` skill that suffered from *scope gaslighting*. Across long build sessions the AI would claim a feature was finished when only a stub existed, silently defer work it had agreed to, and lose context between sessions — so a fresh chat could not tell what was real, what was promised, and what was already shipped. The build "felt" done while the artifact wasn't.
 

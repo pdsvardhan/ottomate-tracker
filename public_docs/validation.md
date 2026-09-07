@@ -9,6 +9,8 @@ read_minutes: 3
 
 # Ottomate — Validation
 
+> As of 2026-09-07 (ottomate-tracker-v3 @ be39ec4). What has been shown to work, and the ledger evidence behind each claim.
+
 ## What is built
 The core pipeline and tracker are functional. Marked done in the tracker: the anti-gaslighting bedrock, the 4-pass verifier sub-agent, the iteration lock-in gate, bearer-token auth, the session-end pack-up ritual, FTS5 cross-doc search, project lifecycle tracking, the component catalog (browse, CRUD, live preview, per-project feedback), the Stage-2.4 and Stage-4.4.5 pickers, the inspirations gallery, the cross-project bug inbox, ADR tracking, and the YAML mirror with a drift watcher. Architecture diagrams and the "Spotlight Glass" design system are still in progress.
 
