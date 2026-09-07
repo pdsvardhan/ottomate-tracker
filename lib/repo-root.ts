@@ -10,7 +10,13 @@ import path from 'node:path';
 export const REPOS_DIR = process.env.OTTOMATE_REPOS_DIR ?? '/repos';
 export const SELF_SLUG = process.env.OTTOMATE_SELF_SLUG ?? 'ottomate';
 
-/** Filesystem root of a project's checkout as this process can reach it. */
+/**
+ * Filesystem root of a project's checkout as this process can reach it. Use it for assets that change only by
+ * commit (architecture diagrams): for the self-project those are baked into the image and current until the next
+ * rebuild. Do NOT use it for files written on the host at runtime (the YAML mirrors) — the image copy is frozen.
+ * A slug that could climb out of /repos is neutralised rather than trusted.
+ */
 export function repoRoot(slug: string): string {
-  return slug === SELF_SLUG ? process.cwd() : path.join(REPOS_DIR, slug);
+  const safe = /^[a-z0-9][a-z0-9-]*$/.test(slug) ? slug : slug.replace(/[^a-z0-9-]/g, '_');
+  return safe === SELF_SLUG ? process.cwd() : path.join(REPOS_DIR, safe);
 }

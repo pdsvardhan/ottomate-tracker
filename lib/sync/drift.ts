@@ -8,7 +8,7 @@ import path from 'node:path';
 import { eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 
-import { repoRoot } from '@/lib/repo-root';
+import { REPOS_DIR } from '@/lib/repo-root';
 
 function fnv1a(input: string): string {
   let hash = 2166136261;
@@ -22,7 +22,9 @@ function fnv1a(input: string): string {
 const TRACKED_DOCS = ['overview', 'flows', 'features', 'pages', 'data', 'risks', 'decisions'] as const;
 
 function pathFor(slug: string, doc: string): string | null {
-  const base = path.join(repoRoot(slug), 'ottomate');
+  // NOT repoRoot(): mirrors are written on the host at every pack-up, so the copy baked into the image would
+  // read as permanently drifted for the self-project. Its dangling /repos link reads as "no mirror", which is true.
+  const base = path.join(REPOS_DIR, slug, 'ottomate');
   switch (doc) {
     case 'overview': return path.join(base, 'overview.yaml');
     case 'flows': return path.join(base, 'flows.yaml');
