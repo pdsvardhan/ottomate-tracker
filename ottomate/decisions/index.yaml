@@ -256,3 +256,12 @@ decisions:
       - curated
       - cat:product
     body_path: decisions/adr-022-self-site-sync.md
+  - id: adr-023-verifier-target-and-sha
+    project_slug: ottomate
+    title: A verifier verdict is filed against the flow, at a full commit sha
+    status: accepted
+    date: 2026-08-11T00:00:00.000Z
+    tags:
+      - curated
+      - cat:reliability
+    body_path: decisions/adr-023-verifier-target-and-sha.md

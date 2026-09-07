@@ -1,13 +1,11 @@
 slug: ottomate
 display_name: Ottomate
 summary:
-  tagline: Web project pipeline companion to /ottomate skill
-  short_description: "The state-and-evidence half of the /ottomate skill pair: a
-    self-hosted tracker where every VAULT7A web project moves through a 5-stage
-    pipeline (idea to spec to design to build to iterate) behind lock-in gates,
-    an independent verifier and trace reports — plus a 116-component asset
-    library with live inline previews and a DB-to-YAML mirror, so a fresh
-    session picks up exactly where the last one left off."
+  tagline: AI-assisted project pipeline — idea to shipped, with receipts
+  short_description: "The control room behind every project on this site. Each
+    build moves through a 5-stage pipeline — idea, spec, design, build, iterate
+    — where an AI does the work and this app keeps it honest: nothing counts as
+    done until an independent verifier confirms it actually works."
   core_idea: "Ottomate is a website + skill pair that orchestrates web-project
     work across 5 stages (idea -> design -> build -> iterate -> mini-pipeline)
     on a home server. Anti-gaslighting bedrock: every iteration goes through a
