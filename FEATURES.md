@@ -1,4 +1,4 @@
-<!-- generated from registry @ be39ec4 on 2026-09-07 — DO NOT EDIT; edit the registry via the Ottomate API. R-DOC-1. -->
+<!-- generated from registry @ 7ffbfe6 on 2026-09-07 — DO NOT EDIT; edit the registry via the Ottomate API. R-DOC-1. -->
 # ottomate — Features & Flows (generated reference)
 
 > Generated from the Ottomate registry (the single source of truth). To change anything here, edit the feature/flow/acceptance-criteria in the tracker, then re-run `scripts/generation/gen-reference-docs.mjs --project ottomate`.
