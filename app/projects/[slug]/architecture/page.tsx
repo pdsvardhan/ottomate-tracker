@@ -1,3 +1,4 @@
+import { repoRoot } from '@/lib/repo-root';
 // Architecture tab — progressive-disclosure restructure (iter-16, Doc B 2026-06-11).
 // Reads top-to-bottom in documentation-layer order: Workflow (how value moves)
 // → System (how it is shaped) → Platform (how it connects to the ecosystem)
@@ -19,7 +20,6 @@ import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
-const REPOS_DIR = process.env.OTTOMATE_REPOS_DIR ?? '/repos';
 
 // Primary layers, in documentation-layer order (Doc C L2 → L3 → L5).
 const LAYERS = [
@@ -62,7 +62,7 @@ export default async function ArchitectureTab({ params }: { params: Promise<{ sl
 
   // Filesystem fallback for kinds not in DB.
   if (byKind.size === 0) {
-    const archDir = path.join(REPOS_DIR, slug, 'architecture');
+    const archDir = path.join(repoRoot(slug), 'architecture');
     try {
       const entries = readdirSync(archDir);
       for (const name of entries) {

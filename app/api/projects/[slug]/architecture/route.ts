@@ -1,3 +1,4 @@
+import { repoRoot } from '@/lib/repo-root';
 // /api/projects/[slug]/architecture — DB-backed diagram artifacts.
 // GET: diagram_artifacts rows (primary, what the Architecture tab renders)
 //      plus the legacy .mmd file listing from /repos/<slug>/architecture/.
@@ -14,7 +15,6 @@ import { DiagramUpsertSchema } from '@/lib/validation/diagrams';
 
 export const runtime = 'nodejs';
 
-const REPOS_DIR = process.env.OTTOMATE_REPOS_DIR ?? '/repos';
 
 interface Ctx { params: Promise<{ slug: string }>; }
 
@@ -34,7 +34,7 @@ export async function GET(_req: Request, { params }: Ctx) {
     .all();
 
   // Legacy source: .mmd files on disk (kept for back-compat consumers).
-  const archDir = path.join(REPOS_DIR, slug, 'architecture');
+  const archDir = path.join(repoRoot(slug), 'architecture');
   let files: MmdFile[] = [];
   try {
     files = readdirSync(archDir)

@@ -8,7 +8,7 @@ import path from 'node:path';
 import { eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 
-const REPOS_DIR = process.env.OTTOMATE_REPOS_DIR ?? '/repos';
+import { repoRoot } from '@/lib/repo-root';
 
 function fnv1a(input: string): string {
   let hash = 2166136261;
@@ -22,7 +22,7 @@ function fnv1a(input: string): string {
 const TRACKED_DOCS = ['overview', 'flows', 'features', 'pages', 'data', 'risks', 'decisions'] as const;
 
 function pathFor(slug: string, doc: string): string | null {
-  const base = path.join(REPOS_DIR, slug, 'ottomate');
+  const base = path.join(repoRoot(slug), 'ottomate');
   switch (doc) {
     case 'overview': return path.join(base, 'overview.yaml');
     case 'flows': return path.join(base, 'flows.yaml');
