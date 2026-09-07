@@ -1,13 +1,12 @@
-import { repoRoot } from '@/lib/repo-root';
 // /api/projects/[slug]/architecture/[file] — return .mmd source content
 
 import { NextResponse } from 'next/server';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { badRequest, notFound } from '@/lib/api';
+import { repoRoot } from '@/lib/repo-root';
 
 export const runtime = 'nodejs';
-
 
 interface Ctx { params: Promise<{ slug: string; file: string }>; }
 

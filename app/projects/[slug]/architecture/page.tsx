@@ -1,4 +1,3 @@
-import { repoRoot } from '@/lib/repo-root';
 // Architecture tab — progressive-disclosure restructure (iter-16, Doc B 2026-06-11).
 // Reads top-to-bottom in documentation-layer order: Workflow (how value moves)
 // → System (how it is shaped) → Platform (how it connects to the ecosystem)
@@ -17,9 +16,9 @@ import {
   type DiagramSection,
 } from '@/components/architecture/ArchitectureDiagrams';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { repoRoot } from '@/lib/repo-root';
 
 export const dynamic = 'force-dynamic';
-
 
 // Primary layers, in documentation-layer order (Doc C L2 → L3 → L5).
 const LAYERS = [

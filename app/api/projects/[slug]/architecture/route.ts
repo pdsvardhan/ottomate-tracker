@@ -1,7 +1,6 @@
-import { repoRoot } from '@/lib/repo-root';
 // /api/projects/[slug]/architecture — DB-backed diagram artifacts.
 // GET: diagram_artifacts rows (primary, what the Architecture tab renders)
-//      plus the legacy .mmd file listing from /repos/<slug>/architecture/.
+//      plus the legacy .mmd file listing from <repoRoot(slug)>/architecture/ (lib/repo-root.ts, #848).
 // POST: bearer-auth'd upsert on (project_slug, kind) — replaces any existing
 //      rows of that kind with the new diagram.
 
@@ -12,9 +11,9 @@ import { and, asc, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { notFound, readAuthBody } from '@/lib/api';
 import { DiagramUpsertSchema } from '@/lib/validation/diagrams';
+import { repoRoot } from '@/lib/repo-root';
 
 export const runtime = 'nodejs';
-
 
 interface Ctx { params: Promise<{ slug: string }>; }
 
