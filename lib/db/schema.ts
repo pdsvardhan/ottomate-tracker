@@ -665,7 +665,15 @@ export const feature_requests = sqliteTable('feature_requests', {
 export const verification_reports = sqliteTable('verification_reports', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   project_slug: text('project_slug').notNull().references(() => projects.slug, { onDelete: 'cascade' }),
-  target_kind: text('target_kind', { enum: ['stage-3-feature', 'stage-4-iteration-item'] }),
+  // 'commit' / 'commit-range' added 2026-09-08 (#817): a verification covering a commit
+  // or a commit range had no drawer and vanished on write. target_kind is plain `text` in
+  // the DDL (0000_easy_lockheed.sql) with no CHECK constraint, so widening the set is a
+  // type-level change only — there is no migration to write. The target is validated by
+  // SHAPE in the route (full 40-hex sha, or <sha>..<sha>), never as a foreign key.
+  // Readers that mean features still filter explicitly (anti-gaslight R4, iteration trace).
+  target_kind: text('target_kind', {
+    enum: ['stage-3-feature', 'stage-4-iteration-item', 'commit', 'commit-range'],
+  }),
   target_id: text('target_id').notNull(),
   ran_at: integer('ran_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
   verifier_session_id: text('verifier_session_id'),
