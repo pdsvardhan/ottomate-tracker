@@ -28,9 +28,10 @@ low ceremony for the common path.
 - **One SQLite file** (`/app/data/ottomate.db`) is the whole state. Convenient, and the reason for the strictest rule in
   the system (§8, adr-018).
 - **The API is the only door.** Both halves talk only through `/api/*`; the skill never opens the database.
-- **The repo is cloned twice on the box:** `/opt/homeserver/ottomate` is the deployed checkout (container builds from it);
-  `/mnt/storage/websites/ottomate` is the project view every other project also has (YAML mirrors, docs, evidence).
-  They share one origin; pull before work in either.
+- **One checkout, two paths.** `/opt/homeserver/ottomate` is the deployed checkout (the container builds from it);
+  `/mnt/storage/websites/ottomate` is a symlink to it, so the tracker has the same project-view path every other
+  project has (YAML mirrors, docs, evidence). Inside the container that symlink dangles — `/repos` mounts
+  `/mnt/storage/websites`, not `/opt/homeserver` — so anything the showcase reads from `/repos/ottomate/...` sees nothing.
 - Two-person team at most (owner + AI sessions), often several sessions concurrently — every convention assumes a
   sibling session may be on the box at the same time.
 
@@ -175,6 +176,8 @@ The curated list renders on the showcase architecture page (adr-017). The record
   without a browser ever exercising them (`coverage.mjs` makes this visible; it does not fix it).
 - **The design-round subsystem is suspended** (#526): variants that were not different enough to choose between.
   Evidence is frozen; the rebuild waits on four owner questions.
-- **Two clones of this repo on the box** are a standing chance to commit in one and build from the other.
+- **The project-view symlink dangles inside the container**, so the showcase's filesystem fallbacks (the `.mmd`
+  diagram listing) are silently empty for this one project; the registry-backed diagrams render, the three `.mmd`
+  files do not (to-do filed 2026-09-07).
 - **These docs are one day old.** `doc_gate` is at `warn` for this project; it moves to `block` after a clean pack-up
   cycle proves the rules fire here too.
