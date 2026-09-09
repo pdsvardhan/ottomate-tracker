@@ -86,3 +86,31 @@ the plugin's research corpus (`docs/research`, G1–G3, F2) and the recorded com
 were indistinguishable. 9 to-dos (`#475`–`#480`, `#527`–`#529`, `#730`) unblock behind it. Also open:
 `#300` — decide what else from the corpus becomes mechanically enforceable (11 rules specified but
 pending; B2/C1/F1 cited by no rule).
+
+## Session 2026-09-09 — #826 (from a city-wars session)
+
+**Stage:** app fix only; no schema, no migration.
+**Duration:** ~15 min of a ~60 min city-wars session.
+**What changed:**
+
+- `GET /api/projects/[slug]/features` never read its query string, so `?include=acceptance_criteria`
+  returned a payload byte-identical to the bare call — the question was dropped in silence. On
+  2026-09-04 two verifiers read that as proof that city-wars features had no acceptance criteria and
+  returned false BLOCKs; the criteria existed the whole time at the dedicated AC endpoint.
+- `include=acceptance_criteria` now attaches them (one query for the page, not one per feature), a
+  feature with none gets `[]` so absence is stated rather than inferred, and an unknown key is a 400
+  naming it. Bare GET unchanged — attaching by default would rewrite every caller's payload.
+- `tests/features-include.test.ts` (4 cases). Suite 74/74. Container rebuilt, health `ok`,
+  `db_fds: clean`, live probe confirms 56 criteria across 15 city-wars features.
+
+**Commits:** app `c911206`.
+**Decisions:** none.
+**Friction:**
+
+- No per-project iteration listing (`GET /api/projects/<slug>/iterations` 404s); only
+  `GET /api/iterations/<id>` exists [api-change].
+- The generated API inventory shows `POST` on `/api/iterations/[id]/items/[itemId]` with no hint that
+  POST is defer-with-reason — a session reading the inventory alone cannot tell. Contributing cause of
+  city-wars `#760`, which sat open for 9 days claiming the capability did not exist [tooling].
+
+**Next session context:** unchanged — `#526` remains the unblocked P1.
