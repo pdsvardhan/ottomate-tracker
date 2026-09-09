@@ -1,22 +1,58 @@
 // /api/projects/[slug]/features — list (GET) + create (POST)
 
 import { NextResponse } from 'next/server';
-import { eq, desc } from 'drizzle-orm';
+import { eq, asc, desc, inArray } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
-import { conflict, notFound, readAuthBody } from '@/lib/api';
+import { badRequest, conflict, notFound, readAuthBody } from '@/lib/api';
 import { FeatureCreateSchema } from '@/lib/validation/features';
 
 export const runtime = 'nodejs';
 
 interface Ctx { params: Promise<{ slug: string }>; }
 
-export async function GET(_req: Request, { params }: Ctx) {
+// Opt-in expansions for GET. Bare GET stays lean — attaching ACs by default
+// would change every existing caller's payload.
+const INCLUDABLE = ['acceptance_criteria'] as const;
+
+export async function GET(req: Request, { params }: Ctx) {
   const { slug } = await params;
+  const url = new URL(req.url);
+  const include = (url.searchParams.get('include') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+
+  // An unknown include key is a 400, not a shrug (to-do #826). Silently ignoring
+  // `include=acceptance_criteria` is what made two verifiers conclude on 2026-09-04
+  // that city-wars features had no acceptance criteria and issue false BLOCKs —
+  // the request looked answered, so nobody checked the dedicated AC endpoint.
+  const unknown = include.filter((k) => !INCLUDABLE.includes(k as (typeof INCLUDABLE)[number]));
+  if (unknown.length > 0) {
+    return badRequest(
+      `Unknown include key(s): ${unknown.join(', ')}. Supported: ${INCLUDABLE.join(', ')}`,
+    );
+  }
+
   const db = await getDb();
   const features = db.select().from(schema.features)
     .where(eq(schema.features.project_slug, slug))
     .orderBy(desc(schema.features.updated_at)).all();
-  return NextResponse.json({ features });
+
+  if (!include.includes('acceptance_criteria') || features.length === 0) {
+    return NextResponse.json({ features });
+  }
+
+  // One query for the whole page rather than one per feature.
+  const rows = db.select().from(schema.feature_acceptance_criteria)
+    .where(inArray(schema.feature_acceptance_criteria.feature_id, features.map((f) => f.id)))
+    .orderBy(asc(schema.feature_acceptance_criteria.sort_order)).all();
+  const byFeature = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const bucket = byFeature.get(row.feature_id);
+    if (bucket) bucket.push(row);
+    else byFeature.set(row.feature_id, [row]);
+  }
+
+  return NextResponse.json({
+    features: features.map((f) => ({ ...f, acceptance_criteria: byFeature.get(f.id) ?? [] })),
+  });
 }
 
 export async function POST(req: Request, { params }: Ctx) {
