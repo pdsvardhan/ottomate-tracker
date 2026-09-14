@@ -11,6 +11,14 @@
 // and the CI subset to POST /api/test-runs. This endpoint owns only the rich report.
 // Bearer required (mutation). Unlike the code-verifier endpoint, both target_kinds are
 // accepted here directly — there is no second writer to duplicate against.
+//
+// Report identity (2026-09-15, to-do #887): the row this POST works with downstream —
+// the 201 body AND the report id stamped into feature_claims by the P3-B reconcile —
+// used to be re-derived from `target_id` + the newest `ran_at`. Second-granular
+// timestamps made two reports for one target in one second indistinguishable, and the
+// filter omitted project_slug, so the row picked up could be an older one, a different
+// verdict, or another project's entirely. It is now the row the INSERT returned. See the
+// comment at the insert for the measurement.
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -132,7 +140,40 @@ export async function POST(req: Request) {
   const failed = matrix.filter((c) => c.outcome === 'fail').length;
   const warned = matrix.filter((c) => c.outcome === 'warn').length;
 
-  db.insert(schema.feature_verification_reports)
+  // `created` is the row the INSERT itself returned, not a row re-found afterwards.
+  //
+  // Until 2026-09-15 (to-do #887) this ran the insert with .run() and then re-derived
+  // "the row I just wrote" as `WHERE target_id = ? ORDER BY ran_at DESC LIMIT 1`.
+  // ran_at is second-granular (`integer(... mode: 'timestamp' ).default(unixepoch())`),
+  // so two reports for one target inside the same second are indistinguishable to that
+  // ordering and the tie surfaced the EARLIER row. The WHERE also omitted project_slug,
+  // so the row that won the tie did not even have to belong to the posting project.
+  //
+  // Measured on the live container 2026-09-15, both inside epoch second 1789417012:
+  //   · same flow target — POST 2 stored id 492 / APPROVE, `created` came back id 491 /
+  //     BLOCK (the first write's row, session zz-probe-887-FIRST).
+  //   · cross-project — POST 4 stored id 494 in zz-probe-887b, `created` came back id
+  //     493 / BLOCK belonging to zz-probe-887, project_slug and all.
+  //
+  // This route is the reason that matters more here than in the code-verifier sibling
+  // (#869, commit 9310dcc), where the wrong row stopped at the response body. Here
+  // `created.id` is ALSO handed to the P3-B claim reconcile below, which stamps it into
+  // feature_claims.reconciler_id — stored state. In the measurement above, claim 247 was
+  // flipped to reconciled_with='verified' with reconciler_id=491, a BLOCK report, by an
+  // APPROVE that was actually stored as 492. And reconcileClaimsForFlow only ever looks
+  // at claims still marked 'unreconciled', so a later correct APPROVE does not repair the
+  // attribution: the wrong provenance is permanent once written.
+  //
+  // The insert is what knows its own identity, so nothing downstream should have to work
+  // it out again. .returning() carries the id, the DB-assigned ran_at and the stored
+  // values back out of the same statement that produced them. That removes the derivation
+  // rather than narrowing it: a finer timestamp, ORDER BY id DESC, or an added
+  // project_slug filter would each keep a guess and only shrink the window in which it
+  // can be wrong. Single-statement insert-and-return is already the house pattern for
+  // verifier rows — POST /api/iterations/[id]/items/[itemId]/verifier-result writes its
+  // verification_reports row with .returning().get() and hands the id straight on.
+  const created = db
+    .insert(schema.feature_verification_reports)
     .values({
       project_slug: data.project_slug,
       target_kind: data.target_kind,
@@ -151,20 +192,19 @@ export async function POST(req: Request) {
       evidence_root: data.evidence_root ?? null,
       full_report: (data.full_report ?? null) as object | null,
     })
-    .run();
-
-  const created = db
-    .select()
-    .from(schema.feature_verification_reports)
-    .where(eq(schema.feature_verification_reports.target_id, data.target_id))
-    .orderBy(desc(schema.feature_verification_reports.ran_at))
-    .limit(1)
+    .returning()
     .get();
 
   // P3-B: an APPROVE report is proof the flow passed → auto-reconcile the claim
   // ledger for every feature linked to this flow (target_id). Keyed on target_id
   // + APPROVE, never target_kind (reports in practice carry 'stage-3-feature').
   // Best-effort: a reconcile failure must not fail the (already-persisted) report.
+  //
+  // `created.id` lands in feature_claims.reconciler_id, so this is the consumer that
+  // turns a misidentified row into stored state rather than a wrong response body —
+  // and reconcileClaimsForFlow skips claims that are already reconciled, so a bad
+  // attribution never gets corrected later. It is safe now only because `created` is
+  // the INSERT's own returned row (#887); do not reintroduce a read-back here.
   let reconciled: Awaited<ReturnType<typeof reconcileClaimsForFlow>> | null = null;
   if (data.recommendation_overall === 'APPROVE' && created?.id != null) {
     try {
