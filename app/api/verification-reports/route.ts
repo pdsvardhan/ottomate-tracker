@@ -25,6 +25,12 @@
 // reads as "never verified" rather than "format mismatch". Arbitrary strings are still
 // refused: this must not become an anything-goes sink.
 //
+// Echo identity (2026-09-14, to-do #869): the 201 used to re-derive which row it had
+// just written from `target_id` + the newest `ran_at`. Second-granular timestamps made
+// two reports for one target in one second indistinguishable, so the response could
+// carry an older row's id and verdict while the correct row sat in the table. It now
+// returns the row the INSERT returned. See the comment at the insert for the measurement.
+//
 // Existing sinks checked first, and why none of them fit:
 //   · POST /api/test-runs is commit-keyed but stores a CI suite RESULT
 //     (passed/failed + counts). No verdict vocabulary, no verifier_session_id, no
@@ -158,7 +164,34 @@ export async function POST(req: Request) {
     }
   }
 
-  db.insert(schema.verification_reports)
+  // The 201 echoes the row the INSERT itself returned, not a row re-found afterwards.
+  //
+  // Until 2026-09-14 (to-do #869) this ran the insert with .run() and then re-derived
+  // "the row I just wrote" as `WHERE target_id = ? ORDER BY ran_at DESC LIMIT 1`.
+  // ran_at is second-granular, so two reports for one target inside the same second are
+  // indistinguishable to that ordering and the echo returned whichever row the tie-break
+  // happened to surface — the earlier one, in practice. Measured live on 2026-09-14:
+  // a BLOCK stored as id 1080 came back as id 1079 / APPROVE. The WHERE also omitted
+  // project_slug, so the row that won the tie did not even have to belong to this
+  // project — measured: a BLOCK written to one project echoed another project's APPROVE,
+  // project_slug and all. The write was always correct; only the echo lied.
+  //
+  // The insert is what knows its own identity, so nothing downstream should have to work
+  // it out again. .returning() carries the id, the DB-assigned ran_at and the stored
+  // values back out of the same statement that produced them. That is the fix, rather
+  // than a tighter timestamp or an added project_slug filter: those would only shrink
+  // the window in which the identity can be guessed wrong, and this response path is
+  // shared by every target_kind the route accepts — feature, commit and commit-range
+  // alike — so all of them inherit whichever guarantee is chosen here. A caller that
+  // trusts an echoed APPROVE for a row stored as BLOCK is the precise gaslight this
+  // ledger exists to make impossible, so "unlikely" was never a strong enough guarantee.
+  //
+  // Single-statement insert-and-return is also already the house pattern for verifier
+  // rows: POST /api/iterations/[id]/items/[itemId]/verifier-result writes its
+  // verification_reports row with .returning().get() and hands the id straight to the
+  // item link, for the same reason.
+  const created = db
+    .insert(schema.verification_reports)
     .values({
       project_slug: data.project_slug,
       target_kind: data.target_kind,
@@ -173,14 +206,7 @@ export async function POST(req: Request) {
       mandatory_user_review: data.mandatory_user_review ?? false,
       full_report: (data.full_report ?? null) as object | null,
     })
-    .run();
-
-  const created = db
-    .select()
-    .from(schema.verification_reports)
-    .where(eq(schema.verification_reports.target_id, target_id))
-    .orderBy(desc(schema.verification_reports.ran_at))
-    .limit(1)
+    .returning()
     .get();
 
   return NextResponse.json({ report: created }, { status: 201 });
