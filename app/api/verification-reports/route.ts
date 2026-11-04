@@ -76,6 +76,10 @@ const ReportCreateSchema = z.object({
 });
 
 // GET /api/verification-reports?project_slug=&target_id=&limit=
+// Order: newest first by ran_at, then by id (iter-208, 2026-11-04). ran_at is second-granular
+// and verifiers file in batches — 19 reports share one second at the current 200th place — so
+// ran_at alone left the tie to SQLite and "the last 200" could differ between this endpoint and
+// the showcase's send-back tile (19 vs 20). Both now use exactly this order.
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const project_slug = url.searchParams.get('project_slug');
@@ -89,7 +93,7 @@ export async function GET(req: Request) {
     .select()
     .from(schema.verification_reports)
     .where(conds.length ? and(...conds) : undefined)
-    .orderBy(desc(schema.verification_reports.ran_at))
+    .orderBy(desc(schema.verification_reports.ran_at), desc(schema.verification_reports.id))
     .limit(limit)
     .all();
   return NextResponse.json({ reports: rows, count: rows.length });

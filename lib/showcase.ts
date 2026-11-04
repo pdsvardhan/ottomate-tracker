@@ -329,6 +329,70 @@ export function clipToCatch(text: string, max = 320): string {
   return `…${clip(parts.slice(at).join(' '), max)}`;
 }
 
+// The "fixed, then approved" step must END on the resolution, never on a clause that still reads
+// as a failure. Screenroom report 995 (item 1182) is the case: "…the track-list contrast fix that
+// shipped here was SILENTLY DELETED by commit 85f1c99, which replaced the tail of globals.css by
+// index; the verifier caught it at 3.483:1 live. Restored in f4a7c56, measured 7.01:1 …, and the
+// suite now asserts it." clip() stopped at "by index;". Approval prose praises with words like
+// "never relocates" or "nothing missing", so the failure list here is narrower than STRONG_CATCH,
+// and a sentence that also carries a resolution word ("…the gap was closed") is a resolution.
+const APPROVAL_FAILURE = /\b(?:FAIL(?:S|ED|ING)?|NOT\s+(?:FIXED|MET|ADVANCED|VERIFIED)|ITERATE|BLOCK(?:ED)?|BUG|GAP|regressions?|leaks?|deleted|broke|broken|caught|reverted|lost|silently|wrong|incorrect)\b/i;
+const RESOLUTION = /\b(?:restored|fixed|re-?verified|resolved|repaired|closed|confirmed|proven|passes|passed|asserts|green|now\s+(?:passes|returns|reads|holds|works|fits|shows|renders))\b/i;
+
+/** A sentence reads as a failure when it names one and does not also say it was resolved. */
+export function readsAsFailure(sentence: string): boolean {
+  return APPROVAL_FAILURE.test(sentence) && !RESOLUTION.test(sentence);
+}
+
+function readsAsResolution(sentence: string): boolean {
+  return RESOLUTION.test(sentence);
+}
+
+/**
+ * The approval reason as the last story card shows it — whole sentences, never ending on a
+ * failure clause. In order of preference:
+ *   1. the whole reason, when it fits in `hard` and ends on a non-failure sentence;
+ *   2. the longest prefix within `max` that ends on a resolution sentence;
+ *   3. the longest prefix within `hard` that ends on a resolution sentence;
+ *   4. the longest prefix within `max` that ends on any non-failure sentence;
+ *   5. starting FROM the first resolution sentence ("…Restored in …");
+ *   6. a plain clip (the caller then refuses to feature it: approvalEndsResolved is false).
+ */
+export function approvalExcerpt(text: string, max = 320, hard = Math.round(max * 1.5)): string {
+  const t = text.trim();
+  const s = sentences(t);
+  if (s.length === 0) return t;
+  if (t.length <= hard && !readsAsFailure(s[s.length - 1]!)) return t;
+  const prefix = (k: number) => s.slice(0, k + 1).join(' ');
+  const longest = (limit: number, ok: (x: string) => boolean): string | null => {
+    for (let k = s.length - 1; k >= 0; k--) {
+      if (ok(s[k]!) && prefix(k).length <= limit) return prefix(k);
+    }
+    return null;
+  };
+  const picked = longest(max, readsAsResolution)
+    ?? longest(hard, readsAsResolution)
+    ?? longest(max, (x) => !readsAsFailure(x));
+  if (picked) return picked;
+  const firstRes = s.findIndex(readsAsResolution);
+  if (firstRes > 0) {
+    let run = s[firstRes]!;
+    for (let k = firstRes + 1; k < s.length; k++) {
+      const longer = s.slice(firstRes, k + 1).join(' ');
+      if (longer.length > max) break;
+      if (readsAsResolution(s[k]!)) run = longer;
+    }
+    return `…${run.length > max ? clip(run, max) : run}`;
+  }
+  return clip(t, max);
+}
+
+/** True when an approval excerpt's last sentence does not read as a failure. */
+export function approvalEndsResolved(excerpt: string): boolean {
+  const s = sentences(excerpt.replace(/^…/, '').replace(/…$/, ''));
+  return s.length > 0 && !readsAsFailure(s[s.length - 1]!);
+}
+
 export interface ItemReport {
   targetId: string;
   verdict: string | null;
@@ -404,8 +468,9 @@ export interface SentBackCandidate {
 
 /**
  * The featured sent-back change: never from a financial project, nothing that reads like money
- * or an account, and the approval must show the fix. This project's own change first, then the
- * most recent approval anywhere (newest item breaks a tie).
+ * or an account, the approval must show the fix, and its card excerpt must end on the resolution
+ * (approvalExcerpt), never on a clause that still reads as a failure. This project's own change
+ * first, then the most recent approval anywhere (newest item breaks a tie).
  */
 export function pickSentBackStory(
   candidates: readonly SentBackCandidate[],
@@ -414,6 +479,7 @@ export function pickSentBackStory(
   const ok = candidates.filter((c) =>
     !opts.financial.has(c.projectSlug)
     && approvalShowsFix(c.history.approval.reason)
+    && approvalEndsResolved(approvalExcerpt(c.history.approval.reason ?? ''))
     && ![c.title, c.request, c.change, c.history.sentBack.reason, c.history.approval.reason].some(hasSensitiveText));
   if (ok.length === 0) return null;
   const best = [...ok].sort((a, b) => {
@@ -474,7 +540,8 @@ export function approvedStory(row: TraceRow, projectName: string): ShipStory | n
 
 /**
  * Story text as the cards show it: every prose field clipped to whole sentences. The send-back
- * reason is clipped around its catch (clipToCatch), so the "sent it back" step says what failed.
+ * reason is clipped around its catch (clipToCatch), so the "sent it back" step says what failed;
+ * the verdict reason is cut by approvalExcerpt, so the last step ends on the resolution.
  */
 export function clipStory(story: ShipStory, max = 320): ShipStory {
   const c = (s: string | null) => (s ? clip(s, max) : s);
@@ -482,7 +549,7 @@ export function clipStory(story: ShipStory, max = 320): ShipStory {
     ...story,
     request: c(story.request),
     change: c(story.change),
-    reason: c(story.reason),
+    reason: story.reason && story.verdict === 'APPROVE' ? approvalExcerpt(story.reason, max) : c(story.reason),
     sentBack: story.sentBack
       ? { ...story.sentBack, reason: story.sentBack.reason ? clipToCatch(story.sentBack.reason, max) : story.sentBack.reason }
       : null,
@@ -504,4 +571,45 @@ export function scrubStoryForVisitor(story: ShipStory, financial: boolean): Ship
     reason: keep(story.reason),
     sentBack: story.sentBack ? { ...story.sentBack, reason: keep(story.sentBack.reason) } : null,
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Risks on the Decisions tab (iter-208 AC937)
+// ═══════════════════════════════════════════════════════════════════
+
+export interface RiskRow {
+  id: number;
+  name: string | null;
+  category: string | null;
+  severity: string | null;
+  status: string | null;
+  hasResolution: boolean;
+}
+
+export interface OpenRiskCard { name: string; category: string; severity: string; status: string }
+export interface ResolvedRiskCard { problem: string; category: string; status: string; solved: string | null }
+
+/**
+ * Open risks and resolved risks ("Challenges resolved") as the Decisions tab shows them. A risk's
+ * free-text resolution can quote to-dos, branches and file names, so the visitor view
+ * (`resolutions === null`, the text was never read) shows title, category and status only; the
+ * owner view passes the resolution texts and sees them as before. A resolved risk is listed when
+ * it has a recorded resolution — the same set in both views.
+ */
+export function riskCards(
+  rows: readonly RiskRow[],
+  resolutions: ReadonlyMap<number, string | null> | null,
+): { open: OpenRiskCard[]; resolved: ResolvedRiskCard[] } {
+  const open = rows
+    .filter((r) => r.status !== 'resolved')
+    .map((r) => ({ name: r.name ?? 'Risk', category: r.category ?? '', severity: r.severity ?? 'medium', status: r.status ?? 'open' }));
+  const resolved = rows
+    .filter((r) => r.status === 'resolved' && r.hasResolution)
+    .map((r) => ({
+      problem: r.name ?? 'Risk',
+      category: r.category ?? '',
+      status: 'resolved',
+      solved: resolutions ? (resolutions.get(r.id)?.trim() || null) : null,
+    }));
+  return { open, resolved };
 }

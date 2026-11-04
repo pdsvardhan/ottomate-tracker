@@ -8,7 +8,7 @@
 // change + the live send-back rate (#1516, adr-025), and the visitor view never receives raw
 // financial verifier text (#1509, adr-026). Only what is rendered is sent to the browser.
 
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { getDb, schema } from '@/lib/db/client';
 import { pickReel } from '@/lib/media';
@@ -23,6 +23,7 @@ import {
   pickSentBackStory,
   pickTodayExample,
   repoLink,
+  riskCards,
   scrubStoryForVisitor,
   securityLines,
   sendBackLabel,
@@ -96,13 +97,23 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     .where(eq(schema.project_non_goals.project_slug, slug)).orderBy(asc(schema.project_non_goals.sort_order)).all();
   const success = db.select().from(schema.project_success_criteria)
     .where(eq(schema.project_success_criteria.project_slug, slug)).orderBy(asc(schema.project_success_criteria.sort_order)).all();
+  // iter-208 AC937: a risk's free-text resolution can quote to-dos, branches and file names. The
+  // base select carries only what the visitor view renders (title, category, severity, status)
+  // plus a has-resolution FLAG; the text itself is read only for the owner view (below), so it
+  // never reaches a visitor's RSC payload.
   const riskRows = db.select({
     id: schema.risk_instances.id, status: schema.risk_instances.status,
-    sev: schema.risk_instances.severity_override, resolution: schema.risk_instances.resolution_summary,
+    sev: schema.risk_instances.severity_override,
+    hasResolution: sql<number>`(${schema.risk_instances.resolution_summary} IS NOT NULL AND trim(${schema.risk_instances.resolution_summary}) <> '')`,
     name: schema.risks_catalog.name, category: schema.risks_catalog.category, baseSev: schema.risks_catalog.severity_baseline,
   }).from(schema.risk_instances)
     .leftJoin(schema.risks_catalog, eq(schema.risk_instances.risk_type_id, schema.risks_catalog.id))
     .where(eq(schema.risk_instances.project_slug, slug)).all();
+  const riskResolutions: ReadonlyMap<number, string | null> | null = owner
+    ? new Map(db.select({ id: schema.risk_instances.id, resolution: schema.risk_instances.resolution_summary })
+        .from(schema.risk_instances).where(eq(schema.risk_instances.project_slug, slug)).all()
+        .map((r) => [r.id, r.resolution]))
+    : null;
   const adrs = db.select().from(schema.adr_index).where(eq(schema.adr_index.project_slug, slug))
     .orderBy(desc(schema.adr_index.date)).all();
   const iterations = db.select().from(schema.iterations).where(eq(schema.iterations.project_slug, slug)).all();
@@ -136,11 +147,11 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
   // iter-208 #1516: the verifier at work. (a) the send-back rate over the most recent reports,
   // all projects; (b) every Stage-4 item's verdict history, to find a change that was sent back,
   // fixed and then approved. (c) which projects are financial — never featured (adr-025).
-  // Same order GET /api/verification-reports returns (ran_at desc; reports filed in the same
-  // second keep their filing order), so the tile and the API agree on "the last 200".
+  // Exactly the order GET /api/verification-reports uses — ran_at, then id, both newest first —
+  // so the tile and a recount through the API can never disagree on "the last 200".
   const recentVerdicts = db.select({ rec: schema.verification_reports.recommendation_overall })
     .from(schema.verification_reports)
-    .orderBy(desc(schema.verification_reports.ran_at), asc(schema.verification_reports.id))
+    .orderBy(desc(schema.verification_reports.ran_at), desc(schema.verification_reports.id))
     .limit(SEND_BACK_WINDOW).all();
   const itemReports = db.select({
     id: schema.verification_reports.id,
@@ -201,8 +212,11 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
   const fTodo = activeFeatures.filter((f) => f.status === 'planned' || f.status === 'blocked').length;
   const flowsPassing = flows.filter((f) => f.test_status === 'passing').length;
   const coveragePct = flows.length > 0 ? Math.round((flowsPassing / flows.length) * 100) : 0;
-  const openRisks = riskRows.filter((r) => r.status !== 'resolved');
-  const resolvedRisks = riskRows.filter((r) => r.status === 'resolved' && r.resolution);
+  // AC937: visitor view = title, category, status only (riskResolutions is null for visitors).
+  const riskView = riskCards(riskRows.map((r) => ({
+    id: r.id, name: r.name, category: r.category, severity: r.sev ?? r.baseSev, status: r.status,
+    hasResolution: Boolean(r.hasResolution),
+  })), riskResolutions);
 
   const stepsByFlow = new Map<string, { actor: string; action: string; result: string; sort: number }[]>();
   for (const s of flowSteps) {
@@ -428,10 +442,8 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
       status: d.status ?? 'accepted', superseded: !!d.superseded_by,
       curated: (Array.isArray(d.tags) ? d.tags : []).includes('curated'),
     })),
-    challenges: resolvedRisks.map((r) => ({ problem: r.name ?? 'Risk', solved: r.resolution ?? '' })),
-    risks: openRisks.map((r) => ({
-      name: r.name ?? 'Risk', category: r.category ?? '', severity: (r.sev ?? r.baseSev ?? 'medium'), status: r.status ?? 'open',
-    })),
+    challenges: riskView.resolved,
+    risks: riskView.open,
   };
 
   return <ProjectShowcase data={data} archSlot={archSlot} />;

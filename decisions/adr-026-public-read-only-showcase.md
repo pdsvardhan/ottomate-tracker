@@ -51,8 +51,12 @@ without the token.
    cannot filter by method, so the one matched API route with a write method (media DELETE) relies on that check.
    The server action refuses in the visitor view.
 5. **What the public pages never render:** the inbox, raw verifier/report text from financial projects
-   (adr-025), raw to-do text (only to-dos given a plain `showcase_title` appear under "What's next"), and the
-   event notes behind the activity strip.
+   (adr-025), raw to-do text (only to-dos given a plain `showcase_title` appear under "What's next"), the
+   event notes behind the activity strip, and a risk's free-text resolution (visitors see a risk's title,
+   category and status only; the text is not even read for the visitor view).
+6. **Ottomate's own live link follows the switch.** Until the switch is on and verified, outsiders get a redirect
+   to the sign-in, so Ottomate is tagged `live:private` ("private app", no link). The last step of the switch-on
+   checklist flips it to `live:public`; turning the switch off flips it back.
 
 ## Consequences
 
@@ -64,6 +68,6 @@ without the token.
   an unauthenticated path; if it can, strip it at the Cloudflare edge (checklist steps 3–4).
 - Every mutating route answers 401 without the token, proven route by route in `tests/mutation-auth.test.ts`
   (four routes that swallowed `requireBearer`'s 401 in a try/catch were fixed in iteration 208).
-- Turning the switch off is one field in Authentik; the app needs no change either way.
+- Turning the switch off is one field in Authentik plus Ottomate's live tag; no code changes either way.
 - The Engineering tab's security line for Ottomate now reads as this posture (policy exposure `public` + access
   `auth-required`), and the hero/grid draw repo and live links only where an outsider can open them.

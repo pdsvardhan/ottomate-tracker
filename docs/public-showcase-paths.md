@@ -102,10 +102,14 @@ owner-only reel-upload button ("reel media"); none of them prints the token.
 5. From outside the LAN, without cookies: `/`, `/projects/ottomate`, `/components-browser` return 200;
    `/inbox`, `/coverage`, `/iterations/1` and `/api/inbox` redirect to the outpost; `POST /api/projects` without
    the token is refused.
-6. Set Ottomate's live tag to match: it is stored as `live:public` already because the showcase is only visible
-   to outsiders once this switch is on.
+6. **Only after steps 3–5 pass, flip Ottomate's own live tag to `live:public`.** Until the switch is on and
+   verified, `ottomate.vault7a.xyz` answers outsiders with a redirect to the sign-in, so the project is stored as
+   `live:private` and the grid and hero show "private app" with no link. Flip it with
+   `PATCH /api/projects/ottomate` `{"tags": [<its other tags>, "live:public"]}` (send the full array; drop
+   `live:private`), then reload `/` from outside and check the Ottomate row shows a "live ↗" link.
 
-**Turning it off:** clear the Unauthenticated Paths field and save. Nothing in the app needs to change.
+**Turning it off:** clear the Unauthenticated Paths field and save, and set Ottomate back to `live:private` the
+same way. Nothing else in the app needs to change.
 
 ## Live-site reachability tags (item 1511)
 

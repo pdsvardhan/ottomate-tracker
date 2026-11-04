@@ -15,7 +15,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ShaderBackground } from './ShaderBackground';
 import { ReelMedia, type ReelInfo } from './ReelMedia';
 import { NumberTicker } from '@/components/ui/NumberTicker';
-import type { LinkState, ShipStory } from '@/lib/showcase';
+import type { LinkState, OpenRiskCard, ResolvedRiskCard, ShipStory } from '@/lib/showcase';
 
 export interface ShowcaseData {
   slug: string; name: string; accent: string; tagline: string; hook: string; tags: string[];
@@ -47,8 +47,9 @@ export interface ShowcaseData {
   sendBack: { sent: number; of: number; label: string; pct: string } | null;
   tests: { flowsPassing: number; flowsTotal: number; coveragePct: number; note: string };
   journal: { date: string; title: string; tags: string[]; status: string; superseded: boolean; curated: boolean }[];
-  challenges: { problem: string; solved: string }[];
-  risks: { name: string; category: string; severity: string; status: string }[];
+  // iter-208 AC937: `solved` (the free-text resolution) is null in the visitor view.
+  challenges: ResolvedRiskCard[];
+  risks: OpenRiskCard[];
 }
 
 const MAG = 'var(--mag)', VIO = 'var(--vio)', CYAN = 'var(--cyan)', CORAL = 'var(--coral)', AMBER = 'var(--amber)', DIM = 'var(--dim)';
@@ -657,7 +658,7 @@ function DecisionsPanel({ d }: { d: ShowcaseData }) {
               <div className="card flat">
                 <Eye tone={CORAL}>Challenges resolved</Eye>
                 <div className="flex flex-col gap-4">
-                  {d.challenges.map((c, i) => (
+                  {d.challenges.map((c, i) => c.solved ? (
                     <div key={i} className="grid gap-3 md:grid-cols-2">
                       <div>
                         <div className="mono text-[length:var(--t-cap)] tracking-wide mb-1" style={{ color: CORAL }}>RISK</div>
@@ -667,6 +668,15 @@ function DecisionsPanel({ d }: { d: ShowcaseData }) {
                         <div className="mono text-[length:var(--t-cap)] tracking-wide mb-1" style={{ color: CYAN }}>RESOLVED</div>
                         <div className="text-[length:var(--t-label)] leading-snug" style={{ color: 'var(--mute)' }}>{c.solved}</div>
                       </div>
+                    </div>
+                  ) : (
+                    // iter-208 AC937: visitor view — title, category and status only; the free-text
+                    // resolution is never read for visitors (page.tsx), so there is nothing to show.
+                    <div key={i} className="flex items-center gap-3.5" style={{ borderTop: i ? '1px solid var(--line)' : 'none', paddingTop: i ? 12 : 0 }}>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: CYAN, boxShadow: `0 0 10px ${CYAN}` }} />
+                      <span className="flex-1 text-[length:var(--t-label)]" style={{ color: 'var(--ink)' }}>{c.problem}</span>
+                      {c.category && <span className="mono text-[length:var(--t-cap)]" style={{ color: 'var(--mute)' }}>{c.category}</span>}
+                      <span className="mono text-[length:var(--t-cap)] rounded px-2 py-0.5" style={{ color: CYAN, border: '1px solid var(--line)' }}>{c.status}</span>
                     </div>
                   ))}
                 </div>

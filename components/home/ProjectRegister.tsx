@@ -73,12 +73,13 @@ const STAGE_HUES: Record<string, string> = {
 };
 
 // A non-link label for a login-walled app or a private repo (#1510/#1511). Clicks pass through
-// to the row link underneath.
+// to the row link underneath. text-zinc-400 (#9f9fa9) on the page ground (#0b0c10) is ~7.4:1 —
+// zinc-500 was 4.04:1, under WCAG AA's 4.5:1 (axe, iter-208 feature verification).
 function PrivateTag({ label, title }: { label: string; title: string }) {
   return (
     <span
       title={title}
-      className="pointer-events-none mono text-[length:var(--t-cap)] text-zinc-500 rounded-md border border-white/10 px-2.5 py-1.5 whitespace-nowrap"
+      className="pointer-events-none mono text-[length:var(--t-cap)] text-zinc-400 rounded-md border border-white/10 px-2.5 py-1.5 whitespace-nowrap"
     >
       {label}
     </span>
@@ -296,7 +297,8 @@ export function ProjectRegister({
                     {a.name}
                   </Link>
                   <span className="flex-1 truncate text-[length:var(--t-label)] text-zinc-400">{a.note}</span>
-                  <span className="mono text-[length:var(--t-cap)] text-zinc-500 tabular-nums shrink-0">{a.when}</span>
+                  {/* iter-208: zinc-400 — zinc-500 measured 3.95:1 here (axe), under AA's 4.5:1 */}
+                  <span className="mono text-[length:var(--t-cap)] text-zinc-400 tabular-nums shrink-0">{a.when}</span>
                 </li>
               ))}
             </ul>

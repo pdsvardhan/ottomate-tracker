@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 import {
   activityLabel,
   activityNote,
+  approvalEndsResolved,
+  approvalExcerpt,
   approvalShowsFix,
   approvedStory,
   clip,
@@ -21,7 +23,9 @@ import {
   liveStatus,
   pickSentBackStory,
   pickTodayExample,
+  readsAsFailure,
   repoLink,
+  riskCards,
   scrubStoryForVisitor,
   securityLines,
   sendBackLabel,
@@ -214,7 +218,7 @@ describe('send-back rate (#1516)', () => {
   const window200 = [
     ...Array<string>(18).fill('ITERATE'), 'BLOCK', ...Array<string>(181).fill('APPROVE'),
   ];
-  it("today's live numbers: 18 ITERATE + 1 BLOCK of 200 -> sent back 19 of the last 200", () => {
+  it('a window of 18 ITERATE + 1 BLOCK of 200 -> sent back 19 of the last 200', () => {
     const rate = sendBackRate(window200)!;
     expect(rate).toEqual({ sent: 19, of: 200 });
     expect(sendBackLabel(rate)).toBe('sent back 19 of the last 200 changes');
@@ -460,5 +464,93 @@ describe('send-back reason clipped around the catch (#1516)', () => {
   });
   it('sentences splits on terminal punctuation', () => {
     expect(sentences('One. Two! Three? Four')).toEqual(['One.', 'Two!', 'Three?', 'Four']);
+  });
+});
+
+// ── #1516 auto-fix round 3: the approval step ends on the resolution ──
+// Verification report 995 (Screenroom item 1182, APPROVE), verbatim.
+const REPORT_995 =
+  'Album detail. The .dacts/.alhead .acts selector was dead and is fixed -- verifier confirmed 2 hits on the album ' +
+  'page, flex-direction column at 390 and row at 1440. AND the track-list contrast fix that shipped here was ' +
+  'SILENTLY DELETED by commit 85f1c99, which replaced the tail of globals.css by index; the verifier caught it at ' +
+  '3.483:1 live. Restored in f4a7c56, measured 7.01:1 with a 2px poster-colour rail, and the suite now asserts it.';
+
+describe('approval step keeps the resolution (#1516, report 995)', () => {
+  it('report 995: the old clip ended on the failure clause "…by index;"', () => {
+    expect(REPORT_995.length).toBe(440);
+    expect(clip(REPORT_995)).toMatch(/by index;$/);
+  });
+  it('report 995: the excerpt keeps "Restored in f4a7c56 … the suite now asserts it."', () => {
+    const out = approvalExcerpt(REPORT_995);
+    expect(out).toContain('Restored in f4a7c56, measured 7.01:1');
+    expect(out.endsWith('and the suite now asserts it.')).toBe(true);
+    expect(approvalEndsResolved(out)).toBe(true);
+  });
+  it('clipStory applies it to the approval step of a story built from report 995', () => {
+    const s = clipStory({
+      kind: 'sent-back', iter: 36, title: 'Mobile layout: Album detail (track list)', request: 'r', change: null,
+      projectName: 'Screenroom', crossProject: false, sentBack: { verdict: 'ITERATE', reason: 'NOT ADVANCED. .dhero is null.' },
+      verdict: 'APPROVE', reason: REPORT_995, rounds: 2,
+    });
+    expect(s.reason!.endsWith('the suite now asserts it.')).toBe(true);
+    expect(s.reason).not.toMatch(/;\s*$/);
+  });
+  it('too long for the whole text: ends on the last resolution sentence that fits, never on the failure', () => {
+    const longer = `${REPORT_995} A later regression was caught and reverted by commit 0a1b2c3 before the deploy went out.`;
+    expect(longer.length).toBeGreaterThan(480);
+    const out = approvalExcerpt(longer);
+    expect(approvalEndsResolved(out)).toBe(true);
+    expect(out).not.toContain('SILENTLY DELETED');
+    expect(out.endsWith('row at 1440.')).toBe(true);
+  });
+  it('a short approval that ends on a failure is trimmed back to the resolution', () => {
+    expect(approvalExcerpt('Re-verified after fix. The old layout was silently deleted by commit abc1234.'))
+      .toBe('Re-verified after fix.');
+  });
+  it('praise words do not count as failures; a sentence that also resolves is a resolution', () => {
+    expect(readsAsFailure('the verifier caught it at 3.483:1 live.')).toBe(true);
+    expect(readsAsFailure('A first verifier returned ITERATE because the page set it only in finish().')).toBe(true);
+    expect(readsAsFailure('It never relocates it.')).toBe(false);
+    expect(readsAsFailure('Re-verified after the Where in India gap was closed.')).toBe(false);
+    expect(approvalExcerpt('Pass 5. The fix removes the defect. It never relocates it.'))
+      .toBe('Pass 5. The fix removes the defect. It never relocates it.');
+  });
+  it('a candidate whose approval can only end on a failure is not featured', () => {
+    const financial = new Set<string>();
+    const bad = cand({ itemId: 9, projectSlug: 'screenroom', at: 900 });
+    bad.history = { ...bad.history, approval: { reason: 'Round 2: still broken; the fix was deleted.', at: 900 } };
+    const good = cand({ itemId: 1, projectSlug: 'mapsofbharat', at: 100 });
+    const story = pickSentBackStory([bad, good], { pageSlug: 'ottomate', financial })!;
+    expect(story.title).toBe('Item 1');
+    expect(pickSentBackStory([bad], { pageSlug: 'ottomate', financial })).toBeNull();
+  });
+});
+
+// ── AC937 (auto-fix round 3): risks show title, category and status only to visitors ──
+describe('risk cards on the Decisions tab (AC937)', () => {
+  const NOTE = 'SUPERSEDED 2026-08-27 (to-do #662): the owner REVERSED the July ruling; see branch fix/role-path and lib/request-path.ts';
+  const rows = [
+    { id: 1, name: 'Role-aware request path', category: 'security', severity: 'high', status: 'resolved', hasResolution: true },
+    { id: 2, name: 'Unbounded upload size', category: 'reliability', severity: null, status: 'open', hasResolution: false },
+    { id: 3, name: 'Stale cache', category: 'performance', severity: 'low', status: 'resolved', hasResolution: false },
+    { id: 4, name: null, category: null, severity: 'medium', status: 'accepted', hasResolution: false },
+  ];
+  const resolutions = new Map<number, string | null>([[1, NOTE]]);
+
+  it('visitor view (no resolutions read): title, category and status only', () => {
+    const v = riskCards(rows, null);
+    expect(v.resolved).toEqual([{ problem: 'Role-aware request path', category: 'security', status: 'resolved', solved: null }]);
+    expect(v.open).toEqual([
+      { name: 'Unbounded upload size', category: 'reliability', severity: 'medium', status: 'open' },
+      { name: 'Risk', category: '', severity: 'medium', status: 'accepted' },
+    ]);
+    expect(JSON.stringify(v)).not.toMatch(/#662|REVERSED|request-path\.ts|fix\/role-path/);
+  });
+  it('owner view keeps the resolution text', () => {
+    const o = riskCards(rows, resolutions);
+    expect(o.resolved).toEqual([{ problem: 'Role-aware request path', category: 'security', status: 'resolved', solved: NOTE }]);
+  });
+  it('the same risks are listed in both views (a resolved risk needs a recorded resolution)', () => {
+    expect(riskCards(rows, null).resolved.map((r) => r.problem)).toEqual(riskCards(rows, resolutions).resolved.map((r) => r.problem));
   });
 });
