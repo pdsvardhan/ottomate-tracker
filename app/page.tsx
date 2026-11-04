@@ -3,6 +3,9 @@
 // Category / Health / Links / Age — OPEN + STACK dropped). Public/Private + Stage
 // are placeholder values (owner corrects later). Below the fold: cross-project
 // activity + a live VAULT7A server-telemetry card (real /proc readings).
+// iter-208 (feat-reviewer-showcase): owner vs visitor view (lib/viewer.ts). Visitors see only
+// projects with built features (#1514), plain activity labels instead of notes (#1512), and
+// repo/live links only where an outsider can open them (#1510/#1511).
 
 import os from 'node:os';
 import { statfs } from 'node:fs/promises';
@@ -10,6 +13,8 @@ import { desc, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
 import { pickReel } from '@/lib/media';
 import { projectAccent } from '@/lib/project-accent';
+import { getViewer } from '@/lib/viewer-server';
+import { activityNote, gridRows, liveLink, repoLink } from '@/lib/showcase';
 import { ProjectRegister, type RegisterRow, type ActivityLine } from '@/components/home/ProjectRegister';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
 import type { ServerStats } from '@/components/project/ServerStatsCard';
@@ -88,6 +93,7 @@ async function readServerStats(): Promise<ServerStats> {
 
 export default async function HomePage() {
   const db = await getDb();
+  const { owner } = await getViewer();
 
   const projects = db.select().from(schema.projects)
     .where(eq(schema.projects.archived, false))
@@ -138,21 +144,22 @@ export default async function HomePage() {
     const chips = [t.framework, t.database].filter(Boolean) as string[];
     stackMap.set(t.slug, chips);
   }
-  const lastChange = new Map<string, { text: string; at: number }>();
+  // Latest event time per project (feeds AGE). The event's notes are NOT carried into the row:
+  // they were sent to the browser in the RSC payload even though nothing rendered them (#1512).
+  const lastChangeAt = new Map<string, number>();
   for (const e of events) {
-    if (!e.project_slug || lastChange.has(e.project_slug)) continue;
-    lastChange.set(e.project_slug, { text: e.notes ?? e.event_type, at: unix(e.event_at) });
+    if (!e.project_slug || lastChangeAt.has(e.project_slug)) continue;
+    lastChangeAt.set(e.project_slug, unix(e.event_at));
   }
 
   const nameBySlug = new Map(projects.map((p) => [p.slug, p.display_name]));
 
-  const rows: RegisterRow[] = projects.map((p) => {
+  const allRows: RegisterRow[] = projects.map((p) => {
     const tags = (p.tags ?? []) as string[];
     const fs = fStat.get(p.slug) ?? { done: 0, total: 0 };
     const fls = flStat.get(p.slug) ?? { passing: 0, total: 0 };
-    const changed = lastChange.get(p.slug);
     const updatedAt = unix(p.updated_at);
-    const changeAt = Math.max(changed?.at ?? 0, updatedAt);
+    const changeAt = Math.max(lastChangeAt.get(p.slug) ?? 0, updatedAt);
     // Public/Private — PLACEHOLDER: derived from an explicit 'public-facing' tag
     // (owner sets the real call per project later).
     const isPublic = tags.includes('public-facing');
@@ -170,27 +177,34 @@ export default async function HomePage() {
       flowsPassing: fls.passing,
       flowsTotal: fls.total,
       risksOpen: riskOpen.get(p.slug) ?? 0,
-      liveUrl: p.public_url ?? null,
-      repoUrl: p.repository_url ?? null,
+      // #1511: a live link only for a site tagged live:public; live:private -> "private app".
+      live: liveLink(p.public_url, tags),
+      // #1510: a repo link only for a public (GitHub) URL; Gitea/localhost -> "private repo".
+      repo: repoLink(p.repository_url),
       port: p.port ?? null,
       age: timeAgo(changeAt),
       blurb: p.short_description ?? p.core_idea ?? p.tagline ?? '',
       stack: stackMap.get(p.slug) ?? [],
       // iter-65 #506: tags no longer rendered anywhere on the register
-      lastChange: changed?.text ?? null,
       // #165: real reel media in the floating panel when uploaded
       reel: (() => { const r = pickReel(p.slug); return r ? { url: r.url, kind: r.kind } : null; })(),
     };
   });
 
+  // #1514: the visitor view leaves out projects with zero built features; the owner sees all.
+  const rows = gridRows(allRows, owner);
+  const shownSlugs = new Set(rows.map((r) => r.slug));
+
+  // #1512: visitor lines are project · plain event label · time — never the free-text notes;
+  // the owner view keeps the notes. Activity follows the grid: a hidden project has no line.
   const activity: ActivityLine[] = events
-    .filter((e) => e.project_slug && nameBySlug.has(e.project_slug))
+    .filter((e) => e.project_slug && nameBySlug.has(e.project_slug) && shownSlugs.has(e.project_slug))
     .slice(0, 9)
     .map((e) => ({
       slug: e.project_slug!,
       name: nameBySlug.get(e.project_slug!) ?? e.project_slug!,
       accent: projectAccent(e.project_slug!),
-      note: e.notes ?? e.event_type,
+      note: activityNote(e.event_type, e.notes, owner),
       when: timeAgo(unix(e.event_at)),
     }));
 

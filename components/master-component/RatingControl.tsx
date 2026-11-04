@@ -7,6 +7,7 @@
 // via PATCH /api/master-components/[id] with the sessionStorage bearer.
 
 import { useState } from 'react';
+import { useViewer } from '@/components/auth/ViewerContext';
 
 export const RATING_TIERS = [
   { grade: 'A', label: 'Standout', dots: 3, hue: 'var(--cyan)' },
@@ -19,9 +20,26 @@ export const RATING_LABEL: Record<string, string> = { A: 'Standout', B: 'Solid',
 type Grade = 'A' | 'B' | 'C';
 
 export function RatingControl({ id, initial }: { id: string; initial: Grade | null }) {
+  const { owner } = useViewer();
   const [grade, setGrade] = useState<Grade | null>(initial);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // iter-208 #1509: rating is an owner control. The visitor view shows the current rating as a
+  // read-only pill (nothing when unrated); the PATCH would 401 without the owner's token anyway.
+  if (!owner) {
+    const tier = RATING_TIERS.find((t) => t.grade === grade);
+    if (!tier) return null;
+    return (
+      <span
+        className="mono text-[length:var(--t-cap)] font-semibold rounded-lg px-3 py-1.5"
+        style={{ color: '#070811', background: tier.hue }}
+      >
+        <span aria-hidden style={{ letterSpacing: '1px', marginRight: 6 }}>{'●'.repeat(tier.dots)}</span>
+        {tier.label}
+      </span>
+    );
+  }
 
   async function set(g: Grade) {
     const next = grade === g ? null : g; // click active tier again to clear

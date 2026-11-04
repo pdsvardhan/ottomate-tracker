@@ -12,6 +12,7 @@ import { BackButton } from '@/components/ui/BackButton';
 import { PRIMARY_BUTTON_CLASSES } from '@/components/ui/FilterBar';
 import { AddInspirationModal } from '@/components/inspiration/AddInspirationModal';
 import { ShaderBackground } from '@/components/project/ShaderBackground';
+import { getViewer } from '@/lib/viewer-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,8 @@ export default async function InspirationsPage({
   searchParams: Promise<SearchParamsShape>;
 }) {
   const { q, domain, source_type, tag } = await searchParams;
+  // iter-208 #1509: adding an inspiration is an owner control — not offered in the visitor view.
+  const { owner } = await getViewer();
   const db = await getDb();
   const all = db.select().from(schema.inspirations).orderBy(asc(schema.inspirations.id)).all();
 
@@ -59,15 +62,17 @@ export default async function InspirationsPage({
             <BackButton href="/" label="Home" />
             <h1 className="display pg leading-none">Inspirations</h1>
           </div>
-          <Link href="/inspirations?action=new" className={PRIMARY_BUTTON_CLASSES}>
-            + Add inspiration
-          </Link>
+          {owner && (
+            <Link href="/inspirations?action=new" className={PRIMARY_BUTTON_CLASSES}>
+              + Add inspiration
+            </Link>
+          )}
         </div>
 
       {filtered.length === 0 ? (
         <EmptyState
           title="No inspirations yet"
-          body="Use “+ Add inspiration” to add your first visual reference."
+          body={owner ? 'Use “+ Add inspiration” to add your first visual reference.' : 'Visual references will appear here.'}
         />
       ) : (
         <div className="grid gap-x-8 gap-y-10 md:grid-cols-2 xl:grid-cols-3">
@@ -77,8 +82,8 @@ export default async function InspirationsPage({
         </div>
       )}
 
-        {/* Add-inspiration modal — toggled by ?action=new */}
-        <AddInspirationModal />
+        {/* Add-inspiration modal — toggled by ?action=new (owner view only) */}
+        {owner && <AddInspirationModal />}
       </div>
     </div>
   );

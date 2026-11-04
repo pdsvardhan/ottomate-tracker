@@ -3,12 +3,36 @@
 // Server component: pulls all real project data + shapes the architecture slot,
 // then hands a plain data object to the <ProjectShowcase> client shell (hero +
 // in-page act-tabs). No fabricated content — every section is DB-backed or omitted.
+// iter-208 (feat-reviewer-showcase): links only where an outsider can open them (#1510/#1511),
+// "What's next" from marked to-dos only (#1513), the real exposure line (#1515), a sent-back
+// change + the live send-back rate (#1516, adr-025), and the visitor view never receives raw
+// financial verifier text (#1509, adr-026). Only what is rendered is sent to the browser.
 
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { getDb, schema } from '@/lib/db/client';
 import { pickReel } from '@/lib/media';
 import { projectAccent } from '@/lib/project-accent';
+import { getViewer } from '@/lib/viewer-server';
+import {
+  SEND_BACK_WINDOW,
+  approvedStory,
+  clipStory,
+  isFinancialProject,
+  liveLink,
+  pickSentBackStory,
+  pickTodayExample,
+  repoLink,
+  scrubStoryForVisitor,
+  securityLines,
+  sendBackLabel,
+  sendBackPercent,
+  sendBackRate,
+  sentBackHistories,
+  showcaseRoadmap,
+  type SentBackCandidate,
+  type ShipStory,
+} from '@/lib/showcase';
 import {
   ArchitectureView,
   type DiagramSection,
@@ -16,6 +40,13 @@ import {
 import { ProjectShowcase, type ShowcaseData } from '@/components/project/ProjectShowcase';
 
 export const dynamic = 'force-dynamic';
+
+function unixMs(value: unknown): number {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return value * 1000;
+  if (typeof value === 'string') return Date.parse(value) || 0;
+  return 0;
+}
 
 function unix(value: unknown): number {
   if (value instanceof Date) return Math.floor(value.getTime() / 1000);
@@ -54,6 +85,7 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
   const db = await getDb();
   const project = db.select().from(schema.projects).where(eq(schema.projects.slug, slug)).get();
   if (!project) notFound();
+  const { owner } = await getViewer();
 
   // ── Data pulls ──
   const features = db.select().from(schema.features).where(eq(schema.features.project_slug, slug))
@@ -75,9 +107,15 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     .orderBy(desc(schema.adr_index.date)).all();
   const iterations = db.select().from(schema.iterations).where(eq(schema.iterations.project_slug, slug)).all();
   // project_docs pull removed iter-65 #509 with the Resources tab.
-  const todos = db.select().from(schema.project_todos)
+  // iter-208 #1513: only the display marker + state leave the DB — the raw title/body of a
+  // to-do never reaches the showcase (column-scoped select, not select()).
+  const todos = db.select({
+    showcase_title: schema.project_todos.showcase_title,
+    state: schema.project_todos.state,
+    done: schema.project_todos.done,
+  }).from(schema.project_todos)
     .where(and(eq(schema.project_todos.project_slug, slug), eq(schema.project_todos.done, false)))
-    .orderBy(asc(schema.project_todos.sort_order)).all();
+    .orderBy(asc(schema.project_todos.sort_order), asc(schema.project_todos.id)).all();
   // adr-021: three previously-orphaned datasets surfaced on the showcase page.
   const uiPlan = db.select().from(schema.ui_master_plans)
     .where(eq(schema.ui_master_plans.project_slug, slug)).get();
@@ -95,6 +133,26 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     .where(and(eq(schema.iterations.project_slug, slug), eq(schema.iteration_items.status, 'integrated')))
     .orderBy(desc(schema.iterations.iteration_number), desc(schema.iteration_items.id))
     .limit(6).all();
+  // iter-208 #1516: the verifier at work. (a) the send-back rate over the most recent reports,
+  // all projects; (b) every Stage-4 item's verdict history, to find a change that was sent back,
+  // fixed and then approved. (c) which projects are financial — never featured (adr-025).
+  // Same order GET /api/verification-reports returns (ran_at desc; reports filed in the same
+  // second keep their filing order), so the tile and the API agree on "the last 200".
+  const recentVerdicts = db.select({ rec: schema.verification_reports.recommendation_overall })
+    .from(schema.verification_reports)
+    .orderBy(desc(schema.verification_reports.ran_at), asc(schema.verification_reports.id))
+    .limit(SEND_BACK_WINDOW).all();
+  const itemReports = db.select({
+    id: schema.verification_reports.id,
+    targetId: schema.verification_reports.target_id,
+    verdict: schema.verification_reports.recommendation_overall,
+    reason: schema.verification_reports.recommendation_reason,
+    ranAt: schema.verification_reports.ran_at,
+  }).from(schema.verification_reports)
+    .where(eq(schema.verification_reports.target_kind, 'stage-4-iteration-item')).all();
+  const projectTags = db.select({ slug: schema.projects.slug, tags: schema.projects.tags }).from(schema.projects).all();
+  const tiers = db.select({ slug: schema.policies.project_slug, tier: schema.policies.data_sensitivity_tier })
+    .from(schema.policies).all();
   // testing_libs JSON repaired iter-14 via the /tech-stack endpoint, so the plain
   // full-row select is safe again (was defensively split after the malformed-row
   // 500 in iter-13).
@@ -178,18 +236,9 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     project.current_status && { k: 'STATUS', v: project.current_status },
   ].filter(Boolean) as { k: string; v: string }[];
 
-  // Security lines from real config
-  const security: string[] = [];
-  if (authCfg) {
-    security.push(authCfg.strategy === 'none' ? 'No auth — single user / network-bound' : `Auth: ${authCfg.strategy}${authCfg.providers?.length ? ` (${authCfg.providers.join(', ')})` : ''}`);
-    if (authCfg.mfa_supported) security.push('MFA supported');
-  }
-  if (policy) {
-    security.push(`Exposure: ${policy.exposure} · access ${policy.access_control}`);
-    if (policy.data_sensitivity_tier && policy.data_sensitivity_tier !== 'none') security.push(`Data sensitivity: ${policy.data_sensitivity_tier}`);
-    if (policy.encryption_in_transit) security.push('Encrypted in transit');
-  }
-  if (security.length === 0) security.push('Self-hosted · network-bound (no auth config recorded)');
+  // Security lines from real config. iter-208 #1515: exposure=public + access=auth-required
+  // reads as the public read-only showcase (lib/showcase.ts securityLines).
+  const security = securityLines(authCfg, policy);
 
   const stackChips: string[] = [];
   if (tech) {
@@ -249,6 +298,59 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     reason: jsonField(r.verifier, 'reason'),
   })).filter((t) => t.verdict !== null);
 
+  // ── iter-208 #1516: "How a change actually ships" features a SENT-BACK change ──
+  // Financial projects (cointrail, ingest, finance-tagged or financial-tier) are never featured.
+  const tierBySlug = new Map(tiers.map((t) => [t.slug, t.tier]));
+  const financial = new Set(projectTags
+    .filter((p) => isFinancialProject(p.slug, (p.tags ?? []) as string[], tierBySlug.get(p.slug)))
+    .map((p) => p.slug));
+  const histories = sentBackHistories(itemReports.map((r) => ({
+    targetId: r.targetId, verdict: r.verdict, reason: r.reason, ranAt: unixMs(r.ranAt), id: r.id,
+  })));
+  const historyById = new Map(histories.map((h) => [h.itemId, h]));
+  const candidateIds = histories.map((h) => Number(h.itemId)).filter((n) => Number.isInteger(n) && n > 0);
+  const candidateRows = candidateIds.length > 0
+    ? db.select({
+        id: schema.iteration_items.id,
+        title: schema.iteration_items.title,
+        description: schema.iteration_items.description,
+        proposed: schema.iteration_items.proposed_change,
+        status: schema.iteration_items.status,
+        iterNum: schema.iterations.iteration_number,
+        projectSlug: schema.iterations.project_slug,
+        projectName: schema.projects.display_name,
+      }).from(schema.iteration_items)
+        .innerJoin(schema.iterations, eq(schema.iteration_items.iteration_id, schema.iterations.id))
+        .innerJoin(schema.projects, eq(schema.iterations.project_slug, schema.projects.slug))
+        .where(inArray(schema.iteration_items.id, candidateIds)).all()
+    : [];
+  // Only changes that actually shipped (verified or integrated) can be featured.
+  const candidates: SentBackCandidate[] = candidateRows.flatMap((r) => {
+    const history = historyById.get(String(r.id));
+    if (!history || (r.status !== 'verified' && r.status !== 'integrated')) return [];
+    return [{
+      itemId: r.id,
+      iter: r.iterNum,
+      title: r.title,
+      request: r.description ?? null,
+      change: jsonField(r.proposed, 'action_summary'),
+      projectSlug: r.projectSlug,
+      projectName: r.projectName,
+      history,
+    }];
+  });
+  // Fallback when no sent-back change qualifies: today's example (this project's fullest APPROVE).
+  const today = pickTodayExample(trace);
+  let ship: ShipStory | null = pickSentBackStory(candidates, { pageSlug: slug, financial })
+    ?? (today && approvedStory(today, project.display_name));
+  // #1509: in the visitor view a financial project's own example keeps only title + verdict, and
+  // any field that reads like money or an account is dropped.
+  if (ship && !owner) ship = scrubStoryForVisitor(ship, ship.kind === 'approved' && financial.has(slug));
+  if (ship) ship = clipStory(ship);
+  const shipMore = trace.filter((t) => !(ship && !ship.crossProject && t.iter === ship.iter && t.title === ship.title)).length;
+  const rate = sendBackRate(recentVerdicts.map((v) => v.rec));
+  const sendBack = rate ? { ...rate, label: sendBackLabel(rate), pct: sendBackPercent(rate) } : null;
+
   // Hero hook leads with the problem (adr-021) — first sentence, verbatim.
   const firstSentence = (s: string) => {
     const m = s.match(/^[\s\S]*?[.!?](?=\s|$)/);
@@ -267,11 +369,13 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     // the first sentence, and repeating it verbatim read as broken copy
     // (iter-65 #521 pilot finding, visible on every project).
     // personal/cv retired from display (owner decision 2026-07-04) — tech tags only
-    tags: ((project.tags ?? []) as string[]).filter((t) => t !== 'personal' && t !== 'cv'),
+    // (live:* reachability tags are display rules, not tech tags — iter-208 #1511)
+    tags: ((project.tags ?? []) as string[]).filter((t) => t !== 'personal' && t !== 'cv' && !t.startsWith('live:')),
     stageLabel: STAGE_LABEL[project.lifecycle_phase ?? 'building'] ?? 'BUILD',
     status: project.current_status ?? 'building',
-    liveUrl: project.public_url ?? null,
-    repoUrl: project.repository_url ?? null,
+    // iter-208 #1511/#1510: a link only where an outsider can open it, else a 'private' label.
+    live: liveLink(project.public_url, (project.tags ?? []) as string[]),
+    repo: repoLink(project.repository_url),
     port: project.port ?? null,
     numbers,
     featureCounts: { done: fDone, wip: fWip, todo: fTodo },
@@ -287,10 +391,9 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     })),
     flows: flows.map((f) => ({ title: f.title, priority: f.priority ?? 'important', testStatus: f.test_status ?? 'not-tested' })),
     primaryFlow,
-    roadmap: [
-      ...activeFeatures.filter((f) => f.status === 'planned').map((f) => f.title),
-      ...todos.map((t) => t.title),
-    ].slice(0, 6),
+    // iter-208 #1513: only to-dos marked for display, by their plain showcase title. Planned
+    // features already show (as TODO) under "What it does"; none marked = section hidden.
+    roadmap: showcaseRoadmap(todos),
     // engineering
     stack: stackChips,
     services: services.map((s) => ({ name: s.name, purpose: s.purpose ?? '' })),
@@ -307,7 +410,10 @@ export default async function ProjectOverview({ params }: { params: Promise<{ sl
     identity,
     reel: (() => { const r = pickReel(slug); return r ? { url: r.url, kind: r.kind, name: r.name } : null; })(),
     verification,
-    trace,
+    // iter-208 #1516: only the featured story leaves the server (not the raw trace rows).
+    ship,
+    shipMore,
+    sendBack,
     // engineering (adr-021: tests moved out of the dissolved Development tab)
     // iter-65 #521: builder-speak ("the true ratio reads as credible") leaked
     // to visitors — the note now just states the facts.

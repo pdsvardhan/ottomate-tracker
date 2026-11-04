@@ -39,6 +39,9 @@ const fields = {
   last_verified_at: z.union([z.string().datetime({ offset: true }), z.literal(true), z.null()]).optional(),
   done: z.boolean(),
   sort_order: z.number().int(),
+  // iter-208 #1513: the showcase marker. A plain-English title marks the to-do for the public
+  // "What's next" and is the only text of it the showcase prints; null clears the marker.
+  showcase_title: z.string().trim().min(1).max(140).nullish(),
 };
 
 export const TodoCreateSchema = z.object({
@@ -51,6 +54,7 @@ export const TodoCreateSchema = z.object({
   origin: fields.origin,
   blocked_by: fields.blocked_by,
   last_verified_at: fields.last_verified_at,
+  showcase_title: fields.showcase_title,
   sort_order: fields.sort_order.nullish(),
 });
 
@@ -64,6 +68,7 @@ export const TodoPatchSchema = z.object({
   origin: fields.origin,
   blocked_by: fields.blocked_by,
   last_verified_at: fields.last_verified_at,
+  showcase_title: fields.showcase_title,
   done: fields.done.optional(),
   sort_order: fields.sort_order.optional(),
 });

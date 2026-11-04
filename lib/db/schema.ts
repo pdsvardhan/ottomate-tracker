@@ -983,6 +983,10 @@ export const project_todos = sqliteTable('project_todos', {
   origin: text('origin'),
   blocked_by: text('blocked_by', { mode: 'json' }).$type<number[]>(),
   last_verified_at: integer('last_verified_at', { mode: 'timestamp' }),
+  // iter-208 #1513 (migration 0016): the display marker for the showcase's "What's next". NULL =
+  // internal to-do (never shown); a value = marked for display, shown by THIS plain-English title,
+  // never by the raw title/body.
+  showcase_title: text('showcase_title'),
   created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
   updated_at: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });

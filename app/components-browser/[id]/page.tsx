@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import { getDb, schema } from '@/lib/db/client';
 import { getPreviewEntry } from '@/lib/previews';
+import { getViewer } from '@/lib/viewer-server';
 import { LivePreview } from './LivePreview';
 import { ComponentAdminBar } from './ComponentAdminBar';
 import { RatingControl } from '@/components/master-component/RatingControl';
@@ -86,6 +87,8 @@ export default async function ComponentDetailPage({ params }: Ctx) {
 
   const files = await readComponentFiles(id, component.primary_file);
   const preview = await getPreviewEntry(id);
+  // iter-208 #1509: rating + delete are owner controls; the visitor view shows a rating only if set.
+  const { owner } = await getViewer();
 
   const grade = (component.quality_grade ?? null) as 'A' | 'B' | 'C' | null;
   const deps = (component.dependencies ?? []) as string[];
@@ -125,10 +128,12 @@ export default async function ComponentDetailPage({ params }: Ctx) {
         </section>
 
         {/* Rating — moved below the preview (iter-16) */}
-        <section className="mb-8 flex items-center gap-3 flex-wrap">
-          <span className="mono text-[length:var(--t-cap)] uppercase tracking-wider" style={{ color: 'var(--dim)' }}>Rating</span>
-          <RatingControl id={component.id} initial={grade} />
-        </section>
+        {(owner || grade) && (
+          <section className="mb-8 flex items-center gap-3 flex-wrap">
+            <span className="mono text-[length:var(--t-cap)] uppercase tracking-wider" style={{ color: 'var(--dim)' }}>Rating</span>
+            <RatingControl id={component.id} initial={grade} />
+          </section>
+        )}
 
         {/* Metadata — only the useful, populated bits; Source is now a link */}
         <section className="grid gap-4 md:grid-cols-3">
@@ -143,8 +148,8 @@ export default async function ComponentDetailPage({ params }: Ctx) {
           <MetaCard label="Ingestion" values={[component.ingestion_method ?? '—']} />
         </section>
 
-        {/* Delete-only admin (Edit removed per owner) */}
-        <ComponentAdminBar id={component.id} />
+        {/* Delete-only admin (Edit removed per owner) — owner view only (iter-208 #1509) */}
+        {owner && <ComponentAdminBar id={component.id} />}
       </div>
     </div>
   );

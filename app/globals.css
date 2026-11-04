@@ -200,6 +200,13 @@ mark { background: rgba(0, 212, 170, 0.18); color: var(--color-cyan); padding: 0
 .sc .lc.repo::after{background:radial-gradient(130% 130% at 0% 0%,rgba(245,178,60,.16),transparent 60%)}
 .sc .lc.repo:hover{border-color:var(--amber);box-shadow:0 16px 44px rgba(245,178,60,.16)}
 .sc .lc.repo .k{color:var(--amber)}
+/* iter-208 #1510/#1511: a non-link card ('private app' / 'private repo') — same card, muted, no
+   lift or glow, so it never reads as a button. */
+.sc .lc.static,.sc .lc.static:hover{cursor:default;transform:none;border-color:var(--line);box-shadow:none}
+.sc .lc.static::before,.sc .lc.static:hover::before{width:3px;opacity:.35}
+.sc .lc.static:hover::after{opacity:0}
+.sc .lc.static .k{opacity:.7}
+.sc .lc.static .v{color:var(--mute);font-weight:500}
 
 .sc .numc{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:15px;padding:15px 15px;background:var(--scard);transition:.35s}
 .sc .numc::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:100%;opacity:.7;background:linear-gradient(90deg,var(--nc,var(--vio)),transparent)}

@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { accentStyle } from '@/lib/project-accent';
+import type { LinkState } from '@/lib/showcase';
 import { ServerStatsCard, type ServerStats } from '@/components/project/ServerStatsCard';
 
 export interface RegisterRow {
@@ -25,13 +26,14 @@ export interface RegisterRow {
   flowsPassing: number;
   flowsTotal: number;
   risksOpen: number;
-  liveUrl: string | null;
-  repoUrl: string | null;
+  // iter-208 #1510/#1511: resolved on the server (lib/showcase.ts) — a link only where an
+  // outsider can open it, a 'private' label for a login-walled app or a private repo.
+  live: LinkState;
+  repo: LinkState;
   port: number | null;
   age: string;
   blurb: string;
   stack: string[];
-  lastChange: string | null;
   reel: { url: string; kind: 'video' | 'image' } | null;
 }
 
@@ -70,8 +72,17 @@ const STAGE_HUES: Record<string, string> = {
   ARCHIVED: 'var(--dim)',
 };
 
-function href(url: string): string {
-  return url.startsWith('http') ? url : `https://${url}`;
+// A non-link label for a login-walled app or a private repo (#1510/#1511). Clicks pass through
+// to the row link underneath.
+function PrivateTag({ label, title }: { label: string; title: string }) {
+  return (
+    <span
+      title={title}
+      className="pointer-events-none mono text-[length:var(--t-cap)] text-zinc-500 rounded-md border border-white/10 px-2.5 py-1.5 whitespace-nowrap"
+    >
+      {label}
+    </span>
+  );
 }
 
 // HEALTH column removed 2026-07-06 (owner): a risk-count-driven "health" pill read
@@ -145,11 +156,12 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
           )) : <span className="text-zinc-700">—</span>}
         </div>
 
-        {/* LINKS — desktop only (on mobile the row taps through to the project) */}
-        <div className="hidden md:flex items-center gap-2 pointer-events-auto relative z-10">
-          {row.liveUrl && (
+        {/* LINKS — desktop only (on mobile the row taps through to the project).
+            iter-208: links only where an outsider can open them (#1510/#1511). */}
+        <div className="hidden md:flex flex-wrap items-center gap-2 pointer-events-auto relative z-10">
+          {row.live?.kind === 'link' && (
             <a
-              href={href(row.liveUrl)}
+              href={row.live.href}
               target="_blank"
               rel="noopener"
               onClick={(e) => e.stopPropagation()}
@@ -159,9 +171,10 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
               live ↗
             </a>
           )}
-          {row.repoUrl && (
+          {row.live?.kind === 'private' && <PrivateTag label="private app" title="The app is behind a sign-in" />}
+          {row.repo?.kind === 'link' && (
             <a
-              href={href(row.repoUrl)}
+              href={row.repo.href}
               target="_blank"
               rel="noopener"
               onClick={(e) => e.stopPropagation()}
@@ -171,6 +184,7 @@ function Row({ row, index }: { row: RegisterRow; index: number }) {
               repo ↗
             </a>
           )}
+          {row.repo?.kind === 'private' && <PrivateTag label="private repo" title="The source repository is private" />}
         </div>
 
         {/* AGE */}

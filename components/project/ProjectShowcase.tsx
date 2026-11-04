@@ -15,11 +15,13 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ShaderBackground } from './ShaderBackground';
 import { ReelMedia, type ReelInfo } from './ReelMedia';
 import { NumberTicker } from '@/components/ui/NumberTicker';
+import type { LinkState, ShipStory } from '@/lib/showcase';
 
 export interface ShowcaseData {
   slug: string; name: string; accent: string; tagline: string; hook: string; tags: string[];
   stageLabel: string; status: string;
-  liveUrl: string | null; repoUrl: string | null; port: number | null;
+  // iter-208 #1510/#1511: resolved on the server — a link only where an outsider can open it.
+  live: LinkState; repo: LinkState; port: number | null;
   numbers: { n: string | number; l: string }[];
   featureCounts: { done: number; wip: number; todo: number };
   problem: string;
@@ -38,7 +40,11 @@ export interface ShowcaseData {
   identity: { swatches: string[]; fonts: string[]; layout: string | null; motion: string | null } | null;
   reel: ReelInfo | null;
   verification: { total: number; approves: number } | null;
-  trace: { iter: number; title: string; request: string | null; change: string | null; verdict: string | null; reason: string | null }[];
+  // iter-208 #1516: the featured change (a sent-back one when any qualifies), how many more of
+  // this project's changes went through the loop, and the verifier's live send-back rate.
+  ship: ShipStory | null;
+  shipMore: number;
+  sendBack: { sent: number; of: number; label: string; pct: string } | null;
   tests: { flowsPassing: number; flowsTotal: number; coveragePct: number; note: string };
   journal: { date: string; title: string; tags: string[]; status: string; superseded: boolean; curated: boolean }[];
   challenges: { problem: string; solved: string }[];
@@ -65,7 +71,6 @@ function sevTone(s: string) {
   if (s === 'medium') return AMBER;
   return DIM;
 }
-function ext(u: string) { return u.startsWith('http') ? u : `https://${u}`; }
 
 // section label
 function Eye({ children, tone }: { children: ReactNode; tone?: string }) {
@@ -135,18 +140,32 @@ export function ProjectShowcase({ data, archSlot }: { data: ShowcaseData; archSl
                   the hero now. (Reverses iter-13's "wider hook"; owner-confirmed.)
                   The hook text still lives on ShowcaseData for the Overview. */}
 
+              {/* iter-208 #1510/#1511: link cards only where an outsider can open them; a
+                  login-walled app / private repo gets a muted label card with no link. */}
               <div className="flex flex-wrap gap-3.5 mb-8 mt-6">
-                {d.liveUrl && (
-                  <a href={ext(d.liveUrl)} target="_blank" rel="noopener" className="lc flex-1 min-w-[220px]">
+                {d.live?.kind === 'link' && (
+                  <a href={d.live.href} target="_blank" rel="noopener" className="lc flex-1 min-w-[220px]">
                     <div className="k">live at ↗</div>
-                    <div className="v">{d.liveUrl.replace(/^https?:\/\//, '')}</div>
+                    <div className="v">{d.live.text}</div>
                   </a>
                 )}
-                {d.repoUrl && (
-                  <a href={ext(d.repoUrl)} target="_blank" rel="noopener" className="lc repo flex-1 min-w-[220px]">
+                {d.live?.kind === 'private' && (
+                  <div className="lc static flex-1 min-w-[220px]" title="The app is behind a sign-in">
+                    <div className="k">live</div>
+                    <div className="v">private app</div>
+                  </div>
+                )}
+                {d.repo?.kind === 'link' && (
+                  <a href={d.repo.href} target="_blank" rel="noopener" className="lc repo flex-1 min-w-[220px]">
                     <div className="k">repo ↗</div>
-                    <div className="v">{d.repoUrl.replace(/^https?:\/\//, '')}</div>
+                    <div className="v">{d.repo.text}</div>
                   </a>
+                )}
+                {d.repo?.kind === 'private' && (
+                  <div className="lc repo static flex-1 min-w-[220px]" title="The source repository is private">
+                    <div className="k">repo</div>
+                    <div className="v">private repo</div>
+                  </div>
                 )}
               </div>
 
@@ -584,54 +603,36 @@ function DecisionsPanel({ d }: { d: ShowcaseData }) {
           story — what was asked, what got locked at the gate, what the
           independent verifier ruled — because that loop is this system's
           entire reason to exist. */}
-      {d.trace.length > 0 && (() => {
-        const hero = d.trace.find((t) => t.verdict === 'APPROVE' && t.request && t.change && t.reason)
-          ?? d.trace.find((t) => t.verdict === 'APPROVE' && t.request && t.reason)
-          ?? d.trace.find((t) => t.verdict === 'APPROVE')
-          ?? d.trace[0];
-        const rest = d.trace.filter((t) => t !== hero);
-        return (
-          <section>
-            <SectionHead
-              index={++idx}
-              title="How a change actually ships"
-              tone={CYAN}
-              sub="No claim survives here without a verifier's verdict. One real change from this project, traced end-to-end:"
-            />
-            <div className="card flat">
-              <div className="mono text-[length:var(--t-cap)] mb-4" style={{ color: 'var(--dim)' }}>
-                iteration {hero.iter} · {hero.title}
-              </div>
-              <div className="trace-story">
-                <div className="trace-step" style={{ ['--tc' as string]: CORAL }}>
-                  <div className="trace-k mono">1 · the ask</div>
-                  <p className="trace-t">{hero.request ?? hero.title}</p>
+      {/* iter-208 #1516 (adr-025, owner override of the 2026-06-10 "verifier output is a build
+          rail" rule): the featured change is one the verifier SENT BACK, then approved once it
+          was fixed — never from a financial project — plus the verifier's live send-back rate
+          in the stat-tile look. Falls back to today's APPROVE example when none qualifies. */}
+      {(d.ship || d.sendBack) && (
+        <section>
+          <SectionHead index={++idx} title="How a change actually ships" tone={CYAN} sub={shipSub(d.ship)} />
+          <div className="card flat">
+            {d.ship && <ShipStoryView story={d.ship} />}
+            {d.ship && d.shipMore > 0 && (
+              <p className="mt-4 text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>
+                + {d.shipMore} more change{d.shipMore > 1 ? 's' : ''} from this project shipped through the same gate-and-verify loop.
+              </p>
+            )}
+            {d.sendBack && (
+              <>
+                <div className={`${d.ship ? 'mt-5 ' : ''}grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3`}>
+                  <div className="numc" style={{ '--nc': AMBER } as React.CSSProperties}>
+                    <div className="n"><NumberTicker value={d.sendBack.pct} /></div>
+                    <div className="l">{d.sendBack.label}</div>
+                  </div>
                 </div>
-                <span className="trace-arrow" aria-hidden>→</span>
-                <div className="trace-step" style={{ ['--tc' as string]: VIO }}>
-                  <div className="trace-k mono">2 · locked at the gate</div>
-                  <p className="trace-t">{hero.change ?? 'Change locked before any code was written.'}</p>
-                </div>
-                <span className="trace-arrow" aria-hidden>→</span>
-                <div className="trace-step" style={{ ['--tc' as string]: CYAN }}>
-                  <div className="trace-k mono">3 · verifier ruled</div>
-                  <p className="trace-t">
-                    <span className="mono font-bold" style={{ color: hero.verdict === 'APPROVE' ? CYAN : AMBER }}>
-                      {hero.verdict === 'APPROVE' ? '✓ APPROVE' : hero.verdict}
-                    </span>
-                    {hero.reason && <> — {hero.reason}</>}
-                  </p>
-                </div>
-              </div>
-              {rest.length > 0 && (
-                <p className="mt-4 text-[length:var(--t-cap)]" style={{ color: 'var(--dim)' }}>
-                  + {rest.length} more change{rest.length > 1 ? 's' : ''} shipped through the same gate-and-verify loop.
+                <p className="mt-3 text-[length:var(--t-label)] leading-snug" style={{ color: 'var(--mute)' }}>
+                  Live from the independent verifier&apos;s reports across every project: a change it sends back is fixed and re-checked before it ships.
                 </p>
-              )}
-            </div>
-          </section>
-        );
-      })()}
+              </>
+            )}
+          </div>
+        </section>
+      )}
 
       {(d.risks.length > 0 || d.challenges.length > 0) && (
         <section>
@@ -675,6 +676,67 @@ function DecisionsPanel({ d }: { d: ShowcaseData }) {
         </section>
       )}
     </Section>
+  );
+}
+
+// ── iter-208 #1516: the featured change, told as ask → gate → (sent back) → approved ──
+function shipSub(story: ShipStory | null): string {
+  const lead = "No claim survives here without a verifier's verdict.";
+  if (!story) return lead;
+  if (story.kind === 'sent-back') {
+    return story.crossProject
+      ? `${lead} One real change it sent back — from ${story.projectName}, built through the same pipeline — traced from the ask to the approval:`
+      : `${lead} One real change from this project that it sent back, traced from the ask to the approval:`;
+  }
+  return `${lead} One real change from this project, traced end-to-end:`;
+}
+
+function ShipStoryView({ story }: { story: ShipStory }) {
+  const finalKey = story.sentBack
+    ? `4 · fixed, then approved${story.rounds > 2 ? ` (round ${story.rounds})` : ''}`
+    : '3 · verifier ruled';
+  const verdict = story.verdict;
+  return (
+    <>
+      <div className="mono text-[length:var(--t-cap)] mb-4" style={{ color: 'var(--dim)' }}>
+        {story.crossProject ? `${story.projectName} · ` : ''}iteration {story.iter} · {story.title}
+      </div>
+      <div className="trace-story">
+        <div className="trace-step" style={{ ['--tc' as string]: CORAL }}>
+          <div className="trace-k mono">1 · the ask</div>
+          <p className="trace-t">{story.request ?? story.title}</p>
+        </div>
+        <span className="trace-arrow" aria-hidden>→</span>
+        <div className="trace-step" style={{ ['--tc' as string]: VIO }}>
+          <div className="trace-k mono">2 · locked at the gate</div>
+          <p className="trace-t">{story.change ?? 'Change locked before any code was written.'}</p>
+        </div>
+        <span className="trace-arrow" aria-hidden>→</span>
+        {story.sentBack && (
+          <>
+            <div className="trace-step" style={{ ['--tc' as string]: AMBER }}>
+              <div className="trace-k mono">3 · verifier sent it back</div>
+              <p className="trace-t">
+                <span className="mono font-bold" style={{ color: story.sentBack.verdict === 'BLOCK' ? MAG : AMBER }}>
+                  ✕ {story.sentBack.verdict}
+                </span>
+                {story.sentBack.reason && <> — {story.sentBack.reason}</>}
+              </p>
+            </div>
+            <span className="trace-arrow" aria-hidden>→</span>
+          </>
+        )}
+        <div className="trace-step" style={{ ['--tc' as string]: CYAN }}>
+          <div className="trace-k mono">{finalKey}</div>
+          <p className="trace-t">
+            <span className="mono font-bold" style={{ color: verdict === 'APPROVE' ? CYAN : AMBER }}>
+              {verdict === 'APPROVE' ? '✓ APPROVE' : verdict}
+            </span>
+            {story.reason && <> — {story.reason}</>}
+          </p>
+        </div>
+      </div>
+    </>
   );
 }
 

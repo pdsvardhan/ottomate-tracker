@@ -35,6 +35,11 @@ export const RiskResolveSchema = z.object({
   resolution_summary: z.string().min(1).max(2000),
 });
 
+// exposure = who can REACH the site; access_control = what it takes to ACT on it. House reading
+// (iter-208 #1515): a login-walled public host is invite-only + auth-required (leaploop, cap-a);
+// public + auth-required is a public read-only site whose private pages and changes need a
+// sign-in — rendered on the Engineering tab as the "public read-only showcase" line
+// (lib/showcase.ts exposureLine).
 const exposureEnum = z.enum(['public', 'intranet-only', 'invite-only', 'never-public']);
 const accessControlEnum = z.enum(['anonymous-ok', 'auth-required', 'roles-defined']);
 const sensitivityEnum = z.enum(['none', 'personal-pii', 'financial', 'business-critical', 'mixed']);

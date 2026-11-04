@@ -7,6 +7,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/Badge';
+import { useViewer } from '@/components/auth/ViewerContext';
 
 interface FlowRow {
   id: string;
@@ -27,6 +28,8 @@ const STATUS_TONE: Record<string, 'shipped' | 'blocked' | 'neutral' | 'open'> = 
 // projectSlug is still accepted (callers pass it) but is currently unused now that
 // the inline bug-report link is deferred. Kept in the type to avoid churn at call sites.
 export function FlowTestRow({ flow }: { flow: FlowRow; projectSlug?: string }) {
+  // iter-208 #1509: "mark passing" is an owner control; the visitor view shows the status only.
+  const { owner } = useViewer();
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
@@ -76,15 +79,17 @@ export function FlowTestRow({ flow }: { flow: FlowRow; projectSlug?: string }) {
         </button>
         <div className="flex items-center gap-1.5 shrink-0">
           <Badge variant="status" tone={tone}>{status}</Badge>
-          <button
-            type="button"
-            onClick={() => mark('passing')}
-            disabled={busy}
-            title="Mark passing"
-            className="rounded-md px-2 py-1 text-[11px] border border-emerald-500/20 bg-emerald-500/5 text-emerald-300 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
-          >
-            pass
-          </button>
+          {owner && (
+            <button
+              type="button"
+              onClick={() => mark('passing')}
+              disabled={busy}
+              title="Mark passing"
+              className="rounded-md px-2 py-1 text-[11px] border border-emerald-500/20 bg-emerald-500/5 text-emerald-300 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+            >
+              pass
+            </button>
+          )}
           {/* "fail" + "bug" buttons deferred for the showcase (see file header). */}
         </div>
       </div>

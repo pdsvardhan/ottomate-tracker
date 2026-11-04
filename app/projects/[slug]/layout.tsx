@@ -7,6 +7,7 @@
 import { notFound } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db/client';
+import { getViewer } from '@/lib/viewer-server';
 import { DriftBanner } from '@/components/project/DriftBanner';
 import { BackButton } from '@/components/ui/BackButton';
 
@@ -21,12 +22,15 @@ export default async function ProjectLayout({
   const db = await getDb();
   const project = db.select().from(schema.projects).where(eq(schema.projects.slug, slug)).get();
   if (!project) notFound();
+  // iter-208 #1509: the YAML-drift banner is an owner tool (file names + hashes), not showcase
+  // content — the visitor view leaves it out.
+  const { owner } = await getViewer();
 
   return (
     <div className="px-6 md:px-10 py-6">
       <BackButton href="/" label="All projects" />
       <div className="mt-3">
-        <DriftBanner slug={slug} />
+        {owner && <DriftBanner slug={slug} />}
       </div>
       {children}
     </div>

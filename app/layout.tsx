@@ -3,7 +3,9 @@ import { Archivo, Instrument_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { TopNav } from '@/components/layout/TopNav';
 import { TokenInjector } from '@/components/auth/TokenInjector';
+import { ViewerProvider } from '@/components/auth/ViewerContext';
 import { getServerToken } from '@/lib/token';
+import { getViewer } from '@/lib/viewer-server';
 
 // Prototype type system — self-hosted at build (no runtime CDN).
 const archivo = Archivo({ subsets: ['latin'], variable: '--font-archivo', display: 'swap' });
@@ -15,8 +17,12 @@ export const metadata: Metadata = {
   description: 'Ottomate manages your web project pipeline.',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const token = getServerToken();
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // iter-208 #1509 (adr-026): the bearer token is injected ONLY in the owner view. Before this,
+  // every page — showcase pages included — carried the token in its HTML, so opening the
+  // showcase to visitors would have handed every visitor the key to every mutation.
+  const { owner } = await getViewer();
+  const token = owner ? getServerToken() : '';
   return (
     <html lang="en" className={`dark ${archivo.variable} ${instrument.variable} ${jetbrains.variable}`}>
       <body className="text-zinc-100 min-h-screen antialiased">
@@ -33,11 +39,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="absolute top-[35%] right-[10%] h-[420px] w-[420px] rounded-full bg-violet-500/[0.05] blur-[140px]" />
         </div>
 
-        <TokenInjector token={token} />
-        <div className="relative z-10 flex min-h-screen flex-col">
-          <TopNav />
-          <main className="flex-1">{children}</main>
-        </div>
+        <ViewerProvider owner={owner}>
+          <TokenInjector token={token} />
+          <div className="relative z-10 flex min-h-screen flex-col">
+            <TopNav />
+            <main className="flex-1">{children}</main>
+          </div>
+        </ViewerProvider>
       </body>
     </html>
   );
