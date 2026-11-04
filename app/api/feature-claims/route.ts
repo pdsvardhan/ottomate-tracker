@@ -83,15 +83,17 @@ export async function POST(req: Request) {
 // Bearer required.
 // ============================================================================
 export async function PATCH(req: Request) {
+  // iter-208 #1509: the bearer check runs FIRST, like every other mutating route — a token-less
+  // request is refused with 401 before the id is even looked at (tests/mutation-auth.test.ts).
+  const parsed = await readAuthBody(req, ReconcileSchema);
+  if (!parsed.ok) return parsed.res;
+  const { reconciled_with, reconciler_id, reconciled_at } = parsed.data;
+
   const url = new URL(req.url);
   const idStr = url.searchParams.get('id');
   if (!idStr) return NextResponse.json({ error: 'id query param required' }, { status: 400 });
   const id = parseInt(idStr, 10);
   if (!Number.isFinite(id)) return NextResponse.json({ error: 'invalid id' }, { status: 400 });
-
-  const parsed = await readAuthBody(req, ReconcileSchema);
-  if (!parsed.ok) return parsed.res;
-  const { reconciled_with, reconciler_id, reconciled_at } = parsed.data;
 
   const sqlite = await getRawSqlite();
   const result = sqlite.prepare(`

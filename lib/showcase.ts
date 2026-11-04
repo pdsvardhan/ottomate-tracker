@@ -305,6 +305,30 @@ export function clip(text: string, max = 320): string {
   return `${head.slice(0, lastSpace > 0 ? lastSpace : max).trim()}…`;
 }
 
+// A send-back reason often opens by crediting what passed ("AC2/AC5/AC6/AC7 verified
+// convincingly…") before the catch ("Three ACs FAIL…"); clipping from the start can keep only the
+// praise. The catch is the first sentence with a strong failure marker, else the first with a weak
+// one (but / not / does not); with neither, the reason is clipped from its start.
+const STRONG_CATCH = /\b(?:FAIL(?:S|ED|URE|ING)?|GAP|BUG|PARTIAL|unmet|NOT\s+(?:FIXED|MET|ADVANCED|VERIFIED)|regressions?|leaks?|missing|never)\b/i;
+const WEAK_CATCH = /\b(?:but|not|does\s+not|doesn't|cannot|can't)\b/i;
+
+/** Split prose into sentences (on . ! ? followed by whitespace). */
+export function sentences(text: string): string[] {
+  return text.trim().split(/(?<=[.!?])\s+(?=\S)/).filter((s) => s.length > 0);
+}
+
+/**
+ * Clip a verifier send-back reason so the card shows the CATCH: start at the first sentence that
+ * says what failed, marked with a leading ellipsis when earlier text was skipped.
+ */
+export function clipToCatch(text: string, max = 320): string {
+  const parts = sentences(text);
+  let at = parts.findIndex((s) => STRONG_CATCH.test(s));
+  if (at < 0) at = parts.findIndex((s) => WEAK_CATCH.test(s));
+  if (at <= 0) return clip(text, max);
+  return `…${clip(parts.slice(at).join(' '), max)}`;
+}
+
 export interface ItemReport {
   targetId: string;
   verdict: string | null;
@@ -448,7 +472,10 @@ export function approvedStory(row: TraceRow, projectName: string): ShipStory | n
   };
 }
 
-/** Story text as the cards show it: every prose field clipped to whole sentences. */
+/**
+ * Story text as the cards show it: every prose field clipped to whole sentences. The send-back
+ * reason is clipped around its catch (clipToCatch), so the "sent it back" step says what failed.
+ */
 export function clipStory(story: ShipStory, max = 320): ShipStory {
   const c = (s: string | null) => (s ? clip(s, max) : s);
   return {
@@ -456,7 +483,9 @@ export function clipStory(story: ShipStory, max = 320): ShipStory {
     request: c(story.request),
     change: c(story.change),
     reason: c(story.reason),
-    sentBack: story.sentBack ? { ...story.sentBack, reason: c(story.sentBack.reason) } : null,
+    sentBack: story.sentBack
+      ? { ...story.sentBack, reason: story.sentBack.reason ? clipToCatch(story.sentBack.reason, max) : story.sentBack.reason }
+      : null,
   };
 }
 

@@ -65,11 +65,10 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
-  try {
-    requireBearer(req);
-  } catch (e) {
-    return e as Response;
-  }
+  // iter-208 #1509: requireBearer RETURNS the 401/403 response (it never throws); the old
+  // try/catch discarded it, so this route accepted writes without the token.
+  const denied = requireBearer(req);
+  if (denied) return denied;
 
   const { slug } = await params;
 

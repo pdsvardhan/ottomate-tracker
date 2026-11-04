@@ -64,11 +64,10 @@ const PostBody = z.object({
 });
 
 export async function POST(req: Request) {
-  try {
-    requireBearer(req);
-  } catch (e) {
-    return e as Response;
-  }
+  // iter-208 #1509: requireBearer RETURNS the 401/403 response (it never throws); the old
+  // try/catch discarded it, so this route accepted writes without the token.
+  const denied = requireBearer(req);
+  if (denied) return denied;
 
   let body: z.infer<typeof PostBody>;
   try {

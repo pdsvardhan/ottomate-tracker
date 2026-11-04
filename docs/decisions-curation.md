@@ -50,3 +50,5 @@ Original titles preserved here; live titles rewritten for the showcase.
 | portfolio | adr-003-portfolio-component-picks | hidden | Stage 2.4 — Per-component picks v1 | — |
 | portfolio | adr-004-portfolio-tech-stack | hidden | Stage 2.5 — Tech stack v1 + CODING_GUIDELINES.md | — |
 | portfolio | adr-005-portfolio-architecture-buildplan | hidden | Stage 2.6+2.7 — Architecture + Build plan | — |
+| ottomate | adr-025-verifier-on-the-showcase | cat:product | (written showcase-ready, iter-208, 2026-11-04) | The showcase shows the verifier at work — a change it sent back, and how often it sends changes back |
+| ottomate | adr-026-public-read-only-showcase | cat:security | (written showcase-ready, iter-208, 2026-11-04) | The showcase is public and read-only — private pages and every change stay behind sign-in and the bearer token |

@@ -23,11 +23,10 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
-    requireBearer(req);
-  } catch (e) {
-    return e as Response;
-  }
+  // iter-208 #1509: requireBearer RETURNS the 401/403 response (it never throws); the old
+  // try/catch discarded it, so this route accepted writes without the token.
+  const denied = requireBearer(req);
+  if (denied) return denied;
 
   const { id } = await params;
   const driftId = parseInt(id, 10);

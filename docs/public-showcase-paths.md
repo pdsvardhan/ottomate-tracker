@@ -77,20 +77,32 @@ header) → owner. Anonymous through the tunnel → visitor.
 
 ## Checklist for switching it on
 
+Run the curl checks **on the server**: `ottomate.vault7a.xyz` resolves to Cloudflare, so the request goes out
+through the internet edge and comes back in through the tunnel and the outpost — the same path a visitor takes.
+Each `grep -c` counts the bearer token's value in the page (it is printed only in the owner view) or the
+owner-only reel-upload button ("reel media"); none of them prints the token.
+
 1. Deploy the branch that carries this file (the to-do marker migration 0016 applies at boot).
-2. **Make sure a visitor cannot send `X-authentik-username` themselves.** On an unauthenticated path nobody
-   signs in, so if the outpost passes a client-supplied `X-authentik-username` through, a visitor could claim
-   the owner view (and with it the bearer token). Check it on the server once the list is live (the request
-   goes out through Cloudflare and back in through the tunnel):
+2. Paste the list above into the provider and save.
+3. **A plain anonymous request gets the visitor view.** The visitor rule depends on the outpost passing
+   Cloudflare's `cf-connecting-ip` through to the app; if it dropped that header, every anonymous request would
+   look like the LAN path and get the owner view and the token. With no extra headers and no cookies:
+   `curl -s https://ottomate.vault7a.xyz/projects/ottomate | grep -c "$(cat /opt/homeserver/ottomate/.token)"`
+   must print `0`, and
+   `curl -s https://ottomate.vault7a.xyz/projects/ottomate | grep -c "reel media"`
+   must print `0` (while `curl -s -o /dev/null -w '%{http_code}' https://ottomate.vault7a.xyz/projects/ottomate`
+   prints `200`). If either count is not `0`, turn the switch off (clear the field) before anything else.
+4. **A visitor cannot send `X-authentik-username` themselves.** On an unauthenticated path nobody signs in, so if
+   the outpost passes a client-supplied `X-authentik-username` through, a visitor could claim the owner view (and
+   with it the bearer token):
    `curl -s -H 'X-authentik-username: x' https://ottomate.vault7a.xyz/projects/ottomate | grep -c "$(cat /opt/homeserver/ottomate/.token)"`
-   must print `0` (the token value appears in a page only in the owner view). If it is not `0`, add a
-   Cloudflare Transform Rule (Modify Request Header → *Remove* `x-authentik-username`, hostname
-   `ottomate.vault7a.xyz`) — Authentik re-adds the header for real sessions after that.
-3. Paste the list above into the provider and save.
-4. From outside the LAN, without cookies: `/`, `/projects/ottomate`, `/components-browser` return 200;
+   must print `0`. If it is not `0`, turn the switch off, add a Cloudflare Transform Rule (Modify Request Header →
+   *Remove* `x-authentik-username`, hostname `ottomate.vault7a.xyz`) — Authentik re-adds the header for real
+   sessions after that — and repeat steps 3–4.
+5. From outside the LAN, without cookies: `/`, `/projects/ottomate`, `/components-browser` return 200;
    `/inbox`, `/coverage`, `/iterations/1` and `/api/inbox` redirect to the outpost; `POST /api/projects` without
    the token is refused.
-5. Set Ottomate's live tag to match: it is stored as `live:public` already because the showcase is only visible
+6. Set Ottomate's live tag to match: it is stored as `live:public` already because the showcase is only visible
    to outsiders once this switch is on.
 
 **Turning it off:** clear the Unauthenticated Paths field and save. Nothing in the app needs to change.

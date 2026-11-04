@@ -10,6 +10,8 @@ import {
   approvedStory,
   clip,
   clipStory,
+  clipToCatch,
+  sentences,
   exposureLine,
   gridRows,
   hasSensitiveText,
@@ -408,5 +410,55 @@ describe('clip (#1516 story cards)', () => {
     expect(s.sentBack!.reason!.length).toBeLessThanOrEqual(321);
     expect(s.change).toBeNull();
     expect(s.reason).toBe('ok');
+  });
+});
+
+// ── #1516 auto-fix round 1: the "sent it back" step must show the catch, not the praise ──
+// Shape of MapsOfBharat item 756's first ITERATE reason: praise first, the failure second.
+const ITEM_756_SENT_BACK =
+  'AC2/AC5/AC6/AC7 verified convincingly, including independently re-derived occupancy on 3 metrics, a full ' +
+  '124-metric sweep confirming the guard fires on exactly 6 and improves every one, and a demonstrated fixed ' +
+  'point (7 replaceState calls, stable). Three ACs FAIL on paths a normal user hits, and two are the SAME ' +
+  'cross-metric leak this item exists to remove, relocated rather than removed. AC1: the data-fetch effect ' +
+  "never clears `data` on metric change, so the guard judges the incoming metric's default against the " +
+  'previous metric\'s data.';
+
+describe('send-back reason clipped around the catch (#1516)', () => {
+  it("item 756: starts at 'Three ACs FAIL', drops the praise preamble", () => {
+    const out = clipToCatch(ITEM_756_SENT_BACK);
+    expect(out.startsWith('…Three ACs FAIL on paths a normal user hits')).toBe(true);
+    expect(out).not.toContain('verified convincingly');
+    expect(out.length).toBeLessThanOrEqual(321);
+    // the old start-anchored clip kept only the praise
+    expect(clip(ITEM_756_SENT_BACK)).toContain('verified convincingly');
+    expect(clip(ITEM_756_SENT_BACK)).not.toContain('FAIL');
+  });
+  it('a catch in the first sentence keeps the reason from its start, no ellipsis', () => {
+    const r = 'NOT FIXED. The caption text was removed but the answer still reaches the client pre-guess.';
+    expect(clipToCatch(r)).toBe(r);
+  });
+  it('strong markers win over an earlier weak one', () => {
+    const r = 'Works, but slowly on cold start. Rank is computed on first submit. GAP: a returning player never sees it.';
+    expect(clipToCatch(r)).toBe('…GAP: a returning player never sees it.');
+  });
+  it('with only a weak marker, starts at that sentence', () => {
+    const r = 'Layout measured at 390 and 1440. The sheet does not open at mobile width.';
+    expect(clipToCatch(r)).toBe('…The sheet does not open at mobile width.');
+  });
+  it('no catch clause at all -> clipped from the start like any other text', () => {
+    const r = 'Measured 44px rows. Ordering verified on both facets.';
+    expect(clipToCatch(r)).toBe(r);
+  });
+  it('clipStory applies it to the send-back step only', () => {
+    const s = clipStory({
+      kind: 'sent-back', iter: 26, title: 'Sticky break-method pref', request: 'r', change: 'c', projectName: 'MapsOfBharat',
+      crossProject: false, sentBack: { verdict: 'ITERATE', reason: ITEM_756_SENT_BACK }, verdict: 'APPROVE',
+      reason: 'Pass 5. The fix removes the defect. It never relocates it.', rounds: 5,
+    });
+    expect(s.sentBack!.reason!.startsWith('…Three ACs FAIL')).toBe(true);
+    expect(s.reason).toBe('Pass 5. The fix removes the defect. It never relocates it.');
+  });
+  it('sentences splits on terminal punctuation', () => {
+    expect(sentences('One. Two! Three? Four')).toEqual(['One.', 'Two!', 'Three?', 'Four']);
   });
 });

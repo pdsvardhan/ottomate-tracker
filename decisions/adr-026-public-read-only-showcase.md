@@ -58,8 +58,12 @@ without the token.
 
 - A reviewer opens the link and sees the work, not a login page; the owner signed in, or at home, sees and edits
   everything as before.
-- The visitor/owner split rests on `X-authentik-username` being set only by Authentik. Before switching on, confirm
-  a client cannot send it on an unauthenticated path; if it can, strip it at the Cloudflare edge (checklist step 2).
+- The visitor/owner split rests on two facts about the internet path: the outpost passes `cf-connecting-ip`
+  through, and `X-authentik-username` is set only by Authentik. Right after switching on, confirm a plain
+  anonymous request gets the visitor view and no token, and that a client cannot send `X-authentik-username` on
+  an unauthenticated path; if it can, strip it at the Cloudflare edge (checklist steps 3–4).
+- Every mutating route answers 401 without the token, proven route by route in `tests/mutation-auth.test.ts`
+  (four routes that swallowed `requireBearer`'s 401 in a try/catch were fixed in iteration 208).
 - Turning the switch off is one field in Authentik; the app needs no change either way.
 - The Engineering tab's security line for Ottomate now reads as this posture (policy exposure `public` + access
   `auth-required`), and the hero/grid draw repo and live links only where an outsider can open them.

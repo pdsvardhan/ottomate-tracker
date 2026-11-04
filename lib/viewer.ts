@@ -2,10 +2,15 @@
 // shows the public something different from the owner:
 //
 //   owner view   = the request carries an Authentik identity (x-authentik-username is set by the
-//                  NPM forward-auth block after a real sign-in), OR it did not come through the
+//                  Authentik proxy outpost — the tunnel routes ottomate.vault7a.xyz to
+//                  authentik:9000 — after a real sign-in), OR it did not come through the
 //                  Cloudflare tunnel at all (no cf-connecting-ip: the LAN path, NPM straight to
-//                  the app, or localhost)
+//                  the app with no Authentik in the path, or localhost)
 //   visitor view = everything else: it came through the tunnel and nobody signed in
+//
+// The rule relies on two things about the internet path, both checked before the public switch
+// goes on (docs/public-showcase-paths.md): the outpost passes Cloudflare's cf-connecting-ip
+// through to the app, and a client cannot supply x-authentik-username itself.
 //
 // Pure and header-shape-agnostic so it is unit-testable without a Next request; the server
 // wrapper that reads the live request headers is lib/viewer-server.ts.
