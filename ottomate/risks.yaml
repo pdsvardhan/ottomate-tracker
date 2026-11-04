@@ -82,7 +82,7 @@ risks:
     created_at: 2026-06-11T12:19:39.000Z
 policy:
   project_slug: ottomate
-  exposure: intranet-only
+  exposure: public
   access_control: auth-required
   data_sensitivity_tier: none
   encryption_at_rest: false

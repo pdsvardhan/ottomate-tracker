@@ -1,11 +1,11 @@
-<!-- generated from registry @ 7ffbfe6 on 2026-09-07 — DO NOT EDIT; edit the registry via the Ottomate API. R-DOC-1. -->
+<!-- generated from registry @ c806f06 on 2026-11-04 — DO NOT EDIT; edit the registry via the Ottomate API. R-DOC-1. -->
 # ottomate — Features & Flows (generated reference)
 
 > Generated from the Ottomate registry (the single source of truth). To change anything here, edit the feature/flow/acceptance-criteria in the tracker, then re-run `scripts/generation/gen-reference-docs.mjs --project ottomate`.
 
 ## Features
 
-### done (18)
+### done (19)
 
 - **ADR tracking with diagram anchoring** `feat-adr-tracking` — _ui_, test: `not-tested`
   - Decision records keyed by anchored_to (process / topology / data / ux / api / NULL). Cards pair with the diagram they shaped on the Architecture tab.
@@ -44,6 +44,16 @@
   - Per-project Stage 0-4 pipeline progress with done/remaining task counts. Renders as the PipelineProgress widget on every project overview.
 - **public_docs/ pack-up mirror** `feat-public-docs-mirror` — _mixed_, test: `not-tested`
   - Per repo public_docs/{architecture-summary,feature-spec-public,adr-summary}.md gets ingested into the project_docs table on pack-up. Surfaced as a Docs rail on Overview.
+- **Public reviewer showcase** `feat-reviewer-showcase` — _n/a_, test: `passing`
+  - A read-only showcase visitors (job reviewers) can open without signing in: real links only, no raw internal notes, the verifier visibly at work.
+  - AC: Item 1509 — Public scope is prepared: no showcase page links to or renders private data (the inbox, raw verifier/report text with personal or financial details), every change still needs the bearer token, and the Authentik unauthenticated-path rule with its exact path list is ready to apply and recorded in an ADR. (test: `feature verifier report 544 on c806f06 (case matrix C1-C15); code verifier reports 1255-1261`)
+  - AC: Item 1510 — A repo link renders only for a public URL (https://github.com/...); localhost or git.vault7a.xyz URLs render as a 'private repo' label without a link, on the grid and the project hero; MapsOfBharat, Windfall Labs and State of Us link to their public GitHub repos. (test: `feature verifier report 544 on c806f06 (case matrix C1-C15); code verifier reports 1255-1261`)
+  - AC: Item 1511 — A live link renders only for a publicly reachable site; apps behind sign-in render 'private app' without a link; a project whose host does not resolve shows no live link. (test: `feature verifier report 544 on c806f06 (case matrix C1-C15); code verifier reports 1255-1261`)
+  - AC: Item 1512 — In the visitor view the Recent activity strip shows only project, a plain event label and time, never the event's free-text notes (no commit hashes, item numbers or internal text); the owner view keeps the notes. (test: `feature verifier report 544 on c806f06 (case matrix C1-C15); code verifier reports 1255-1261`)
+  - AC: Item 1513 — A project's 'What's next' shows only to-dos marked for display, with their plain titles; with none marked the section is hidden; raw to-do text never appears in the visitor view. (test: `feature verifier report 544 on c806f06 (case matrix C1-C15); code verifier reports 1255-1261`)
+  - AC: Item 1514 — In the visitor view the projects grid leaves out projects with zero built features (City Wars and Fan Wars today); the owner view lists every project. (test: `feature verifier report 544 on c806f06 (case matrix C1-C15); code verifier reports 1255-1261`)
+  - AC: Item 1515 — The security & data line on the Engineering tab describes the real exposure: a public read-only showcase, with private pages and every change behind login and the bearer token. (test: `feature verifier report 544 on c806f06 (case matrix C1-C15); code verifier reports 1255-1261`)
+  - AC: Item 1516 — The Decisions tab features one sent-back change (ITERATE, then fix, then APPROVE) from a non-financial project, and the showcase shows the verifier's send-back rate as 'sent back N of the last M changes' computed from verification reports; an ADR records the override of the 2026-06-10 rule that verifier output stays off the showcase. (test: `feature verifier report 544 on c806f06 (case matrix C1-C15); code verifier reports 1255-1261`)
 - **Stage 2.4 component picker** `feat-stage-2-4-picker` — _ui_, test: `not-tested`
   - Per-project /components-pick page renders all unpicked component slots grouped by page; each slot surfaces 3 ranked master_components for click-to-pick or skip-with-reason. Stage 2 -> 3 gate enforces unresolved=0.
 - **Stage 4.4.5 iteration-time component pick** `feat-stage-4-4-5-iteration-pick` — _backend_, test: `not-tested`

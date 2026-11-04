@@ -265,3 +265,27 @@ decisions:
       - curated
       - cat:reliability
     body_path: decisions/adr-023-verifier-target-and-sha.md
+  - id: adr-025-verifier-on-the-showcase
+    project_slug: ottomate
+    title: The showcase shows the verifier at work — a change it sent back, and how
+      often it sends changes back
+    status: accepted
+    date: 2026-11-04T00:00:00.000Z
+    tags:
+      - curated
+      - cat:product
+      - showcase
+      - iter-208
+    body_path: decisions/adr-025-verifier-on-the-showcase.md
+  - id: adr-026-public-read-only-showcase
+    project_slug: ottomate
+    title: The showcase is public and read-only — private pages and every change
+      stay behind sign-in and the bearer token
+    status: accepted
+    date: 2026-11-04T00:00:00.000Z
+    tags:
+      - curated
+      - cat:security
+      - showcase
+      - iter-208
+    body_path: decisions/adr-026-public-read-only-showcase.md

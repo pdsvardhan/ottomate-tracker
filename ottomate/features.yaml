@@ -273,3 +273,74 @@ features:
     test_status: not-tested
     acceptance_criteria: []
     dependencies: []
+  - id: feat-reviewer-showcase
+    title: Public reviewer showcase
+    short_description: "A read-only showcase visitors (job reviewers) can open
+      without signing in: real links only, no raw internal notes, the verifier
+      visibly at work."
+    status: done
+    priority: P2
+    test_status: passing
+    notes: Iteration 208 (reviewer pass, 2026-11-04). Owner view = a request with an
+      x-authentik-username header, or one arriving on the home-network path (no
+      cf-connecting-ip header); everyone else gets the visitor view. Public
+      switch (Authentik unauthenticated paths) is applied only when the owner
+      decides to share the link.
+    acceptance_criteria:
+      - content: "Item 1509 — Public scope is prepared: no showcase page links to or
+          renders private data (the inbox, raw verifier/report text with
+          personal or financial details), every change still needs the bearer
+          token, and the Authentik unauthenticated-path rule with its exact path
+          list is ready to apply and recorded in an ADR."
+        test_status: passing
+        linked_test: feature verifier report 544 on c806f06 (case matrix C1-C15); code
+          verifier reports 1255-1261
+      - content: Item 1510 — A repo link renders only for a public URL
+          (https://github.com/...); localhost or git.vault7a.xyz URLs render as
+          a 'private repo' label without a link, on the grid and the project
+          hero; MapsOfBharat, Windfall Labs and State of Us link to their public
+          GitHub repos.
+        test_status: passing
+        linked_test: feature verifier report 544 on c806f06 (case matrix C1-C15); code
+          verifier reports 1255-1261
+      - content: Item 1511 — A live link renders only for a publicly reachable site;
+          apps behind sign-in render 'private app' without a link; a project
+          whose host does not resolve shows no live link.
+        test_status: passing
+        linked_test: feature verifier report 544 on c806f06 (case matrix C1-C15); code
+          verifier reports 1255-1261
+      - content: Item 1512 — In the visitor view the Recent activity strip shows only
+          project, a plain event label and time, never the event's free-text
+          notes (no commit hashes, item numbers or internal text); the owner
+          view keeps the notes.
+        test_status: passing
+        linked_test: feature verifier report 544 on c806f06 (case matrix C1-C15); code
+          verifier reports 1255-1261
+      - content: Item 1513 — A project's 'What's next' shows only to-dos marked for
+          display, with their plain titles; with none marked the section is
+          hidden; raw to-do text never appears in the visitor view.
+        test_status: passing
+        linked_test: feature verifier report 544 on c806f06 (case matrix C1-C15); code
+          verifier reports 1255-1261
+      - content: Item 1514 — In the visitor view the projects grid leaves out projects
+          with zero built features (City Wars and Fan Wars today); the owner
+          view lists every project.
+        test_status: passing
+        linked_test: feature verifier report 544 on c806f06 (case matrix C1-C15); code
+          verifier reports 1255-1261
+      - content: "Item 1515 — The security & data line on the Engineering tab describes
+          the real exposure: a public read-only showcase, with private pages and
+          every change behind login and the bearer token."
+        test_status: passing
+        linked_test: feature verifier report 544 on c806f06 (case matrix C1-C15); code
+          verifier reports 1255-1261
+      - content: Item 1516 — The Decisions tab features one sent-back change (ITERATE,
+          then fix, then APPROVE) from a non-financial project, and the showcase
+          shows the verifier's send-back rate as 'sent back N of the last M
+          changes' computed from verification reports; an ADR records the
+          override of the 2026-06-10 rule that verifier output stays off the
+          showcase.
+        test_status: passing
+        linked_test: feature verifier report 544 on c806f06 (case matrix C1-C15); code
+          verifier reports 1255-1261
+    dependencies: []
