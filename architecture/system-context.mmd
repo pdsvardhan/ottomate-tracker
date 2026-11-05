@@ -4,7 +4,7 @@ graph TD
     Tracker -->|drizzle-orm 0.36| DB[(SQLite<br/>/app/data/ottomate.db)]
     Tracker -->|FTS5 triggers| FTS[(ottomate_fts<br/>cross-doc search)]
     Skill[/ottomate skill<br/>Claude Code/] -->|bearer-auth GET/POST/PATCH/DELETE| Tracker
-    Skill -->|SSH pdsv@192.168.1.10| Server[VAULT7A host]
+    Skill -->|SSH pdsv@192.0.2.10| Server[VAULT7A host]
     Skill -->|git push| Gitea[Gitea<br/>git.vault7a.xyz]
     Server -->|filesystem| YAMLMirrors[/repos/<slug>/ottomate/*.yaml/]
     Skill -->|read/write| YAMLMirrors

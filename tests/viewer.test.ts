@@ -11,7 +11,7 @@ describe('isOwnerView', () => {
   });
   it('the LAN path (NPM straight to the app, no Cloudflare header) is the owner', () => {
     expect(isOwnerView(h({}))).toBe(true);
-    expect(isOwnerView(h({ 'x-forwarded-for': '192.168.1.20' }))).toBe(true);
+    expect(isOwnerView(h({ 'x-forwarded-for': '192.0.2.20' }))).toBe(true);
   });
   it('an anonymous request through the tunnel is a visitor', () => {
     expect(isOwnerView(h({ 'cf-connecting-ip': '203.0.113.7' }))).toBe(false);

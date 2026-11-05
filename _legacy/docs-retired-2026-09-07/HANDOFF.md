@@ -94,7 +94,7 @@ These are in REQUIREMENTS.md but worth surfacing:
 
 ```bash
 # 1. SSH to server
-ssh pdsv@192.168.1.10
+ssh pdsv@192.0.2.10
 
 # 2. Generate bearer token (if not done)
 [ ! -f /opt/homeserver/ottomate/.token ] && \
@@ -125,7 +125,7 @@ git pull
 
 ## Server access
 
-- SSH: `pdsv@192.168.1.10` (key-only auth; password redacted 2026-06-10)
+- SSH: `pdsv@192.0.2.10` (key-only auth; password redacted 2026-06-10)
 - All file ops via SSH + SCP
 - **Never SSH heredoc for code** — corrupts via shell escaping
 - **Always commit before docker rebuild** — rebuilds wipe uncommitted
@@ -142,7 +142,7 @@ Full credentials in `skills/ottomate/references/credentials.md`.
 3. Test invocation: `/ottomate`
 
 ### Pattern 2 — Edit the tracker code
-1. SSH: `ssh pdsv@192.168.1.10`
+1. SSH: `ssh pdsv@192.0.2.10`
 2. `cd /opt/homeserver/ottomate`
 3. Edit files (use Write+SCP for code, never SSH heredoc)
 4. `docker compose restart ottomate` to reload
@@ -154,8 +154,8 @@ Full credentials in `skills/ottomate/references/credentials.md`.
 
 ### Pattern 4 — Push planning docs to server (mirror)
 ```bash
-scp ~/.claude/plugins/ottomate-v2/{TODO,PENDING,DONE,...}.md pdsv@192.168.1.10:/opt/homeserver/ottomate/
-ssh pdsv@192.168.1.10 'cd /opt/homeserver/ottomate && git add . && git commit -m "Sync planning docs" && git push'
+scp ~/.claude/plugins/ottomate-v2/{TODO,PENDING,DONE,...}.md pdsv@192.0.2.10:/opt/homeserver/ottomate/
+ssh pdsv@192.0.2.10 'cd /opt/homeserver/ottomate && git add . && git commit -m "Sync planning docs" && git push'
 ```
 
 ---
@@ -164,19 +164,19 @@ ssh pdsv@192.168.1.10 'cd /opt/homeserver/ottomate && git add . && git commit -m
 
 ```bash
 # Check tracker health (after Phase 1 done)
-ssh pdsv@192.168.1.10 'curl -sf http://127.0.0.1:8110/api/health'
+ssh pdsv@192.0.2.10 'curl -sf http://127.0.0.1:8110/api/health'
 
 # Tail tracker logs
-ssh pdsv@192.168.1.10 'docker logs -f ottomate'
+ssh pdsv@192.0.2.10 'docker logs -f ottomate'
 
 # Recent commits
-ssh pdsv@192.168.1.10 'cd /opt/homeserver/ottomate && git log --oneline -10'
+ssh pdsv@192.0.2.10 'cd /opt/homeserver/ottomate && git log --oneline -10'
 
 # Check what's running on the server
-ssh pdsv@192.168.1.10 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
+ssh pdsv@192.0.2.10 'docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
 
 # Open this doc on server
-ssh pdsv@192.168.1.10 'cat /opt/homeserver/ottomate/STATUS.md'
+ssh pdsv@192.0.2.10 'cat /opt/homeserver/ottomate/STATUS.md'
 ```
 
 ---

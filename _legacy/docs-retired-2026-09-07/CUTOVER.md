@@ -30,7 +30,7 @@ When Phase 1-12 done, switch from old tracker (port 8100) to new ottomate (port 
 - [ ] Restart cloudflared: `docker compose -f /opt/homeserver/docker-compose/cloudflared.yml restart`
 
 ### 3. NPM proxy host (5 min)
-- [ ] NPM admin UI at `http://192.168.1.10:81`
+- [ ] NPM admin UI at `http://192.0.2.10:81`
 - [ ] Add proxy host:
   - Domain: `ottomate.vault7a.xyz`
   - Forward IP: `ottomate` (container name on `projects-net`)

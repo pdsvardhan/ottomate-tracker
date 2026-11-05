@@ -15,7 +15,7 @@ Each task has: title, description, files affected, estimated hours, dependencies
 **Time:** 5 min
 **Steps:**
 ```bash
-ssh pdsv@192.168.1.10
+ssh pdsv@192.0.2.10
 cd /opt/homeserver/ottomate
 npm install
 # Verify: ls node_modules/ | wc -l (should be hundreds)

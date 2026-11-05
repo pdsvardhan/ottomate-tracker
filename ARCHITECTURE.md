@@ -44,7 +44,7 @@ graph TD
     Tracker -->|drizzle-orm + better-sqlite3| DB[(SQLite /app/data/ottomate.db)]
     Tracker -->|FTS5 triggers| FTS[(ottomate_fts — cross-doc search)]
     Skill[/ottomate skill — Claude Code/] -->|bearer-auth API, server-side| Tracker
-    Skill -->|SSH pdsv@192.168.1.10| Host[VAULT7A host]
+    Skill -->|SSH pdsv@192.0.2.10| Host[VAULT7A host]
     Skill -->|git push| Gitea[Gitea — git.vault7a.xyz]
     Harness[fv-harness — Playwright feature verifier] -->|reports, test runs| Tracker
     Harness -->|drives| Apps[the projects' running apps]

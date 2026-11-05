@@ -92,7 +92,7 @@ The 10 active projects carried over from v1 tracker. Each has a placeholder succ
 The tracker is bound to `127.0.0.1:8110` on VAULT7A and Gitea is `127.0.0.1:3300`. The public `git.vault7a.xyz` route was removed; both services need a tunnel:
 
 ```
-ssh -L 8110:127.0.0.1:8110 -L 3300:127.0.0.1:3300 pdsv@192.168.1.10
+ssh -L 8110:127.0.0.1:8110 -L 3300:127.0.0.1:3300 pdsv@192.0.2.10
 ```
 
 Then in your browser:
@@ -131,7 +131,7 @@ All mutating methods require `Authorization: Bearer $(cat /opt/homeserver/ottoma
 ## Recent commits (server)
 
 ```
-$ ssh pdsv@192.168.1.10 'cd /opt/homeserver/ottomate && git log --oneline -15'
+$ ssh pdsv@192.0.2.10 'cd /opt/homeserver/ottomate && git log --oneline -15'
 88295ce Phase 9 minimal: DB → YAML serialisation + pack-up integration
 12d4fd6 Phase 4 UI follow-up: scope gitignore data/ + coverage/ to root only; add missing routes
 c412b7a Phase 4 UI follow-up: missed Data tab + Coverage page; scope gitignore coverage to root only
@@ -206,20 +206,20 @@ Skill writes those files to `/mnt/storage/websites/<slug>/` via SCP (tracker `/r
 
 ```bash
 # Check tracker health
-ssh pdsv@192.168.1.10 'curl -sf http://127.0.0.1:8110/api/health'
+ssh pdsv@192.0.2.10 'curl -sf http://127.0.0.1:8110/api/health'
 
 # Tail tracker logs
-ssh pdsv@192.168.1.10 'docker logs -f ottomate'
+ssh pdsv@192.0.2.10 'docker logs -f ottomate'
 
 # SSH tunnel to view UI in your browser
-ssh -L 8110:127.0.0.1:8110 pdsv@192.168.1.10
+ssh -L 8110:127.0.0.1:8110 pdsv@192.0.2.10
 # then open http://localhost:8110 in a browser
 
 # Trigger pack-up for a project
-ssh pdsv@192.168.1.10 'TOK=$(cat /opt/homeserver/ottomate/.token); \
+ssh pdsv@192.0.2.10 'TOK=$(cat /opt/homeserver/ottomate/.token); \
   curl -X POST -H "Authorization: Bearer $TOK" -H "content-type: application/json" \
   http://127.0.0.1:8110/api/pack-up -d "{\"project_slug\":\"<slug>\"}"'
 
 # Pull latest from server
-ssh pdsv@192.168.1.10 'cd /opt/homeserver/ottomate && git pull'
+ssh pdsv@192.0.2.10 'cd /opt/homeserver/ottomate && git pull'
 ```

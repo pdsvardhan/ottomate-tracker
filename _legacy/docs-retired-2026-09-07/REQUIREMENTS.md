@@ -502,7 +502,7 @@ User: "DO ALL TASKS BUT PLANNING TO INTEGRATE ONLY FEW WEBSITES FIRST." Respect 
 
 ## R19 — Server access
 
-- SSH: `pdsv@192.168.1.10` (key-only auth; password redacted 2026-06-10)
+- SSH: `pdsv@192.0.2.10` (key-only auth; password redacted 2026-06-10)
 - All file ops via SSH + SCP
 - **Never SSH heredoc for code files** (corrupts via shell escaping)
 - **Always commit before docker rebuild** (rebuilds wipe uncommitted)

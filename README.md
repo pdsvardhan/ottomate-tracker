@@ -1,5 +1,7 @@
 # Ottomate — Web Project Pipeline
 
+> **About this public copy (November 2026).** This is the Ottomate tracker website, published for my portfolio with its real commit history. It runs on my own home server alongside the Ottomate Claude Code skill (published separately), so its hosts and paths assume that setup. Home-network addresses are replaced with documentation addresses (192.0.2.x), and the history was filtered: the feature verifier's recorded test runs and some internal notes were left out.
+
 Companion website to the `/ottomate` skill. The skill owns judgment and dialogs; this app
 owns state, gates, and evidence for every VAULT7A web project across the 5-stage pipeline
 (idea → spec → design → build → iterate). Anti-gaslighting bedrock: every iteration passes a
