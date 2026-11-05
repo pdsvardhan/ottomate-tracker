@@ -1,145 +1,123 @@
-# Ottomate — Web Project Pipeline
+# Ottomate tracker
 
-> **About this public copy (November 2026).** This is the Ottomate tracker website, published for my portfolio with its real commit history. It runs on my own home server alongside the Ottomate Claude Code skill (published separately), so its hosts and paths assume that setup. Home-network addresses are replaced with documentation addresses (192.0.2.x), and the history was filtered: the feature verifier's recorded test runs and some internal notes were left out.
+A website and API that keeps the record for every web project built with the Ottomate skill for Claude Code (Anthropic's AI coding tool).
+It holds each project's plan, progress and test results outside the chat. Built with Next.js and SQLite.
 
-Companion website to the `/ottomate` skill. The skill owns judgment and dialogs; this app
-owns state, gates, and evidence for every VAULT7A web project across the 5-stage pipeline
-(idea → spec → design → build → iterate). Anti-gaslighting bedrock: every iteration passes a
-lock-in gate where the user confirms what got extracted before any code is written.
+> **About this public copy.** Published in November 2026 with its real commit history. It runs on the owner's home
+> server alongside the [Ottomate skill](https://github.com/pdsvardhan/ottomate-skill), so hosts and paths in the code
+> and docs assume that setup. Home-network addresses are replaced with documentation addresses (192.0.2.x). The
+> history was filtered: the feature verifier's recorded test runs and some internal notes were left out. The owner's
+> running copy of the site is behind a sign-in; only the [showcase page](https://ottomate.vault7a.xyz/showcase/) is public.
 
-## Status
+## Why it exists
 
-🟢 **Live** at `https://ottomate.vault7a.xyz` (localhost-bound :8110, published via NPM + tunnel).
-The full pipeline is in production use: SO1 spec capture + 5-pass verification, Stage-2 UI master
-plan + component picking against a cross-project asset library, Stage-3 scaffolding/codegen/verifier/
-E2E, and the Stage-4 mini-pipeline (intake → classify → lock-in → build → verifier → integrate +
-trace report). Cross-cutting systems running: sanity-check gates, the anti-gaslight violations
-engine, the 116-component master library (17 categories) with self-hosted inline previews, per-project to-dos,
-public-docs mirror, and the DB→YAML mirror recovery net.
+The Ottomate skill is a set of instructions that guides Claude Code through building a web project. In long build
+sessions with an AI, three things kept going wrong:
 
-## Stack
+- The AI said a feature was finished when it was only a placeholder.
+- It quietly dropped work it had agreed to do.
+- Each new chat started from nothing, so it was hard to tell what was real, what was promised and what had shipped.
 
-- Next.js 16 (App Router, RSC)
-- TypeScript strict
-- Tailwind v4
-- shadcn/ui-style components (Radix primitives, copy-paste)
-- drizzle-orm + better-sqlite3
-- zod validation
-- chokidar (file watcher for DB→YAML mirror sync)
+The fix is to keep each project's plan, progress and test results in this website, outside the chat. The skill works
+from this record through an API, and it cannot mark its own work as done.
 
-## Local development
+## What the website shows
+
+- **Projects list.** One row per project with its stage (idea, spec, design, build or iterate), progress, health and
+  links, plus recent activity across all projects.
+- **Project page.** For each project:
+  - an overview: what it does, how it is used, and what is next;
+  - features, each with its acceptance criteria (the checks that define "done");
+  - user flows (step-by-step paths through the app) and the pages they use, with their test status;
+  - architecture diagrams, from the overall workflow down to the system design;
+  - decisions: why things were built a certain way, including one change the reviewer sent back and how it was fixed.
+- **Component library and inspirations.** Reusable UI components collected from past projects, grouped by category
+  with live previews, and a gallery of design references. The skill draws on both when it plans a project's design.
+- **Progress.** Which features are done, in progress or planned, and which flows have passed a test. An owner-only
+  coverage page lists flows with no test as gaps, never as passes.
+
+A video tour of the website is on the [showcase page](https://ottomate.vault7a.xyz/showcase/).
+
+## How it keeps work honest
+
+The skill does the talking and the coding. This website holds the record and decides what counts as done.
+
+1. **You approve the list before anything is built.** The skill turns each request into a list of items and shows,
+   for each one, how sure it is and which words of the request it came from. You edit the list, then lock it. The API
+   will not lock it while an item the skill was unsure about has not been checked by you.
+2. **A separate reviewer agent checks the code.** It is a different AI agent from the one that wrote the code. It
+   reads the locked list and the code changes, not the coder's own report, and records a verdict: approve, send back,
+   or block. The coding agent can report progress, but it cannot mark an item as verified or closed. In early November
+   2026 the reviewer was sending back about one change in ten
+   ([adr-025](decisions/adr-025-verifier-on-the-showcase.md)).
+3. **A browser test checks the real app.** For projects that have one, a Playwright test (the "feature verifier")
+   clicks through the running app as a person would and files its result here. The core of this test harness is in
+   [`tests/e2e/feature-verify/`](tests/e2e/feature-verify/).
+4. **The API refuses some writes.** For example, a feature cannot move to "building" without acceptance criteria, a
+   round of changes cannot be closed while any item in it is still open, and dropping agreed work needs a written reason.
+5. **Every write needs a token.** Reading is open, but every change through the API must carry a secret token.
+   Without it the API answers "401 Unauthorized". If the database file is in an unsafe state, writes fail with an
+   error instead of reporting a false success.
+
+## Tech stack
+
+- Next.js 16 (App Router), React 19 and TypeScript
+- Tailwind CSS v4 and Radix UI components
+- SQLite through better-sqlite3 and Drizzle ORM, with SQLite full-text search
+- Zod, which checks every write against a schema
+- Mermaid and React Flow for diagrams
+- Vitest for API tests and Playwright for browser tests
+- Docker; on the home server it sits behind a Cloudflare Tunnel and an Authentik sign-in
+
+## Running it locally
+
+It was built for one home server, but the app itself runs on a laptop with Node.js 22. These steps use a Unix shell
+(macOS, Linux or WSL):
 
 ```bash
-# Install deps
+git clone https://github.com/pdsvardhan/ottomate-tracker.git
+cd ottomate-tracker
 npm install
-
-# Generate migrations from schema
-npm run db:generate
-
-# Apply migrations (creates ./data/ottomate.db)
-npm run db:migrate
-
-# Seed risks catalog (50 risk types)
-npm run seed:risks
-
-# Seed master components (cross-project asset library)
-npm run seed:components
-
-# Start dev server
-npm run dev
-# → http://localhost:3000
+mkdir data                                        # the SQLite file is created here
+export TRACKER_API_TOKEN=$(openssl rand -hex 32)  # needed for every write
+export OTTOMATE_DISABLE_WATCHER=true              # skips a watcher for home-server folders
+npm run dev                                       # opens on http://localhost:3000
 ```
 
-> **ONE DOOR (adr-018):** never open `data/ottomate.db` with a host `sqlite3` or any second
-> SQLite client while the container runs — all reads/writes go through the API. Both 2026-06
-> data-loss incidents came from exactly that (WAL orphaned-shm cascade).
-
-## Production deployment
-
-On VAULT7A server at `/opt/homeserver/ottomate/`:
+The database tables are created on first start. The database starts empty, because the owner's project data is not
+in this repo. To add a project:
 
 ```bash
-# Generate bearer token (Codex P0 #2)
-openssl rand -hex 32 > .token
-chmod 600 .token
-
-# Build & start
-docker compose up --build -d
-
-# Health check
-curl http://127.0.0.1:8110/api/health
+curl -X POST http://localhost:3000/api/projects \
+  -H "Authorization: Bearer $TRACKER_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"slug":"demo-app","display_name":"Demo app"}'
 ```
 
-NPM proxy host: `ottomate.vault7a.xyz` → `ottomate:3000`.
+`npm test` runs the Vitest API tests against a throwaway database under `/tmp`.
 
-## Project structure
+Some parts only work on the home server. Component previews are read from a folder on that server. `docker compose up`
+will not run as written, because `docker-compose.yml` expects the server's Docker network, its storage folders and a
+`.token` file.
 
-```
-ottomate/
-├── app/                                 Next.js routes
-│   ├── page.tsx                         (home / portfolio dashboard)
-│   ├── projects/<slug>/                 (per-project pipeline UI: spec, components-pick, iterations, …)
-│   ├── components-browser/              (master-components asset library + inline previews)
-│   ├── layout.tsx                       (root layout, dark theme)
-│   ├── globals.css                      (Tailwind v4 tokens)
-│   └── api/                             (the pipeline + cross-cutting API surface —
-│                                         projects, flows, features, pages, iterations,
-│                                         master-components, anti-gaslight, sanity-check, …)
-├── lib/
-│   └── db/
-│       ├── schema.ts                    (full drizzle schema — 60+ tables)
-│       ├── client.ts                    (migration-first bootstrap, Codex P0 #1)
-│       └── migrations/                  (generated by drizzle-kit)
-├── components/                          (shadcn-style primitives)
-├── scripts/
-│   ├── seed-risks-catalog.ts            (50 risks)
-│   ├── seed-master-components.ts        (cross-project assets)
-│   ├── build-previews.mjs               (self-hosted inline component previews)
-│   └── generate-status.sh              (STATUS.md — never hand-edited, adr-016)
-├── data/                                (gitignored — sqlite DB lives here)
-├── Dockerfile
-├── docker-compose.yml                   (port 8110, localhost-bound)
-├── drizzle.config.ts
-├── next.config.mjs
-├── tsconfig.json
-├── postcss.config.mjs
-└── package.json
-```
+## What's in this repo
 
-(The tree is illustrative — the app + API surface is far larger than shown.)
+| Folder or file | What it holds |
+|---|---|
+| `app/` | The website's pages, and the API under `app/api/` |
+| `components/` | React components used by the pages |
+| `lib/` | Database schema and migrations (`lib/db/`), token check, input validation, showcase logic |
+| `tests/` | Vitest API tests, and Playwright browser tests in `tests/e2e/` |
+| `scripts/` | Maintenance scripts: YAML backup of the database, component preview builder, API route list |
+| `preview-sandbox/` | A separate workspace that bundles library components for their live previews |
+| `decisions/` | Decision records (ADRs): short notes on why something was built a certain way |
+| `public_docs/` | Short write-ups: the thesis, a technical deep-dive, validation and a retrospective |
+| `ottomate/` | This project's own record, exported from the tracker as YAML (the tracker tracks itself) |
+| `ARCHITECTURE.md` | How the skill, the website and the database fit together |
+| `FEATURES.md` | The feature and flow list, generated from the tracker |
 
-## Keys + secrets
+## Links
 
-See `.env.example`. Real values via `.env` (gitignored).
-
-Bearer token for mutations: `.token` file, mounted as Docker secret. All mutating API calls
-require `Authorization: Bearer $(cat .token)`.
-
-## Database schema
-
-Full schema in `lib/db/schema.ts`. ~60 tables across:
-- Projects + non_goals + success_criteria (Doc 1)
-- Flows + flow_steps + flow_pre_conditions + flow_edge_cases (Doc 2)
-- Features + acceptance_criteria + dependencies (Doc 3)
-- Pages + components + variants (Doc 4)
-- Data sources + concepts + contracts (Doc 5 — split per Codex P1 #9)
-- Risk instances (resolved-not-deleted per Codex P1 #10) + per-target joins (no polymorphic FKs per P2 #17) + policies + third_party + auth + secrets
-- ADR index + adr_features + adr_risks (Doc 8)
-- Stage 2: ui_master_plans + tech_stacks
-- Stage 4: reports + iterations + iteration_items + bugs + feature_requests
-- Verification reports + yaml_mirror_state (drift detection per P0 #2)
-- Cross-project: risks_catalog + master_components + external_project_mappings
-
-## Ongoing work
-
-Tracked as per-project to-dos in the app itself (`/api/projects/ottomate/todos` — state / kind / owner queue), not a static
-file; the generated [FEATURES.md](FEATURES.md) is the reference, the showcase progress page the status view. The pipeline is iterated on through its own Stage-4 loop.
-
-## Related
-
-- Skill plugin: `~/.claude/plugins/ottomate/` — Gitea `pdsv/ottomate` (the system's brain).
-- This app: Gitea `pdsv/ottomate-tracker-v3`.
-- Architecture: [ARCHITECTURE.md](ARCHITECTURE.md) · generated reference: [FEATURES.md](FEATURES.md) · decisions:
-  [decisions/](decisions/) · narrative: [public_docs/](public_docs/) · coding rules: [CODING_GUIDELINES.md](CODING_GUIDELINES.md).
-- Retired hand-written status docs (April–June 2026): `_legacy/docs-retired-2026-09-07/` — see
-  [adr-024](decisions/adr-024-docs-to-the-standard.md). The tasks-dashboard repo was removed from Gitea on 2026-07-07.
+- Showcase page, with a video tour of this website: https://ottomate.vault7a.xyz/showcase/
+- The Ottomate skill: https://github.com/pdsvardhan/ottomate-skill
+- Author: Sai Vardhan Palli, https://www.linkedin.com/in/sai-vardhan-palli-3b1614187/
